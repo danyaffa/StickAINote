@@ -27,10 +27,10 @@ export default function RegisterPage() {
   return (
     <>
       <Head>
-        <title>Stick a Note – Start Free Trial</title>
+        <title>Stick ai Note – Start Free Trial</title>
         <meta
           name="description"
-          content="Create your Stick a Note account and start your free trial."
+          content="Create your Stick ai Note account and start your free trial."
         />
         <link rel="canonical" href={canonicalUrl} />
       </Head>
