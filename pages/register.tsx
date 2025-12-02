@@ -1,36 +1,65 @@
 // FILE: /pages/register.tsx
 import Head from "next/head";
-import Link from "next/link";
-import React, { useMemo, useState } from "react";
-
-function getPasswordStrength(pw: string): { label: string; color: string } {
-  if (!pw) return { label: "", color: "" };
-
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (/[A-Z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-
-  if (score <= 1) return { label: "Weak password", color: "#dc2626" };
-  if (score === 2) return { label: "Medium strength", color: "#ea580c" };
-  return { label: "Strong password", color: "#16a34a" };
-}
+import React, { useState } from "react";
 
 export default function RegisterPage() {
   const canonicalUrl = "https://stickainote.com/register";
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const strength = useMemo(() => getPasswordStrength(password), [password]);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setErrorMsg(null);
+
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      setErrorMsg("Please fill in all fields.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // ✅ Call your Stripe checkout creator
+      const res = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          name,
+          // you can add more fields if your API expects them
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.url) {
+        throw new Error(
+          data?.error || "Stripe checkout could not be created."
+        );
+      }
+
+      // ✅ Redirect to Stripe secure checkout
+      window.location.href = data.url as string;
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err?.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <>
       <Head>
-        <title>Stick AI Note – Start Free Trial</title>
+        <title>Stick AI Note – Start your free trial</title>
         <meta
           name="description"
-          content="Create your Stick AI Note account and start your free trial."
+          content="Start your free trial of Stick AI Note. Create your account and then add your payment details securely via Stripe. First month free, cancel any time."
         />
         <link rel="canonical" href={canonicalUrl} />
       </Head>
@@ -55,16 +84,16 @@ export default function RegisterPage() {
           <div
             style={{
               width: "100%",
-              maxWidth: 440,
+              maxWidth: 460,
               background: "#ffffff",
               borderRadius: 16,
               boxShadow: "0 10px 30px rgba(15,23,42,0.18)",
-              padding: "1.75rem 1.75rem 1.6rem",
+              padding: "1.75rem 1.75rem 1.5rem",
             }}
           >
             <h1
               style={{
-                fontSize: "1.6rem",
+                fontSize: "1.5rem",
                 marginBottom: "0.75rem",
                 color: "#0f172a",
               }}
@@ -72,17 +101,61 @@ export default function RegisterPage() {
               Start your free trial
             </h1>
 
-            <p style={{ fontSize: "0.9rem", marginBottom: "1.25rem" }}>
-              This page will later connect to Stripe + Firebase. For now, you can
-              test the password strength and then click the button to open your
-              note.
+            <p
+              style={{
+                fontSize: "0.9rem",
+                marginBottom: "1rem",
+                color: "#374151",
+              }}
+            >
+              Step 1 – Create your Stick AI Note account.
+              <br />
+              Step 2 – On the next screen, you&apos;ll be taken to{" "}
+              <strong>Stripe</strong> to enter your card details.
             </p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <p
+              style={{
+                fontSize: "0.85rem",
+                marginBottom: "1rem",
+                color: "#6b7280",
+              }}
+            >
+              Your <strong>first month is free</strong>. You must enter your
+              credit-card details now to activate the free trial, just like
+              other subscription services.
+              <br />
+              You can <strong>cancel any time before the end of the month</strong>{" "}
+              and you will <strong>not be charged</strong>. You can also remove
+              or change your card later.
+            </p>
+
+            {errorMsg && (
+              <div
+                style={{
+                  marginBottom: "0.75rem",
+                  padding: "0.45rem 0.6rem",
+                  borderRadius: 8,
+                  background: "#fee2e2",
+                  color: "#b91c1c",
+                  fontSize: "0.8rem",
+                }}
+              >
+                {errorMsg}
+              </div>
+            )}
+
+            <form
+              onSubmit={handleSubmit}
+              style={{ display: "flex", flexDirection: "column", gap: 10 }}
+            >
+              {/* Name */}
               <label style={{ fontSize: "0.85rem" }}>
                 Name
                 <input
                   type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   style={{
                     width: "100%",
                     marginTop: 4,
@@ -93,10 +166,13 @@ export default function RegisterPage() {
                 />
               </label>
 
+              {/* Email */}
               <label style={{ fontSize: "0.85rem" }}>
                 Email
                 <input
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   style={{
                     width: "100%",
                     marginTop: 4,
@@ -107,6 +183,7 @@ export default function RegisterPage() {
                 />
               </label>
 
+              {/* Password */}
               <label style={{ fontSize: "0.85rem" }}>
                 Choose password
                 <div
@@ -145,39 +222,43 @@ export default function RegisterPage() {
                     {showPassword ? "Hide" : "Show"}
                   </button>
                 </div>
-                {strength.label && (
-                  <div
-                    style={{
-                      marginTop: 4,
-                      fontSize: "0.78rem",
-                      color: strength.color,
-                    }}
-                  >
-                    {strength.label} – use at least 8 characters, including
-                    letters, numbers and a symbol.
-                  </div>
-                )}
               </label>
-            </div>
 
-            <Link
-              href="/app"
-              style={{
-                marginTop: 16,
-                display: "inline-block",
-                textAlign: "center",
-                width: "100%",
-                padding: "0.65rem 1rem",
-                borderRadius: 999,
-                background: "#16a34a",
-                color: "#ffffff",
-                fontWeight: 600,
-                textDecoration: "none",
-                fontSize: "0.95rem",
-              }}
-            >
-              Create account &amp; open my note
-            </Link>
+              {/* Password tip (can be extended later with strength meter) */}
+              <p
+                style={{
+                  fontSize: "0.75rem",
+                  marginTop: 2,
+                  marginBottom: 6,
+                  color: "#6b7280",
+                }}
+              >
+                Use at least 8 characters with a mix of letters and numbers.
+              </p>
+
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  marginTop: 10,
+                  display: "inline-block",
+                  textAlign: "center",
+                  width: "100%",
+                  padding: "0.65rem 1rem",
+                  borderRadius: 999,
+                  background: loading ? "#16a34a80" : "#16a34a",
+                  color: "#ffffff",
+                  fontWeight: 600,
+                  fontSize: "0.95rem",
+                  border: "none",
+                  cursor: loading ? "default" : "pointer",
+                }}
+              >
+                {loading
+                  ? "Connecting to Stripe…"
+                  : "Create account & go to secure Stripe page"}
+              </button>
+            </form>
 
             <p
               style={{
@@ -187,9 +268,20 @@ export default function RegisterPage() {
               }}
             >
               Already have an account?{" "}
-              <Link href="/login" style={{ color: "#2563eb" }}>
+              <a href="/login" style={{ color: "#2563eb" }}>
                 Log in
-              </Link>
+              </a>
+            </p>
+
+            <p
+              style={{
+                marginTop: "0.5rem",
+                fontSize: "0.75rem",
+                color: "#9ca3af",
+              }}
+            >
+              You can cancel any time in your Stripe customer portal before your
+              free month ends and you will not be charged.
             </p>
           </div>
         </main>
