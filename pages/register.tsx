@@ -18,7 +18,7 @@ function getPasswordStrength(pw: string): { label: string; color: string } {
 }
 
 export default function RegisterPage() {
-  const canonicalUrl = "https://note-on-screen.vercel.app/register";
+  const canonicalUrl = "https://stickainote.com/register";
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
@@ -27,10 +27,10 @@ export default function RegisterPage() {
   return (
     <>
       <Head>
-        <title>Stick ai Note – Start Free Trial</title>
+        <title>Stick AI Note – Start Free Trial</title>
         <meta
           name="description"
-          content="Create your Stick ai Note account and start your free trial."
+          content="Create your Stick AI Note account and start your free trial."
         />
         <link rel="canonical" href={canonicalUrl} />
       </Head>
