@@ -1,19 +1,21 @@
+// FILE: /public/manifest.json
 {
-  "name": "NoteOnScreen",
-  "short_name": "NoteOnScreen",
+  "name": "Stick a Note – AI Sticky Notes",
+  "short_name": "Stick a Note",
+  "description": "Stick a Note lets you pin AI-powered sticky notes on your screen with spelling, grammar, translation and dictation.",
+  "lang": "en",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "any",
   "background_color": "#e5e7eb",
-  "theme_color": "#e5e7eb",
+  "theme_color": "#0f172a",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
