@@ -14,6 +14,7 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
+import { getAuth } from "firebase/auth"; // ✅ ADD THIS
 
 // 🔹 1. NOTE TYPE (includes color)
 export type Note = {
@@ -43,7 +44,10 @@ function getFirebaseApp() {
 }
 
 const app = getFirebaseApp();
+
+// 🔹 Firestore & Auth exports (shared app)
 export const db = getFirestore(app);
+export const auth = getAuth(app); // ✅ THIS MAKES THE REGISTER PAGE COMPILE
 
 // 🔹 Helper to convert Firestore timestamps safely
 function tsToMillis(value: any): number {
