@@ -48,10 +48,8 @@ export const db = getFirestore(app);
 // 🔹 Helper to convert Firestore timestamps safely
 function tsToMillis(value: any): number {
   if (!value) return Date.now();
-  // Firestore Timestamp object has .toMillis()
-  if (typeof value.toMillis === "function") return value.toMillis();
-  // Plain number
-  if (typeof value === "number") return value;
+  if (typeof value.toMillis === "function") return value.toMillis(); // Firestore Timestamp
+  if (typeof value === "number") return value; // plain millis
   return Date.now();
 }
 
@@ -66,7 +64,7 @@ export async function createNote(
   const docRef = await addDoc(notesRef, {
     userId,
     content,
-    color, // ✅ SAVED HERE
+    color, // ✅ stored here
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
