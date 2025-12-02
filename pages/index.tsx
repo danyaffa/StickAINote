@@ -99,9 +99,7 @@ export default function LandingPage() {
                 <Link href="/login" className="btn-dark">
                   Log in
                 </Link>
-                <Link href="/app" className="btn-ghost">
-                  Open my note
-                </Link>
+                {/* ❌ Removed direct "Open my note" access from homepage */}
               </div>
 
               <p
