@@ -3,9 +3,9 @@ import Head from "next/head";
 import React, { useState } from "react";
 import { useRouter } from "next/router";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../lib/firebase"; // ← adjust path if your firebase file is elsewhere
+import { auth } from "../lib/firestore"; // ✅ USE EXISTING FIREBASE FILE
 
-// ⭐ SAME IDEA AS CALMTINNITUS
+// SAME IDEA AS CALMTINNITUS
 const DEVELOPER_EMAIL = "leffleryd@gmail.com";
 const STRIPE_LINK =
   process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK ||
@@ -23,7 +23,6 @@ export default function RegisterPage() {
 
   const router = useRouter();
 
-  // ✅ AFTER FIREBASE REGISTRATION – DECIDE WHERE TO GO
   const handleSuccessfulAuth = (userEmail: string | null) => {
     const e = (userEmail || "").toLowerCase();
 
@@ -34,7 +33,6 @@ export default function RegisterPage() {
     }
 
     // Normal users → go to STRIPE to enter card
-    // We can prefill email & name in the Stripe link
     const url = new URL(STRIPE_LINK);
     if (email) url.searchParams.set("prefilled_email", email);
     if (name) url.searchParams.set("client_reference_id", name);
@@ -54,10 +52,10 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      // ✅ CREATE USER IN FIREBASE (same as CalmTinnitus)
+      // CREATE USER IN FIREBASE (same pattern as CalmTinnitus)
       const cred = await createUserWithEmailAndPassword(auth, email, password);
 
-      // ✅ THEN REDIRECT (dev → app, users → Stripe)
+      // THEN REDIRECT (dev → app, users → Stripe)
       handleSuccessfulAuth(cred.user.email || email);
     } catch (err: any) {
       console.error(err);
