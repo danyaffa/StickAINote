@@ -42,7 +42,7 @@ const createNewNote = (): Note => {
     color: COLORS[Math.floor(Math.random() * COLORS.length)],
     createdAt: now,
     updatedAt: now,
-    aiStatus: "idle"
+    aiStatus: "idle",
   };
 };
 
@@ -52,46 +52,46 @@ const NoteBoard: React.FC = () => {
   const [drag, setDrag] = useState<DragState>({
     noteId: null,
     offsetX: 0,
-    offsetY: 0
+    offsetY: 0,
   });
   const [aiBusyId, setAiBusyId] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [targetLanguage, setTargetLanguage] = useState("Hebrew");
   const [speechSupported, setSpeechSupported] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  // ---------- Load / save to localStorage ----------
+  // FIXED: Safe type (no SpeechRecognition type required)
+  const recognitionRef = useRef<any>(null);
+
+  // Load notes
   useEffect(() => {
     if (typeof window === "undefined") return;
     const key = getStorageKey(user?.uid || null);
     const raw = window.localStorage.getItem(key);
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw) as Note[];
-        setNotes(parsed);
-      } catch {
-        // ignore parse error
-      }
-    }
+    if (!raw) return;
+
+    try {
+      setNotes(JSON.parse(raw));
+    } catch {}
   }, [user?.uid]);
 
+  // Save notes
   useEffect(() => {
     if (typeof window === "undefined") return;
     const key = getStorageKey(user?.uid || null);
     window.localStorage.setItem(key, JSON.stringify(notes));
-  }, [notes, user?.uid]);
+  }, [notes]);
 
-  // ---------- Speech recognition (browser only) ----------
+  // Speech recognition setup
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const SpeechRecognitionImpl =
+    const SR =
       (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition;
 
-    if (SpeechRecognitionImpl) {
+    if (SR) {
       setSpeechSupported(true);
-      const recog: SpeechRecognition = new SpeechRecognitionImpl();
+      const recog = new SR();
       recog.lang = "en-US";
       recog.continuous = false;
       recog.interimResults = false;
@@ -101,150 +101,103 @@ const NoteBoard: React.FC = () => {
     }
   }, []);
 
-  const handleDictateIntoNote = (noteId: string) => {
-    if (!speechSupported || !recognitionRef.current) return;
+  const dictate = (noteId: string) => {
     const recog = recognitionRef.current;
+    if (!recog) return;
 
-    recog.onresult = (event: SpeechRecognitionEvent) => {
+    recog.onresult = (event: any) => {
       const transcript = Array.from(event.results)
-        .map((r) => r[0]?.transcript || "")
+        .map((r: any) => r[0]?.transcript || "")
         .join(" ");
 
       setNotes((prev) =>
         prev.map((n) =>
           n.id === noteId
-            ? {
-                ...n,
-                content: (n.content ? n.content + " " : "") + transcript,
-                updatedAt: Date.now()
-              }
+            ? { ...n, content: n.content + " " + transcript, updatedAt: Date.now() }
             : n
         )
       );
     };
 
-    recog.onerror = () => {
-      // ignore errors, user can retry
-    };
-
     recog.start();
   };
 
-  // ---------- Drag logic ----------
-  const onMouseDownHeader = (
-    e: React.MouseEvent<HTMLDivElement>,
-    noteId: string
-  ) => {
-    const target = e.currentTarget.parentElement as HTMLDivElement | null;
-    if (!target) return;
+  // Drag logic
+  const startDrag = (e: React.MouseEvent<HTMLDivElement>, noteId: string) => {
+    const card = e.currentTarget.parentElement as HTMLDivElement | null;
+    if (!card) return;
 
-    const rect = target.getBoundingClientRect();
+    const r = card.getBoundingClientRect();
+
     setDrag({
       noteId,
-      offsetX: e.clientX - rect.left,
-      offsetY: e.clientY - rect.top
+      offsetX: e.clientX - r.left,
+      offsetY: e.clientY - r.top,
     });
 
     e.preventDefault();
   };
 
   useEffect(() => {
-    const handleMove = (e: MouseEvent) => {
+    const move = (e: MouseEvent) => {
       if (!drag.noteId) return;
 
-      const board = document.querySelector(
-        ".note-board-inner"
-      ) as HTMLDivElement | null;
-      if (!board) return;
+      const container = document.querySelector(".note-board-inner");
+      if (!container) return;
 
-      const rect = board.getBoundingClientRect();
+      const rect = container.getBoundingClientRect();
       const x = e.clientX - rect.left - drag.offsetX;
       const y = e.clientY - rect.top - drag.offsetY;
 
       setNotes((prev) =>
         prev.map((n) =>
           n.id === drag.noteId
-            ? {
-                ...n,
-                x: Math.max(0, x),
-                y: Math.max(0, y),
-                updatedAt: Date.now()
-              }
+            ? { ...n, x: Math.max(0, x), y: Math.max(0, y), updatedAt: Date.now() }
             : n
         )
       );
     };
 
-    const handleUp = () => {
+    const stop = () => {
       if (drag.noteId) {
         setDrag({ noteId: null, offsetX: 0, offsetY: 0 });
       }
     };
 
-    window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleUp);
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", stop);
+
     return () => {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", stop);
     };
   }, [drag]);
 
-  // ---------- CRUD ----------
-  const addNote = () => {
-    setNotes((prev) => [...prev, createNewNote()]);
-  };
-
-  const deleteNote = (id: string) => {
-    setNotes((prev) => prev.filter((n) => n.id !== id));
-  };
-
-  const updateNoteContent = (id: string, content: string) => {
-    setNotes((prev) =>
-      prev.map((n) =>
-        n.id === id
-          ? {
-              ...n,
-              content,
-              updatedAt: Date.now()
-            }
-          : n
-      )
+  const addNote = () => setNotes((p) => [...p, createNewNote()]);
+  const deleteNote = (id: string) =>
+    setNotes((p) => p.filter((n) => n.id !== id));
+  const updateContent = (id: string, v: string) =>
+    setNotes((p) =>
+      p.map((n) => (n.id === id ? { ...n, content: v, updatedAt: Date.now() } : n))
     );
-  };
-
-  const updateNoteTitle = (id: string, title: string) => {
-    setNotes((prev) =>
-      prev.map((n) =>
-        n.id === id
-          ? {
-              ...n,
-              title,
-              updatedAt: Date.now()
-            }
-          : n
-      )
+  const updateTitle = (id: string, v: string) =>
+    setNotes((p) =>
+      p.map((n) => (n.id === id ? { ...n, title: v, updatedAt: Date.now() } : n))
     );
-  };
 
-  const clearAllNotes = () => {
-    if (!window.confirm("Delete all notes on the board?")) return;
-    setNotes([]);
-  };
-
-  // ---------- AI ----------
-  const runAiOnNote = async (noteId: string, action: AiAction) => {
+  // AI
+  const runAi = async (noteId: string, action: AiAction) => {
     const note = notes.find((n) => n.id === noteId);
     if (!note || !note.content.trim()) {
-      setAiError("Write something in the note before running AI.");
+      setAiError("Write something before using AI.");
       return;
     }
 
     setAiError(null);
     setAiBusyId(noteId);
-    setNotes((prev) =>
-      prev.map((n) =>
-        n.id === noteId ? { ...n, aiStatus: "loading" } : n
-      )
+
+    setNotes((p) =>
+      p.map((n) => (n.id === noteId ? { ...n, aiStatus: "loading" } : n))
     );
 
     try {
@@ -254,71 +207,50 @@ const NoteBoard: React.FC = () => {
         body: JSON.stringify({
           action,
           text: note.content,
-          targetLanguage: action === "translate" ? targetLanguage : undefined
-        })
+          targetLanguage,
+        }),
       });
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "AI request failed");
-      }
+      const data = await res.json();
 
-      const data = (await res.json()) as { text: string };
-      const newText = data.text || note.content;
+      if (!res.ok) throw new Error(data.error || "Error");
 
-      setNotes((prev) =>
-        prev.map((n) =>
+      setNotes((p) =>
+        p.map((n) =>
           n.id === noteId
-            ? {
-                ...n,
-                content: newText,
-                updatedAt: Date.now(),
-                aiStatus: "idle"
-              }
+            ? { ...n, content: data.text, aiStatus: "idle", updatedAt: Date.now() }
             : n
         )
       );
     } catch (err: any) {
-      console.error(err);
-      setAiError(
-        err?.message || "AI request failed. Please try again in a moment."
+      setAiError(err.message);
+      setNotes((p) =>
+        p.map((n) => (n.id === noteId ? { ...n, aiStatus: "error" } : n))
       );
-      setNotes((prev) =>
-        prev.map((n) =>
-          n.id === noteId ? { ...n, aiStatus: "error" } : n
-        )
-      );
-    } finally {
-      setAiBusyId(null);
     }
-  };
 
-  const hasNotes = notes.length > 0;
+    setAiBusyId(null);
+  };
 
   return (
     <section className="note-board">
       <div className="note-board-toolbar">
         <div className="note-board-toolbar-left">
-          <button
-            type="button"
-            className="button-primary"
-            onClick={addNote}
-          >
+          <button className="button-primary" onClick={addNote}>
             + New note
           </button>
           <button
-            type="button"
             className="button-secondary"
-            onClick={clearAllNotes}
-            disabled={!hasNotes}
+            disabled={notes.length === 0}
+            onClick={() => setNotes([])}
           >
             Clear board
           </button>
         </div>
 
         <div className="note-board-toolbar-right">
-          <label className="toolbar-label">
-            Translate to:
+          <label>
+            Translate:
             <select
               value={targetLanguage}
               onChange={(e) => setTargetLanguage(e.target.value)}
@@ -327,20 +259,16 @@ const NoteBoard: React.FC = () => {
               <option>Hebrew</option>
               <option>English</option>
               <option>Arabic</option>
-              <option>Indonesian</option>
               <option>Spanish</option>
               <option>French</option>
+              <option>Indonesian</option>
             </select>
           </label>
 
           {speechSupported ? (
-            <span className="toolbar-hint">
-              🎤 Dictation available in your browser
-            </span>
+            <span className="toolbar-hint">🎤 Dictation available</span>
           ) : (
-            <span className="toolbar-hint">
-              🎤 Dictation not supported in this browser
-            </span>
+            <span className="toolbar-hint">🎤 Dictation not supported</span>
           )}
         </div>
       </div>
@@ -348,10 +276,10 @@ const NoteBoard: React.FC = () => {
       {aiError && <div className="note-board-error">{aiError}</div>}
 
       <div className="note-board-inner">
-        {!hasNotes && (
+        {notes.length === 0 && (
           <div className="note-empty-state">
             <p>No notes yet.</p>
-            <p>Click “New note” to start.</p>
+            <p>Click “New note” to begin.</p>
           </div>
         )}
 
@@ -359,29 +287,15 @@ const NoteBoard: React.FC = () => {
           <div
             key={note.id}
             className="note-card"
-            style={{
-              left: `${note.x}px`,
-              top: `${note.y}px`,
-              backgroundColor: note.color
-            }}
+            style={{ left: note.x, top: note.y, backgroundColor: note.color }}
           >
-            <div
-              className="note-card-header"
-              onMouseDown={(e) => onMouseDownHeader(e, note.id)}
-            >
+            <div className="note-card-header" onMouseDown={(e) => startDrag(e, note.id)}>
               <input
                 className="note-title-input"
                 value={note.title}
-                onChange={(e) =>
-                  updateNoteTitle(note.id, e.target.value)
-                }
+                onChange={(e) => updateTitle(note.id, e.target.value)}
               />
-              <button
-                type="button"
-                className="note-delete-button"
-                onClick={() => deleteNote(note.id)}
-                aria-label="Delete note"
-              >
+              <button className="note-delete-button" onClick={() => deleteNote(note.id)}>
                 ✕
               </button>
             </div>
@@ -389,65 +303,56 @@ const NoteBoard: React.FC = () => {
             <textarea
               className="note-textarea"
               value={note.content}
-              onChange={(e) =>
-                updateNoteContent(note.id, e.target.value)
-              }
-              placeholder="Type your note here…"
+              onChange={(e) => updateContent(note.id, e.target.value)}
             />
 
             <div className="note-card-footer">
               <div className="note-ai-buttons">
                 <button
-                  type="button"
                   className="button-ghost"
                   disabled={aiBusyId === note.id}
-                  onClick={() => runAiOnNote(note.id, "fix")}
+                  onClick={() => runAi(note.id, "fix")}
                 >
-                  ✏️ Fix spelling
+                  Fix
                 </button>
+
                 <button
-                  type="button"
                   className="button-ghost"
                   disabled={aiBusyId === note.id}
-                  onClick={() => runAiOnNote(note.id, "summarise")}
+                  onClick={() => runAi(note.id, "summarise")}
                 >
-                  🧠 Summarise
+                  Summarise
                 </button>
+
                 <button
-                  type="button"
                   className="button-ghost"
                   disabled={aiBusyId === note.id}
-                  onClick={() => runAiOnNote(note.id, "translate")}
+                  onClick={() => runAi(note.id, "translate")}
                 >
-                  🌐 Translate
+                  Translate
                 </button>
+
                 <button
-                  type="button"
                   className="button-ghost"
                   disabled={aiBusyId === note.id}
-                  onClick={() => runAiOnNote(note.id, "improve")}
+                  onClick={() => runAi(note.id, "improve")}
                 >
-                  🎯 Improve tone
+                  Improve
                 </button>
               </div>
 
               <div className="note-footer-right">
                 {speechSupported && (
-                  <button
-                    type="button"
-                    className="button-ghost"
-                    onClick={() => handleDictateIntoNote(note.id)}
-                  >
-                    🎤 Dictate
+                  <button className="button-ghost" onClick={() => dictate(note.id)}>
+                    🎤
                   </button>
                 )}
+
                 {note.aiStatus === "loading" && (
-                  <span className="note-ai-status">Running AI…</span>
+                  <span className="note-ai-status">AI…</span>
                 )}
                 {note.aiStatus === "error" && (
-                  <span className="note-ai-status note-ai-status-error">
-                    AI error
-                  </span>
+                  <span className="note-ai-status note-ai-status-error">Error</span>
                 )}
               </div>
             </div>
