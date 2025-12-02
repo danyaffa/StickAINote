@@ -35,7 +35,7 @@ export default function LandingPage() {
             src="/StickAINote-Logo.png"
             alt="Stick AI Note Logo"
             width={180}
-            height={60}
+            height={180}
             priority
           />
         </div>
