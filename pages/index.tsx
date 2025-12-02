@@ -2,6 +2,7 @@
 import React from "react";
 import Head from "next/head";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function LandingPage() {
   const canonicalUrl = "https://stickainote.com/";
@@ -12,18 +13,38 @@ export default function LandingPage() {
         <title>Stick AI Note – AI Sticky Notes on Your Screen</title>
         <meta
           name="description"
-          content="Stick AI Note lets you keep a single AI-p...th spell-check, grammar fixes, translation and voice dictation."
+          content="Stick AI Note lets you keep a single AI-powered sticky note on your screen with spell-check, grammar fixes, translation and voice dictation."
         />
         <link rel="canonical" href={canonicalUrl} />
         <meta name="robots" content="index,follow" />
       </Head>
 
-      <div className="landing-root">
+      {/* ROOT – tighter spacing */}
+      <div
+        className="landing-root"
+        style={{
+          paddingTop: "20px",
+          paddingBottom: "20px",
+          background: "#f8fafc",
+          minHeight: "100vh",
+        }}
+      >
+        {/* LOGO */}
+        <div style={{ textAlign: "center", marginBottom: "20px" }}>
+          <Image
+            src="/StickAINote-Logo.png"
+            alt="Stick AI Note Logo"
+            width={180}
+            height={60}
+            priority
+          />
+        </div>
+
         <main className="landing-main">
           <div className="landing-grid">
             {/* LEFT – TEXT */}
             <div>
-              <h1 className="landing-title">
+              <h1 className="landing-title" style={{ marginTop: 0 }}>
                 Stick AI Note
                 <span className="landing-title-accent"> – AI Notes</span>
               </h1>
@@ -38,7 +59,7 @@ export default function LandingPage() {
                 <li>✅ Drag the note to any corner of your screen</li>
                 <li>✅ Choose your favourite colour</li>
                 <li>✅ Fix, summarise, translate &amp; improve with AI</li>
-                <li>✅ Voice dictation + backup / restore of your note</li>
+                <li>✅ Voice dictation + backup &amp; restore</li>
               </ul>
 
               <div className="landing-cta-row">
@@ -54,64 +75,47 @@ export default function LandingPage() {
               </div>
 
               <p className="landing-note">
-                No downloads. Works in your browser on desktop and mobile. After
-                registration, you can pin the note and keep it open all day.
+                Works instantly in your browser — no download needed.
               </p>
             </div>
 
-            {/* RIGHT – NOTE PREVIEW */}
-            <div className="landing-note-preview">
-              <div className="landing-note-card">
-                <div className="landing-note-header">
-                  <span className="landing-note-title">New note</span>
-                  <span className="landing-note-close">×</span>
-                </div>
-
-                <div className="landing-note-body">
-                  Type your note here…
-                  <br />
-                  Fix, summarise, translate and improve it with AI.
-                </div>
-
-                <div className="landing-note-footer">
-                  <div>
-                    <div className="landing-color-row">
-                      {["#fef3c7", "#e0f2fe", "#fce7f3", "#dcfce7", "#f1f5f9"].map(
-                        (c) => (
-                          <div
-                            key={c}
-                            className="landing-color-dot"
-                            style={{ backgroundColor: c }}
-                          />
-                        )
-                      )}
-                    </div>
-                    <div className="landing-ai-row">
-                      <span>Fix</span>
-                      <span>Summarise</span>
-                      <span>Translate</span>
-                      <span>Improve</span>
-                    </div>
-                  </div>
-
-                  <div className="landing-tools-row">
-                    <span>Hebrew ▾</span>
-                    <span>🎤</span>
-                    <span>💾</span>
-                    <span>📂</span>
-                  </div>
-                </div>
-              </div>
+            {/* RIGHT – REAL APP IMAGE */}
+            <div className="landing-note-preview" style={{ textAlign: "center" }}>
+              <Image
+                src="/App.png"
+                alt="Stick AI Note App Preview"
+                width={480}
+                height={360}
+                style={{
+                  borderRadius: "14px",
+                  boxShadow: "0 8px 22px rgba(0,0,0,0.15)",
+                }}
+                priority
+              />
             </div>
           </div>
         </main>
 
-        <footer className="landing-footer">
-          <span>
-            © {new Date().getFullYear()} Stick AI Note™ – Leffler International
-            Investments Pty Ltd.
-          </span>
-          <span>Stick AI Note™ is a registered trademark. All rights reserved.</span>
+        {/* FOOTER – larger + stronger font */}
+        <footer
+          className="landing-footer"
+          style={{
+            marginTop: "40px",
+            padding: "25px 10px",
+            background: "#0f172a",
+            color: "white",
+            textAlign: "center",
+            fontSize: "0.95rem",
+            fontWeight: 500,
+            borderTop: "3px solid #1e293b",
+          }}
+        >
+          <div style={{ marginBottom: "6px" }}>
+            © {new Date().getFullYear()} Stick AI Note™ – Leffler International Investments Pty Ltd.
+          </div>
+          <div style={{ opacity: 0.85 }}>
+            Stick AI Note™ is a registered trademark. All rights reserved.
+          </div>
         </footer>
       </div>
     </>
