@@ -1,10 +1,15 @@
 // FILE: /pages/register.tsx
 import Head from "next/head";
 import React, { useState } from "react";
+import { useRouter } from "next/router";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../lib/firebase"; // ← adjust path if your firebase file is elsewhere
 
-const STRIPE_PAYMENT_LINK =
+// ⭐ SAME IDEA AS CALMTINNITUS
+const DEVELOPER_EMAIL = "leffleryd@gmail.com";
+const STRIPE_LINK =
   process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK ||
-  "https://buy.stripe.com/9B63cv44u2XSeHxaBK4F20h";
+  "https://buy.stripe.com/9B63cv44u2XSeHxaBK4F20h"; // StickAINote payment link
 
 export default function RegisterPage() {
   const canonicalUrl = "https://stickainote.com/register";
@@ -15,6 +20,27 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const router = useRouter();
+
+  // ✅ AFTER FIREBASE REGISTRATION – DECIDE WHERE TO GO
+  const handleSuccessfulAuth = (userEmail: string | null) => {
+    const e = (userEmail || "").toLowerCase();
+
+    // Developer bypass → go straight to the app (note)
+    if (e === DEVELOPER_EMAIL.toLowerCase()) {
+      router.push("/app"); // or "/note" if that’s your note page
+      return;
+    }
+
+    // Normal users → go to STRIPE to enter card
+    // We can prefill email & name in the Stripe link
+    const url = new URL(STRIPE_LINK);
+    if (email) url.searchParams.set("prefilled_email", email);
+    if (name) url.searchParams.set("client_reference_id", name);
+
+    window.location.href = url.toString();
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,19 +54,14 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      // ✅ DIRECT REDIRECT TO STRIPE PAYMENT LINK
-      // We pass the email + name to Stripe so it is prefilled.
-      const url = new URL(STRIPE_PAYMENT_LINK);
+      // ✅ CREATE USER IN FIREBASE (same as CalmTinnitus)
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
 
-      // prefill email if supported by Stripe link
-      url.searchParams.set("prefilled_email", email);
-      url.searchParams.set("client_reference_id", name || email);
-
-      // Go to secure Stripe checkout page
-      window.location.href = url.toString();
+      // ✅ THEN REDIRECT (dev → app, users → Stripe)
+      handleSuccessfulAuth(cred.user.email || email);
     } catch (err: any) {
       console.error(err);
-      setErrorMsg("Something went wrong. Please try again.");
+      setErrorMsg(err?.message || "Registration failed. Please try again.");
       setLoading(false);
     }
   }
@@ -51,7 +72,7 @@ export default function RegisterPage() {
         <title>Stick AI Note – Start your free trial</title>
         <meta
           name="description"
-          content="Start your free trial of Stick AI Note. Create your account and then add your payment details securely via Stripe. First month free, cancel any time."
+          content="Start your free trial of Stick AI Note. Create your account, then add your payment details securely via Stripe. First month free, cancel any time."
         />
         <link rel="canonical" href={canonicalUrl} />
       </Head>
@@ -100,7 +121,7 @@ export default function RegisterPage() {
                 color: "#374151",
               }}
             >
-              Step 1 – Fill in your details below.
+              Step 1 – Create your Stick AI Note account (saved in Firebase).
               <br />
               Step 2 – On the next screen, you&apos;ll be taken to{" "}
               <strong>Stripe</strong> to enter your card details.
@@ -246,7 +267,7 @@ export default function RegisterPage() {
                 }}
               >
                 {loading
-                  ? "Opening secure Stripe page…"
+                  ? "Creating account…"
                   : "Create account & go to secure Stripe page"}
               </button>
             </form>
