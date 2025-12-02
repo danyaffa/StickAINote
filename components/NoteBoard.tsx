@@ -50,8 +50,8 @@ const createNewNote = (): Note => {
     id: `note_${now}_${Math.random().toString(16).slice(2)}`,
     title: "New note",
     content: "",
-    x: 40 + Math.round(Math.random() * 80),
-    y: 40 + Math.round(Math.random() * 80),
+    x: 80 + Math.round(Math.random() * 100),
+    y: 80 + Math.round(Math.random() * 80),
     width: DEFAULT_WIDTH,
     height: DEFAULT_HEIGHT,
     color: COLORS[Math.floor(Math.random() * COLORS.length)],
@@ -89,16 +89,20 @@ const NoteBoard: React.FC = () => {
     if (typeof window === "undefined") return;
     const key = getStorageKey(user?.uid || null);
     const raw = window.localStorage.getItem(key);
-    if (!raw) return;
+    if (!raw) {
+      // first time → create one note automatically
+      setNotes([createNewNote()]);
+      return;
+    }
+
     try {
       const parsed = JSON.parse(raw) as Partial<Note>[];
-      // Ensure width/height exist on old saved notes
       const withSize: Note[] = parsed.map((n) => ({
         id: n.id || `note_${Date.now()}_${Math.random()}`,
         title: n.title ?? "Note",
         content: n.content ?? "",
-        x: typeof n.x === "number" ? n.x : 40,
-        y: typeof n.y === "number" ? n.y : 40,
+        x: typeof n.x === "number" ? n.x : 80,
+        y: typeof n.y === "number" ? n.y : 80,
         width:
           typeof n.width === "number" && n.width > 0 ? n.width : DEFAULT_WIDTH,
         height:
@@ -110,9 +114,9 @@ const NoteBoard: React.FC = () => {
         createdAt: n.createdAt || Date.now(),
         updatedAt: n.updatedAt || Date.now(),
       }));
-      setNotes(withSize);
+      setNotes(withSize.length ? withSize : [createNewNote()]);
     } catch {
-      // ignore
+      setNotes([createNewNote()]);
     }
   }, [user?.uid]);
 
@@ -183,7 +187,7 @@ const NoteBoard: React.FC = () => {
     e.preventDefault();
   };
 
-  // Resize logic (bottom-right corner)
+  // Resize logic (bottom-right handle)
   const startResize = (
     e: React.MouseEvent<HTMLDivElement>,
     noteId: string
@@ -354,7 +358,7 @@ const NoteBoard: React.FC = () => {
     setAiBusyId(null);
   };
 
-  // EXPORT backup
+  // EXPORT backup (board)
   const exportNotes = () => {
     if (notes.length === 0) {
       alert("No notes to export.");
@@ -417,7 +421,7 @@ const NoteBoard: React.FC = () => {
               ? n.height
               : DEFAULT_HEIGHT,
         }));
-        setNotes(importedNotes);
+        setNotes(importedNotes.length ? importedNotes : [createNewNote()]);
         alert("Notes imported successfully.");
       } catch (err: any) {
         alert(err.message || "Could not import this file.");
@@ -428,7 +432,7 @@ const NoteBoard: React.FC = () => {
 
   return (
     <section className="note-board">
-      {/* Hidden file input for import */}
+      {/* hidden file input for backup import */}
       <input
         ref={fileInputRef}
         type="file"
@@ -437,72 +441,9 @@ const NoteBoard: React.FC = () => {
         onChange={handleImportFileChange}
       />
 
-      <div className="note-board-toolbar">
-        <div className="note-board-toolbar-left">
-          <button className="button-primary" onClick={addNote}>
-            + New note
-          </button>
-          <button
-            className="button-secondary"
-            disabled={notes.length === 0}
-            onClick={() => setNotes([])}
-          >
-            Clear board
-          </button>
-        </div>
-
-        <div className="note-board-toolbar-right">
-          <label className="toolbar-label">
-            Translate:
-            <select
-              value={targetLanguage}
-              onChange={(e) => setTargetLanguage(e.target.value)}
-              className="toolbar-select"
-            >
-              <option>Hebrew</option>
-              <option>English</option>
-              <option>Arabic</option>
-              <option>Spanish</option>
-              <option>French</option>
-              <option>Indonesian</option>
-            </select>
-          </label>
-
-          <button
-            type="button"
-            className="button-secondary"
-            onClick={exportNotes}
-            disabled={notes.length === 0}
-          >
-            💾 Export backup
-          </button>
-
-          <button
-            type="button"
-            className="button-secondary"
-            onClick={triggerImport}
-          >
-            📂 Import backup
-          </button>
-
-          {speechSupported ? (
-            <span className="toolbar-hint">🎤 Dictation available</span>
-          ) : (
-            <span className="toolbar-hint">🎤 Dictation not supported</span>
-          )}
-        </div>
-      </div>
-
       {aiError && <div className="note-board-error">{aiError}</div>}
 
       <div className="note-board-inner">
-        {notes.length === 0 && (
-          <div className="note-empty-state">
-            <p>No notes yet.</p>
-            <p>Click “New note” to begin.</p>
-          </div>
-        )}
-
         {notes.map((note) => (
           <div
             key={note.id}
@@ -524,12 +465,31 @@ const NoteBoard: React.FC = () => {
                 value={note.title}
                 onChange={(e) => updateTitle(note.id, e.target.value)}
               />
-              <button
-                className="note-delete-button"
-                onClick={() => deleteNote(note.id)}
-              >
-                ✕
-              </button>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {/* new note from this note */}
+                <button
+                  type="button"
+                  className="note-delete-button"
+                  title="New note"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addNote();
+                  }}
+                >
+                  +
+                </button>
+                {/* delete */}
+                <button
+                  className="note-delete-button"
+                  title="Delete this note"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteNote(note.id);
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <textarea
@@ -548,7 +508,6 @@ const NoteBoard: React.FC = () => {
                 >
                   Fix
                 </button>
-
                 <button
                   className="button-ghost"
                   disabled={aiBusyId === note.id}
@@ -556,7 +515,6 @@ const NoteBoard: React.FC = () => {
                 >
                   Summarise
                 </button>
-
                 <button
                   className="button-ghost"
                   disabled={aiBusyId === note.id}
@@ -564,7 +522,6 @@ const NoteBoard: React.FC = () => {
                 >
                   Translate
                 </button>
-
                 <button
                   className="button-ghost"
                   disabled={aiBusyId === note.id}
@@ -575,14 +532,59 @@ const NoteBoard: React.FC = () => {
               </div>
 
               <div className="note-footer-right">
+                {/* translate language picker */}
+                <select
+                  value={targetLanguage}
+                  onChange={(e) => setTargetLanguage(e.target.value)}
+                  className="toolbar-select"
+                  style={{ fontSize: "0.7rem" }}
+                  title="Translate language"
+                >
+                  <option>Hebrew</option>
+                  <option>English</option>
+                  <option>Arabic</option>
+                  <option>Spanish</option>
+                  <option>French</option>
+                  <option>Indonesian</option>
+                </select>
+
+                {/* dictation */}
                 {speechSupported && (
                   <button
                     className="button-ghost"
+                    title="Dictate into note"
                     onClick={() => dictate(note.id)}
                   >
                     🎤
                   </button>
                 )}
+
+                {/* export / import / clear all – all from this note */}
+                <button
+                  className="button-ghost"
+                  title="Export all notes (backup)"
+                  onClick={exportNotes}
+                >
+                  💾
+                </button>
+                <button
+                  className="button-ghost"
+                  title="Import notes backup"
+                  onClick={triggerImport}
+                >
+                  📂
+                </button>
+                <button
+                  className="button-ghost"
+                  title="Clear all notes"
+                  onClick={() => {
+                    if (confirm("Delete all notes?")) {
+                      setNotes([createNewNote()]);
+                    }
+                  }}
+                >
+                  🧹
+                </button>
 
                 {note.aiStatus === "loading" && (
                   <span className="note-ai-status">AI…</span>
@@ -595,7 +597,7 @@ const NoteBoard: React.FC = () => {
               </div>
             </div>
 
-            {/* Resize handle (bottom-right) */}
+            {/* Resize handle */}
             <div
               onMouseDown={(e) => startResize(e, note.id)}
               style={{
