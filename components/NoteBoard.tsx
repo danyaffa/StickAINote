@@ -48,7 +48,7 @@ export default function NoteBoard() {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  // ✅ CHANGED previously: default language is English
+  // ✅ default language is English
   const [targetLanguage, setTargetLanguage] = useState("English");
 
   const [speechSupported, setSpeechSupported] = useState(false);
@@ -57,6 +57,7 @@ export default function NoteBoard() {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recognitionRef = useRef<any>(null);
+  const baseTextRef = useRef<string>(""); // ✅ NEW: note text before dictation
 
   // ✅ NEW: drawing / pen mode
   const [mode, setMode] = useState<"text" | "draw">("text");
@@ -385,7 +386,7 @@ export default function NoteBoard() {
     }
   }
 
-  // ---------- Dictation ----------
+  // ---------- Dictation (live) ----------
   function dictate() {
     if (typeof window === "undefined") return;
     const w = window as any;
@@ -402,15 +403,25 @@ export default function NoteBoard() {
 
     const recognition = new SR();
     recognition.lang = "en-US";
+    recognition.interimResults = true; // ✅ live partial text
+    recognition.continuous = true;
 
     recognition.onstart = () => {
+      baseTextRef.current = note.text || ""; // ✅ remember what was already in the note
       setIsRecording(true); // ✅ turn green
     };
 
     recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
+      let transcript = "";
+
+      // The API sends the whole history each time
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+
+      const combined = (baseTextRef.current + " " + transcript).trim();
       updateNote({
-        text: note.text ? note.text + " " + transcript : transcript,
+        text: combined,
       });
     };
 
@@ -422,6 +433,7 @@ export default function NoteBoard() {
     recognition.onend = () => {
       setIsRecording(false); // ✅ stop
       recognitionRef.current = null;
+      baseTextRef.current = note.text || baseTextRef.current;
     };
 
     recognition.start();
@@ -655,7 +667,7 @@ export default function NoteBoard() {
           )}
         </div>
 
-        {/* Footer (unchanged, plus one ✏️ button) */}
+        {/* Footer (unchanged, plus ✏️ + live mic) */}
         <div
           style={{
             display: "flex",
