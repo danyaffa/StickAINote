@@ -1,11 +1,10 @@
 {
-  "name": "Stick-a-Note AI",
-  "short_name": "Stick-a-Note",
+  "name": "NoteOnScreen",
+  "short_name": "NoteOnScreen",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#e5e7eb",
   "theme_color": "#e5e7eb",
-  "orientation": "any",
   "icons": [
     {
       "src": "/icon-192.png",
