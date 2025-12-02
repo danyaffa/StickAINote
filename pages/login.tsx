@@ -4,16 +4,16 @@ import Link from "next/link";
 import React, { useState } from "react";
 
 export default function LoginPage() {
-  const canonicalUrl = "https://note-on-screen.vercel.app/login";
+  const canonicalUrl = "https://stickainote.com/login";
   const [showPassword, setShowPassword] = useState(false);
 
   return (
     <>
       <Head>
-        <title>Stick ai Note – Login</title>
+        <title>Stick AI Note – Login</title>
         <meta
           name="description"
-          content="Log in to Stick ai Note to access your AI sticky note."
+          content="Log in to Stick AI Note to access your AI sticky note."
         />
         <link rel="canonical" href={canonicalUrl} />
       </Head>
