@@ -2,6 +2,10 @@
 import Head from "next/head";
 import React, { useState } from "react";
 
+const STRIPE_PAYMENT_LINK =
+  process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK ||
+  "https://buy.stripe.com/9B63cv44u2XSeHxaBK4F20h";
+
 export default function RegisterPage() {
   const canonicalUrl = "https://stickainote.com/register";
 
@@ -24,31 +28,19 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      // ✅ Call your Stripe checkout creator
-      const res = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          name,
-          // you can add more fields if your API expects them
-        }),
-      });
+      // ✅ DIRECT REDIRECT TO STRIPE PAYMENT LINK
+      // We pass the email + name to Stripe so it is prefilled.
+      const url = new URL(STRIPE_PAYMENT_LINK);
 
-      const data = await res.json().catch(() => ({}));
+      // prefill email if supported by Stripe link
+      url.searchParams.set("prefilled_email", email);
+      url.searchParams.set("client_reference_id", name || email);
 
-      if (!res.ok || !data?.url) {
-        throw new Error(
-          data?.error || "Stripe checkout could not be created."
-        );
-      }
-
-      // ✅ Redirect to Stripe secure checkout
-      window.location.href = data.url as string;
+      // Go to secure Stripe checkout page
+      window.location.href = url.toString();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err?.message || "Something went wrong. Please try again.");
-    } finally {
+      setErrorMsg("Something went wrong. Please try again.");
       setLoading(false);
     }
   }
@@ -108,7 +100,7 @@ export default function RegisterPage() {
                 color: "#374151",
               }}
             >
-              Step 1 – Create your Stick AI Note account.
+              Step 1 – Fill in your details below.
               <br />
               Step 2 – On the next screen, you&apos;ll be taken to{" "}
               <strong>Stripe</strong> to enter your card details.
@@ -224,7 +216,6 @@ export default function RegisterPage() {
                 </div>
               </label>
 
-              {/* Password tip (can be extended later with strength meter) */}
               <p
                 style={{
                   fontSize: "0.75rem",
@@ -255,7 +246,7 @@ export default function RegisterPage() {
                 }}
               >
                 {loading
-                  ? "Connecting to Stripe…"
+                  ? "Opening secure Stripe page…"
                   : "Create account & go to secure Stripe page"}
               </button>
             </form>
