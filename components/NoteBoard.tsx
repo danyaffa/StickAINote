@@ -20,7 +20,7 @@ type Note = {
   width: number;
   height: number;
   color: string;
-  drawingData?: string | null; // ✅ NEW: saved drawing
+  drawingData?: string | null; // ✅ saved drawing
 };
 
 const STORAGE_KEY = "stickanote-note-v2";
@@ -52,14 +52,14 @@ export default function NoteBoard() {
   const [targetLanguage, setTargetLanguage] = useState("English");
 
   const [speechSupported, setSpeechSupported] = useState(false);
-  const [isRecording, setIsRecording] = useState(false); // ✅ NEW: recording state
+  const [isRecording, setIsRecording] = useState(false); // ✅ recording state
 
   const cardRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recognitionRef = useRef<any>(null);
-  const baseTextRef = useRef<string>(""); // ✅ NEW: note text before dictation
+  const baseTextRef = useRef<string>(""); // note text before dictation
 
-  // ✅ NEW: drawing / pen mode
+  // ✅ drawing / pen mode
   const [mode, setMode] = useState<"text" | "draw">("text");
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -69,7 +69,6 @@ export default function NoteBoard() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // mobile detection
     const mobile = window.innerWidth <= 640;
     setIsMobile(mobile);
 
@@ -107,7 +106,6 @@ export default function NoteBoard() {
       });
     }
 
-    // speech support
     const w = window as any;
     if (w.SpeechRecognition || w.webkitSpeechRecognition) {
       setSpeechSupported(true);
@@ -129,7 +127,7 @@ export default function NoteBoard() {
   // GLOBAL MOUSE HANDLERS (for desktop drag/resize only)
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (isMobile) return; // no drag/resize on mobile
+    if (isMobile) return;
 
     function onMove(e: MouseEvent) {
       if (!note) return;
@@ -187,10 +185,16 @@ export default function NoteBoard() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // 🔧 FIX: make the internal canvas size match the displayed size
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+
     // reset background
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    // redraw saved drawing, scaled correctly
     if (note?.drawingData) {
       const img = new Image();
       img.onload = () => {
@@ -198,7 +202,7 @@ export default function NoteBoard() {
       };
       img.src = note.drawingData;
     }
-  }, [mode, note?.drawingData]);
+  }, [mode, note?.drawingData, note?.width, note?.height]);
 
   const getCanvasPointMouse = (e: ReactMouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -386,14 +390,13 @@ export default function NoteBoard() {
     }
   }
 
-  // ---------- Dictation (live) ----------
+  // ---------- Dictation ----------
   function dictate() {
     if (typeof window === "undefined") return;
     const w = window as any;
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!SR) return;
 
-    // If already recording, stop
     if (recognitionRef.current) {
       recognitionRef.current.stop();
       setIsRecording(false);
@@ -403,18 +406,16 @@ export default function NoteBoard() {
 
     const recognition = new SR();
     recognition.lang = "en-US";
-    recognition.interimResults = true; // ✅ live partial text
+    recognition.interimResults = true;
     recognition.continuous = true;
 
     recognition.onstart = () => {
-      baseTextRef.current = note.text || ""; // ✅ remember what was already in the note
-      setIsRecording(true); // ✅ turn green
+      baseTextRef.current = note.text || "";
+      setIsRecording(true);
     };
 
     recognition.onresult = (event: any) => {
       let transcript = "";
-
-      // The API sends the whole history each time
       for (let i = 0; i < event.results.length; i++) {
         transcript += event.results[i][0].transcript;
       }
@@ -426,12 +427,12 @@ export default function NoteBoard() {
     };
 
     recognition.onerror = () => {
-      setIsRecording(false); // ✅ stop
+      setIsRecording(false);
       recognition.stop();
     };
 
     recognition.onend = () => {
-      setIsRecording(false); // ✅ stop
+      setIsRecording(false);
       recognitionRef.current = null;
       baseTextRef.current = note.text || baseTextRef.current;
     };
@@ -590,7 +591,7 @@ export default function NoteBoard() {
           </button>
         </div>
 
-        {/* MAIN CONTENT: text OR drawing (no layout change) */}
+        {/* MAIN CONTENT: text OR drawing */}
         <div
           style={{
             flex: 1,
@@ -667,7 +668,7 @@ export default function NoteBoard() {
           )}
         </div>
 
-        {/* Footer (unchanged, plus ✏️ + live mic) */}
+        {/* Footer */}
         <div
           style={{
             display: "flex",
@@ -757,7 +758,7 @@ export default function NoteBoard() {
               <option>Spanish</option>
             </select>
 
-            {/* ✅ NEW: toggle Text / Draw */}
+            {/* Toggle Text / Draw */}
             <button
               type="button"
               onClick={() =>
@@ -773,7 +774,7 @@ export default function NoteBoard() {
                 onClick={dictate}
                 title={isRecording ? "Stop dictation" : "Dictate"}
                 style={{
-                  background: isRecording ? "#22c55e" : "#ef4444", // green when recording, red when stopped
+                  background: isRecording ? "#22c55e" : "#ef4444",
                   color: "white",
                   border: "none",
                   borderRadius: 6,
