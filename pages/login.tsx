@@ -10,10 +10,10 @@ export default function LoginPage() {
   return (
     <>
       <Head>
-        <title>Stick a Note – Login</title>
+        <title>Stick ai Note – Login</title>
         <meta
           name="description"
-          content="Log in to Stick a Note to access your AI sticky note."
+          content="Log in to Stick ai Note to access your AI sticky note."
         />
         <link rel="canonical" href={canonicalUrl} />
       </Head>
