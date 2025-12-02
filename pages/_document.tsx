@@ -20,7 +20,7 @@ class MyDocument extends Document {
           {/* Global SEO defaults (page can override) */}
           <meta
             name="description"
-            content="Stick a Note lets you pin AI-powered sticky notes on your screen with instant fixing, summarising, translation and voice dictation."
+            content="Stick AI Note lets you pin AI-powered stick...h instant fixing, summarising, translation and voice dictation."
           />
           <meta name="robots" content="index,follow" />
 
@@ -28,26 +28,32 @@ class MyDocument extends Document {
           <meta property="og:type" content="website" />
           <meta
             property="og:title"
-            content="Stick a Note – AI Sticky Notes on Your Screen"
+            content="Stick AI Note – AI Sticky Notes on Your Screen"
           />
           <meta
             property="og:description"
-            content="Create colourful sticky notes on your screen, powered by AI to fix, summarise, translate and improve your writing."
+            content="Stick AI Note – AI Sticky Notes on Your Screen"
           />
-          <meta property="og:url" content="https://noteonscreen.com/" />
-          <meta property="og:image" content="https://noteonscreen.com/og-image.png" />
+          <meta property="og:url" content="https://stickainote.com/" />
+          <meta
+            property="og:image"
+            content="https://stickainote.com/og-image.png"
+          />
 
           {/* Twitter Card */}
           <meta name="twitter:card" content="summary_large_image" />
           <meta
             name="twitter:title"
-            content="Stick a Note – AI Sticky Notes on Your Screen"
+            content="Stick AI Note – AI Sticky Notes on Your Screen"
           />
           <meta
             name="twitter:description"
-            content="Colourful sticky notes with AI fixing, summarising, translation and dictation."
+            content="Stick AI Note – AI Sticky Notes on Your Screen"
           />
-          <meta name="twitter:image" content="https://noteonscreen.com/og-image.png" />
+          <meta
+            name="twitter:image"
+            content="https://stickainote.com/og-image.png"
+          />
 
           {/* ✅ Bing & Google verification – replace content values when you have them */}
           {/* <meta name="msvalidate.01" content="YOUR_BING_CODE" /> */}
