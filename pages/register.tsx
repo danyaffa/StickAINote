@@ -1,9 +1,28 @@
 // FILE: /pages/register.tsx
 import Head from "next/head";
 import Link from "next/link";
+import React, { useMemo, useState } from "react";
+
+function getPasswordStrength(pw: string): { label: string; color: string } {
+  if (!pw) return { label: "", color: "" };
+
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+
+  if (score <= 1) return { label: "Weak password", color: "#dc2626" };
+  if (score === 2) return { label: "Medium strength", color: "#ea580c" };
+  return { label: "Strong password", color: "#16a34a" };
+}
 
 export default function RegisterPage() {
   const canonicalUrl = "https://note-on-screen.vercel.app/register";
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const strength = useMemo(() => getPasswordStrength(password), [password]);
 
   return (
     <>
@@ -54,9 +73,9 @@ export default function RegisterPage() {
             </h1>
 
             <p style={{ fontSize: "0.9rem", marginBottom: "1.25rem" }}>
-              Placeholder registration page. Later this will connect to Stripe +
-              Firebase. For now, fill nothing and click the button to see how the
-              note works.
+              This page will later connect to Stripe + Firebase. For now, you can
+              test the password strength and then click the button to open your
+              note.
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -90,37 +109,75 @@ export default function RegisterPage() {
 
               <label style={{ fontSize: "0.85rem" }}>
                 Choose password
-                <input
-                  type="password"
+                <div
                   style={{
-                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
                     marginTop: 4,
-                    padding: "0.45rem 0.6rem",
                     borderRadius: 8,
                     border: "1px solid #cbd5e1",
+                    paddingRight: 6,
                   }}
-                />
+                >
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: "0.45rem 0.6rem",
+                      border: "none",
+                      outline: "none",
+                      borderRadius: 8,
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    style={{
+                      fontSize: "0.8rem",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      color: "#2563eb",
+                    }}
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+                {strength.label && (
+                  <div
+                    style={{
+                      marginTop: 4,
+                      fontSize: "0.78rem",
+                      color: strength.color,
+                    }}
+                  >
+                    {strength.label} – use at least 8 characters, including
+                    letters, numbers and a symbol.
+                  </div>
+                )}
               </label>
-
-              {/* TEMP: just link to /app */}
-              <Link
-                href="/app"
-                style={{
-                  marginTop: 12,
-                  display: "inline-block",
-                  textAlign: "center",
-                  padding: "0.55rem 1rem",
-                  borderRadius: 999,
-                  background: "#16a34a",
-                  color: "#ffffff",
-                  fontWeight: 600,
-                  textDecoration: "none",
-                  fontSize: "0.95rem",
-                }}
-              >
-                Create account &amp; open my note
-              </Link>
             </div>
+
+            <Link
+              href="/app"
+              style={{
+                marginTop: 16,
+                display: "inline-block",
+                textAlign: "center",
+                width: "100%",
+                padding: "0.65rem 1rem",
+                borderRadius: 999,
+                background: "#16a34a",
+                color: "#ffffff",
+                fontWeight: 600,
+                textDecoration: "none",
+                fontSize: "0.95rem",
+              }}
+            >
+              Create account &amp; open my note
+            </Link>
 
             <p
               style={{
