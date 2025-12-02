@@ -20,7 +20,7 @@ type Note = {
   width: number;
   height: number;
   color: string;
-  drawingData?: string | null; // ✅ saved drawing
+  drawingData?: string | null;
 };
 
 const STORAGE_KEY = "stickanote-note-v2";
@@ -48,24 +48,23 @@ export default function NoteBoard() {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  // ✅ default language is English
   const [targetLanguage, setTargetLanguage] = useState("English");
 
   const [speechSupported, setSpeechSupported] = useState(false);
-  const [isRecording, setIsRecording] = useState(false); // ✅ recording state
+  const [isRecording, setIsRecording] = useState(false);
 
   const cardRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recognitionRef = useRef<any>(null);
-  const baseTextRef = useRef<string>(""); // note text before dictation
+  const baseTextRef = useRef<string>("");
 
-  // ✅ drawing / pen mode
+  // text / draw mode
   const [mode, setMode] = useState<"text" | "draw">("text");
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
 
-  // INITIAL LOAD (client only)
+  // INITIAL LOAD
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -124,7 +123,7 @@ export default function NoteBoard() {
     }
   }, [note]);
 
-  // GLOBAL MOUSE HANDLERS (for desktop drag/resize only)
+  // DRAG / RESIZE (desktop)
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (isMobile) return;
@@ -177,7 +176,7 @@ export default function NoteBoard() {
     };
   }, [dragging, resizing, note, isMobile]);
 
-  // ---------- DRAWING: load existing image into canvas ----------
+  // DRAW MODE: sync canvas size + redraw saved drawing
   useEffect(() => {
     if (mode !== "draw") return;
     const canvas = canvasRef.current;
@@ -185,16 +184,13 @@ export default function NoteBoard() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // 🔧 FIX: make the internal canvas size match the displayed size
     const rect = canvas.getBoundingClientRect();
     canvas.width = rect.width;
     canvas.height = rect.height;
 
-    // reset background
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // redraw saved drawing, scaled correctly
     if (note?.drawingData) {
       const img = new Image();
       img.onload = () => {
@@ -330,7 +326,6 @@ export default function NoteBoard() {
   const updateNote = (patch: Partial<Note>) =>
     setNote((prev) => (prev ? { ...prev, ...patch } : prev));
 
-  // DESKTOP: start drag/resize
   const startDrag = (e: ReactMouseEvent<HTMLDivElement>) => {
     if (isMobile || !cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
@@ -356,7 +351,7 @@ export default function NoteBoard() {
     e.preventDefault();
   };
 
-  // ---------- AI ----------
+  // ---------- AI (TEXT) ----------
   async function runAi(action: AiAction) {
     if (!note.text.trim()) {
       setAiError("Write something first.");
@@ -385,6 +380,89 @@ export default function NoteBoard() {
     } catch (err: any) {
       console.error(err);
       setAiError(err?.message || "AI request failed.");
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
+  // ---------- AI DRAW: “Draw for me…” ----------
+  async function handleAiDraw() {
+    if (typeof window === "undefined") return;
+    const prompt = window.prompt(
+      "What should I draw?\n(e.g. 'a cute sheep', 'a logo with DL', 'a blue house')"
+    );
+    if (!prompt || !prompt.trim()) return;
+
+    setAiError(null);
+    setAiBusy(true);
+
+    try {
+      const res = await fetch("/api/ai-draw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.imageData) {
+        throw new Error(data.error || "AI draw failed");
+      }
+
+      // save image; useEffect will redraw it in canvas
+      setNote((prev) =>
+        prev
+          ? {
+              ...prev,
+              drawingData: data.imageData as string,
+            }
+          : prev
+      );
+      setMode("draw");
+    } catch (err: any) {
+      console.error(err);
+      setAiError(err?.message || "AI draw failed.");
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
+  // ---------- HANDWRITING → IMPROVED TEXT ----------
+  async function handleHandwritingToText() {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      setAiError("No drawing found.");
+      return;
+    }
+
+    let imageData: string;
+    try {
+      imageData = canvas.toDataURL("image/png");
+    } catch {
+      setAiError("Could not read drawing.");
+      return;
+    }
+
+    setAiError(null);
+    setAiBusy(true);
+
+    try {
+      const res = await fetch("/api/ai-handwriting", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageData }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.text) {
+        throw new Error(data.error || "Handwriting recognition failed");
+      }
+
+      // Replace with improved text and switch to Text mode
+      updateNote({ text: data.text });
+      setMode("text");
+    } catch (err: any) {
+      console.error(err);
+      setAiError(err?.message || "Could not improve handwriting.");
     } finally {
       setAiBusy(false);
     }
@@ -482,7 +560,6 @@ export default function NoteBoard() {
     updateNote({ text: "", title: "My note", drawingData: null });
   }
 
-  // ---------- LAYOUT ----------
   const cardStyle: React.CSSProperties = isMobile
     ? {
         width: "100%",
@@ -591,7 +668,7 @@ export default function NoteBoard() {
           </button>
         </div>
 
-        {/* MAIN CONTENT: text OR drawing */}
+        {/* Main content */}
         <div
           style={{
             flex: 1,
@@ -679,9 +756,8 @@ export default function NoteBoard() {
             flexWrap: "wrap",
           }}
         >
-          {/* Colors + AI */}
+          {/* Colors + AI text */}
           <div>
-            {/* Colors */}
             <div
               style={{
                 display: "flex",
@@ -706,7 +782,6 @@ export default function NoteBoard() {
               ))}
             </div>
 
-            {/* AI buttons */}
             <div
               style={{
                 display: "flex",
@@ -758,7 +833,6 @@ export default function NoteBoard() {
               <option>Spanish</option>
             </select>
 
-            {/* Toggle Text / Draw */}
             <button
               type="button"
               onClick={() =>
@@ -768,6 +842,28 @@ export default function NoteBoard() {
             >
               {mode === "text" ? "✏️ Draw" : "📝 Text"}
             </button>
+
+            {/* AI draw + handwriting → text only in Draw mode */}
+            {mode === "draw" && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleAiDraw}
+                  disabled={aiBusy}
+                  title="Ask AI to draw a picture or logo"
+                >
+                  🖼️ AI&nbsp;Draw
+                </button>
+                <button
+                  type="button"
+                  onClick={handleHandwritingToText}
+                  disabled={aiBusy}
+                  title="Turn your handwriting into improved text"
+                >
+                  ✍️→🔤
+                </button>
+              </>
+            )}
 
             {speechSupported && (
               <button
@@ -798,7 +894,6 @@ export default function NoteBoard() {
           </div>
         </div>
 
-        {/* Resize handle (desktop only) */}
         {!isMobile && (
           <div
             onMouseDown={startResize}
