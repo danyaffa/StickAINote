@@ -1,14 +1,38 @@
 // FILE: /pages/app.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import dynamic from "next/dynamic";
 
-// ✅ FIX: Load NoteBoard ONLY on the client
+// Load NoteBoard only on client
 const NoteBoard = dynamic(() => import("../components/NoteBoard"), {
   ssr: false,
 });
 
 export default function AppPage() {
+  const [ready, setReady] = useState(false);
+
+  // Prevent ANY rendering until browser exists
+  useEffect(() => {
+    setReady(true);
+  }, []);
+
+  if (!ready) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#000",
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        Loading…
+      </div>
+    );
+  }
+
   return (
     <>
       <Head>
@@ -20,11 +44,10 @@ export default function AppPage() {
         style={{
           minHeight: "100vh",
           background: "#f1f5f9",
-          padding: 0,
           margin: 0,
+          padding: 0,
         }}
       >
-        {/* This NOW works on mobile + desktop */}
         <NoteBoard />
       </div>
     </>
