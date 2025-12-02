@@ -1,8 +1,7 @@
-
 {
-  "name": "Stick ai Note – AI Sticky Notes",
-  "short_name": "Stick a Note",
-  "description": "Stick a Note lets you pin AI-powered sticky notes on your screen with spelling, grammar, translation and dictation.",
+  "name": "Stick AI Note – AI Sticky Notes",
+  "short_name": "Stick AI Note",
+  "description": "Stick AI Note lets you pin AI-powered sticky n...your screen with spelling, grammar, translation and dictation.",
   "lang": "en",
   "start_url": "/",
   "display": "standalone",
