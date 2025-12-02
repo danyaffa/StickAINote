@@ -1,7 +1,5 @@
 // FILE: /components/NoteBoard.tsx
-
 import React, { useEffect, useRef, useState } from "react";
-import { useAuth } from "../context/AuthContext";
 
 type AiAction = "fix" | "summarise" | "translate" | "improve";
 
@@ -20,15 +18,9 @@ type Note = {
 };
 
 const COLORS = ["#fef3c7", "#e0f2fe", "#fce7f3", "#dcfce7", "#f1f5f9"];
-
 const DEFAULT_WIDTH = 520;
-const DEFAULT_HEIGHT = 340;
-
-const STORAGE_KEY_BASE = "stickanote-single-note";
-
-function getStorageKey(userId?: string | null) {
-  return userId ? `${STORAGE_KEY_BASE}:${userId}` : `${STORAGE_KEY_BASE}:guest`;
-}
+the DEFAULT_HEIGHT = 340;
+const STORAGE_KEY = "stickanote-single-note-v1";
 
 const createNewNote = (): Note => {
   const now = Date.now();
@@ -36,12 +28,11 @@ const createNewNote = (): Note => {
     id: `note_${now}_${Math.random().toString(16).slice(2)}`,
     title: "New note",
     content: "",
-    // start near top-left corner
     x: 60,
     y: 60,
     width: DEFAULT_WIDTH,
     height: DEFAULT_HEIGHT,
-    color: COLORS[3], // soft green default
+    color: COLORS[3], // soft green
     createdAt: now,
     updatedAt: now,
     aiStatus: "idle",
@@ -49,22 +40,19 @@ const createNewNote = (): Note => {
 };
 
 const NoteBoard: React.FC = () => {
-  const { user } = useAuth();
   const [note, setNote] = useState<Note | null>(null);
-  const [dragging, setDragging] = useState<{
-    active: boolean;
-    offsetX: number;
-    offsetY: number;
-  }>({ active: false, offsetX: 0, offsetY: 0 });
-
-  const [resizing, setResizing] = useState<{
-    active: boolean;
-    startWidth: number;
-    startHeight: number;
-    startX: number;
-    startY: number;
-  }>({ active: false, startWidth: 0, startHeight: 0, startX: 0, startY: 0 });
-
+  const [dragging, setDragging] = useState({
+    active: false,
+    offsetX: 0,
+    offsetY: 0,
+  });
+  const [resizing, setResizing] = useState({
+    active: false,
+    startWidth: 0,
+    startHeight: 0,
+    startX: 0,
+    startY: 0,
+  });
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [targetLanguage, setTargetLanguage] = useState("Hebrew");
@@ -72,13 +60,10 @@ const NoteBoard: React.FC = () => {
   const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // ─────────────────────────────
-  // Load / save single note
-  // ─────────────────────────────
+  // Load from localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const key = getStorageKey(user?.uid || null);
-    const raw = window.localStorage.getItem(key);
+    const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) {
       setNote(createNewNote());
       return;
@@ -89,17 +74,17 @@ const NoteBoard: React.FC = () => {
     } catch {
       setNote(createNewNote());
     }
-  }, [user?.uid]);
+  }, []);
 
+  // Save to localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!note) return;
-    const key = getStorageKey(user?.uid || null);
-    const safe: Note = { ...note, aiStatus: "idle" };
-    window.localStorage.setItem(key, JSON.stringify(safe));
-  }, [note, user?.uid]);
+    const safe = { ...note, aiStatus: "idle" as const };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(safe));
+  }, [note]);
 
-  // speech support
+  // Speech support
   useEffect(() => {
     if (typeof window === "undefined") return;
     const w = window as any;
@@ -110,9 +95,16 @@ const NoteBoard: React.FC = () => {
 
   if (!note) return null;
 
-  // ───────────── Drag / resize ─────────────
+  const updateNote = (patch: Partial<Note>) =>
+    setNote((prev) =>
+      prev ? { ...prev, ...patch, updatedAt: Date.now() } : prev
+    );
+
+  // Drag
   const startDrag = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = (e.currentTarget.parentElement as HTMLDivElement).getBoundingClientRect();
+    const rect = (
+      e.currentTarget.parentElement as HTMLDivElement
+    ).getBoundingClientRect();
     setDragging({
       active: true,
       offsetX: e.clientX - rect.left,
@@ -121,6 +113,7 @@ const NoteBoard: React.FC = () => {
     e.preventDefault();
   };
 
+  // Resize
   const startResize = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
     const card = e.currentTarget.parentElement as HTMLDivElement;
@@ -143,26 +136,20 @@ const NoteBoard: React.FC = () => {
         const dy = e.clientY - resizing.startY;
         const w = Math.max(260, resizing.startWidth + dx);
         const h = Math.max(180, resizing.startHeight + dy);
-        setNote({ ...note, width: w, height: h, updatedAt: Date.now() });
+        updateNote({ width: w, height: h });
         return;
       }
 
       if (!dragging.active) return;
 
-      const container = document.querySelector(
-        ".note-board-inner"
-      ) as HTMLDivElement | null;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
+      const maxX = window.innerWidth - 120;
+      const maxY = window.innerHeight - 120;
+      const newX = e.clientX - dragging.offsetX;
+      const newY = e.clientY - dragging.offsetY;
 
-      const newX = e.clientX - rect.left - dragging.offsetX;
-      const newY = e.clientY - rect.top - dragging.offsetY;
-
-      setNote({
-        ...note,
-        x: Math.min(rect.width - 100, Math.max(10, newX)),
-        y: Math.min(rect.height - 100, Math.max(10, newY)),
-        updatedAt: Date.now(),
+      updateNote({
+        x: Math.min(maxX, Math.max(10, newX)),
+        y: Math.min(maxY, Math.max(10, newY)),
       });
     };
 
@@ -187,17 +174,12 @@ const NoteBoard: React.FC = () => {
     };
   }, [dragging, resizing, note]);
 
-  // ───────────── Updates ─────────────
-  const updateNote = (patch: Partial<Note>) =>
-    setNote((prev) => (prev ? { ...prev, ...patch, updatedAt: Date.now() } : prev));
-
-  // ───────────── AI ─────────────
+  // AI
   const runAi = async (action: AiAction) => {
     if (!note.content.trim()) {
       setAiError("Write something before using AI.");
       return;
     }
-
     setAiError(null);
     setAiBusy(true);
     updateNote({ aiStatus: "loading" });
@@ -214,7 +196,6 @@ const NoteBoard: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "AI error");
-
       updateNote({ content: data.text, aiStatus: "idle" });
     } catch (err: any) {
       console.error(err);
@@ -222,10 +203,10 @@ const NoteBoard: React.FC = () => {
       updateNote({ aiStatus: "error" });
     } finally {
       setAiBusy(false);
-    }
+    };
   };
 
-  // ───────────── Dictation ─────────────
+  // Dictation
   const dictate = () => {
     if (typeof window === "undefined") return;
     const w = window as any;
@@ -239,8 +220,7 @@ const NoteBoard: React.FC = () => {
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       updateNote({
-        content:
-          (note.content ? note.content + " " : "") + transcript,
+        content: (note.content ? note.content + " " : "") + transcript,
       });
     };
     recognition.onerror = () => recognition.stop();
@@ -248,7 +228,7 @@ const NoteBoard: React.FC = () => {
     recognitionRef.current = recognition;
   };
 
-  // ───────────── Export / Import ─────────────
+  // Export / import
   const exportNote = () => {
     const blob = new Blob([JSON.stringify(note, null, 2)], {
       type: "application/json",
@@ -292,28 +272,25 @@ const NoteBoard: React.FC = () => {
     );
   };
 
-  // ───────────── Render ─────────────
   return (
     <section
-      className="note-board-root"
       style={{
+        position: "relative",
         minHeight: "100vh",
-        background: "#e5e7eb",
-        display: "flex",
       }}
     >
       {aiError && (
         <div
           style={{
             position: "fixed",
-            top: 12,
+            top: 10,
             left: "50%",
             transform: "translateX(-50%)",
-            padding: "6px 12px",
             background: "#fee2e2",
             color: "#b91c1c",
+            padding: "4px 10px",
             borderRadius: 6,
-            fontSize: "0.8rem",
+            fontSize: "0.75rem",
             boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
             zIndex: 50,
           }}
@@ -330,270 +307,230 @@ const NoteBoard: React.FC = () => {
         onChange={handleImportChange}
       />
 
+      {/* The single sticky note */}
       <div
-        className="note-board-inner"
         style={{
-          position: "relative",
-          flex: 1,
-          overflow: "hidden",
+          position: "absolute",
+          left: note.x,
+          top: note.y,
+          width: note.width,
+          height: note.height,
+          backgroundColor: note.color,
+          borderRadius: 20,
+          boxShadow: "0 12px 25px rgba(15,23,42,0.25)",
+          padding: "16px 18px 18px",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
+        {/* Header */}
         <div
-          className="note-card"
           style={{
-            position: "absolute",
-            left: note.x,
-            top: note.y,
-            width: note.width,
-            height: note.height,
-            backgroundColor: note.color,
-            borderRadius: 20,
-            boxShadow: "0 12px 25px rgba(15,23,42,0.25)",
-            padding: "16px 18px 18px",
             display: "flex",
-            flexDirection: "column",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 8,
+            cursor: "move",
+          }}
+          onMouseDown={startDrag}
+        >
+          <input
+            value={note.title}
+            onChange={(e) => updateNote({ title: e.target.value })}
+            style={{
+              border: "none",
+              background: "transparent",
+              fontWeight: 600,
+              fontSize: "1rem",
+              outline: "none",
+              color: "#022c22",
+            }}
+          />
+          <button
+            type="button"
+            onClick={clearNote}
+            title="Clear note"
+            style={{
+              border: "none",
+              background: "transparent",
+              fontSize: "1.1rem",
+              cursor: "pointer",
+              color: "#334155",
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Content */}
+        <textarea
+          value={note.content}
+          onChange={(e) => updateNote({ content: e.target.value })}
+          placeholder="Type your note…"
+          style={{
+            flex: 1,
+            resize: "none",
+            border: "none",
+            outline: "none",
+            background: "transparent",
+            fontSize: "0.95rem",
+            lineHeight: 1.4,
+            color: "#065f46",
+          }}
+        />
+
+        {/* Footer inside note */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            marginTop: 8,
+            fontSize: "0.8rem",
           }}
         >
-          {/* Header inside the note */}
+          <div>
+            {/* Color dots */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+              {COLORS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => updateNote({ color: c })}
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: "999px",
+                    border:
+                      note.color === c
+                        ? "2px solid #0f172a"
+                        : "1px solid rgba(15,23,42,0.3)",
+                    backgroundColor: c,
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* AI buttons */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <button disabled={aiBusy} onClick={() => runAi("fix")}>
+                Fix
+              </button>
+              <button disabled={aiBusy} onClick={() => runAi("summarise")}>
+                Summarise
+              </button>
+              <button disabled={aiBusy} onClick={() => runAi("translate")}>
+                Translate
+              </button>
+              <button disabled={aiBusy} onClick={() => runAi("improve")}>
+                Improve
+              </button>
+            </div>
+          </div>
+
           <div
-            className="note-card-header"
             style={{
               display: "flex",
-              justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: 8,
-              cursor: "move",
+              gap: 6,
+              flexWrap: "wrap",
             }}
-            onMouseDown={startDrag}
           >
-            <input
-              className="note-title-input"
-              value={note.title}
-              onChange={(e) => updateNote({ title: e.target.value })}
+            <select
+              value={targetLanguage}
+              onChange={(e) => setTargetLanguage(e.target.value)}
+              style={{
+                fontSize: "0.75rem",
+                borderRadius: 6,
+                padding: "2px 6px",
+                border: "1px solid rgba(15,23,42,0.25)",
+                background: "rgba(255,255,255,0.7)",
+              }}
+            >
+              <option>Hebrew</option>
+              <option>English</option>
+              <option>Arabic</option>
+              <option>Spanish</option>
+              <option>French</option>
+              <option>Indonesian</option>
+            </select>
+
+            {speechSupported && (
+              <button
+                onClick={dictate}
+                title="Dictate into note"
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                }}
+              >
+                🎤
+              </button>
+            )}
+
+            <button
+              onClick={exportNote}
+              title="Export note"
               style={{
                 border: "none",
                 background: "transparent",
-                fontWeight: 600,
-                fontSize: "1rem",
-                outline: "none",
-                color: "#022c22",
+                cursor: "pointer",
               }}
-            />
+            >
+              💾
+            </button>
+
             <button
-              type="button"
+              onClick={triggerImport}
+              title="Import note backup"
+              style={{
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+              }}
+            >
+              📂
+            </button>
+
+            <button
               onClick={clearNote}
               title="Clear note"
               style={{
                 border: "none",
                 background: "transparent",
-                fontSize: "1.1rem",
                 cursor: "pointer",
-                color: "#334155",
               }}
             >
-              ×
+              🧹
             </button>
+
+            {note.aiStatus === "loading" && (
+              <span style={{ fontSize: "0.7rem" }}>AI…</span>
+            )}
+            {note.aiStatus === "error" && (
+              <span style={{ fontSize: "0.7rem", color: "#b91c1c" }}>
+                Error
+              </span>
+            )}
           </div>
-
-          {/* Content */}
-          <textarea
-            className="note-textarea"
-            value={note.content}
-            onChange={(e) => updateNote({ content: e.target.value })}
-            placeholder="Type your note…"
-            style={{
-              flex: 1,
-              resize: "none",
-              border: "none",
-              outline: "none",
-              background: "transparent",
-              fontSize: "0.95rem",
-              lineHeight: 1.4,
-              color: "#065f46",
-            }}
-          />
-
-          {/* Footer inside the note */}
-          <div
-            className="note-card-footer"
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-end",
-              marginTop: 8,
-              fontSize: "0.8rem",
-            }}
-          >
-            <div>
-              {/* Colour dots */}
-              <div
-                className="note-color-row"
-                style={{ display: "flex", gap: 6, marginBottom: 4 }}
-              >
-                {COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => updateNote({ color: c })}
-                    style={{
-                      width: 14,
-                      height: 14,
-                      borderRadius: "999px",
-                      border:
-                        note.color === c
-                          ? "2px solid #0f172a"
-                          : "1px solid rgba(15,23,42,0.3)",
-                      backgroundColor: c,
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                  />
-                ))}
-              </div>
-
-              {/* AI buttons */}
-              <div
-                className="note-ai-buttons"
-                style={{ display: "flex", gap: 6, flexWrap: "wrap" }}
-              >
-                <button
-                  className="button-ghost"
-                  disabled={aiBusy}
-                  onClick={() => runAi("fix")}
-                >
-                  Fix
-                </button>
-                <button
-                  className="button-ghost"
-                  disabled={aiBusy}
-                  onClick={() => runAi("summarise")}
-                >
-                  Summarise
-                </button>
-                <button
-                  className="button-ghost"
-                  disabled={aiBusy}
-                  onClick={() => runAi("translate")}
-                >
-                  Translate
-                </button>
-                <button
-                  className="button-ghost"
-                  disabled={aiBusy}
-                  onClick={() => runAi("improve")}
-                >
-                  Improve
-                </button>
-              </div>
-            </div>
-
-            <div
-              className="note-footer-right"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                flexWrap: "wrap",
-              }}
-            >
-              <select
-                value={targetLanguage}
-                onChange={(e) => setTargetLanguage(e.target.value)}
-                style={{
-                  fontSize: "0.75rem",
-                  borderRadius: 6,
-                  padding: "2px 6px",
-                  border: "1px solid rgba(15,23,42,0.25)",
-                  background: "rgba(255,255,255,0.7)",
-                }}
-              >
-                <option>Hebrew</option>
-                <option>English</option>
-                <option>Arabic</option>
-                <option>Spanish</option>
-                <option>French</option>
-                <option>Indonesian</option>
-              </select>
-
-              {speechSupported && (
-                <button
-                  onClick={dictate}
-                  title="Dictate into note"
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    cursor: "pointer",
-                  }}
-                >
-                  🎤
-                </button>
-              )}
-
-              <button
-                onClick={exportNote}
-                title="Export note"
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                }}
-              >
-                💾
-              </button>
-
-              <button
-                onClick={triggerImport}
-                title="Import note backup"
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                }}
-              >
-                📂
-              </button>
-
-              {/* small broom to clear */}
-              <button
-                onClick={clearNote}
-                title="Clear note"
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                }}
-              >
-                🧹
-              </button>
-
-              {note.aiStatus === "loading" && (
-                <span style={{ fontSize: "0.7rem" }}>AI…</span>
-              )}
-              {note.aiStatus === "error" && (
-                <span
-                  style={{ fontSize: "0.7rem", color: "#b91c1c" }}
-                >
-                  Error
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Resize handle */}
-          <div
-            onMouseDown={startResize}
-            style={{
-              position: "absolute",
-              right: 6,
-              bottom: 6,
-              width: 14,
-              height: 14,
-              borderRadius: 4,
-              background: "rgba(15,23,42,0.45)",
-              cursor: "se-resize",
-            }}
-          />
         </div>
+
+        {/* Resize handle */}
+        <div
+          onMouseDown={startResize}
+          style={{
+            position: "absolute",
+            right: 6,
+            bottom: 6,
+            width: 14,
+            height: 14,
+            borderRadius: 4,
+            background: "rgba(15,23,42,0.45)",
+            cursor: "se-resize",
+          }}
+        />
       </div>
     </section>
   );
