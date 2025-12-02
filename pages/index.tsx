@@ -4,15 +4,15 @@ import Head from "next/head";
 import Link from "next/link";
 
 export default function LandingPage() {
-  const canonicalUrl = "https://note-on-screen.vercel.app/";
+  const canonicalUrl = "https://stickainote.com/";
 
   return (
     <>
       <Head>
-        <title>Stick ai Note – AI Sticky Notes on Your Screen</title>
+        <title>Stick AI Note – AI Sticky Notes on Your Screen</title>
         <meta
           name="description"
-          content="Stick a Note lets you keep a single AI-powered sticky note on your screen with spell-check, grammar fixes, translation and voice dictation."
+          content="Stick AI Note lets you keep a single AI-p...th spell-check, grammar fixes, translation and voice dictation."
         />
         <link rel="canonical" href={canonicalUrl} />
         <meta name="robots" content="index,follow" />
@@ -24,7 +24,8 @@ export default function LandingPage() {
             {/* LEFT – TEXT */}
             <div>
               <h1 className="landing-title">
-                Stick a Note<span className="landing-title-accent"> – AI Notes</span>
+                Stick AI Note
+                <span className="landing-title-accent"> – AI Notes</span>
               </h1>
 
               <p className="landing-lead">
@@ -107,10 +108,10 @@ export default function LandingPage() {
 
         <footer className="landing-footer">
           <span>
-            © {new Date().getFullYear()} Stick ai Note™ – Leffler International
+            © {new Date().getFullYear()} Stick AI Note™ – Leffler International
             Investments Pty Ltd.
           </span>
-          <span>Stick ai Note™ is a registered trademark. All rights reserved.</span>
+          <span>Stick AI Note™ is a registered trademark. All rights reserved.</span>
         </footer>
       </div>
     </>
