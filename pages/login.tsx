@@ -20,17 +20,16 @@ export default function LoginPage() {
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
 
-    // ✅ Family promo – free access
+    // Promo code – free access
     if (promoCode.trim() && promoCode.trim() === FAMILY_PROMO_CODE) {
       if (typeof window !== "undefined") {
-        window.localStorage.setItem("stickainote-family", "1");
+        window.localStorage.setItem("stickainote-promo", "1");
       }
       router.push("/app");
       return;
     }
 
-    // ✅ TEMP: normal login placeholder until Firebase + Stripe are wired
-    // (any non-empty email/password goes through)
+    // TEMP: normal login placeholder
     if (!email.trim()) {
       alert("Please enter your email.");
       return;
@@ -156,14 +155,14 @@ export default function LoginPage() {
                 </div>
               </label>
 
-              {/* Family promo code */}
+              {/* Promo code */}
               <label style={{ fontSize: "0.85rem" }}>
                 Promo code (optional)
                 <input
                   type="text"
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value)}
-                  placeholder="Enter family promo code if you have one"
+                  placeholder="Enter promo code"
                   style={{
                     width: "100%",
                     marginTop: 4,
@@ -173,16 +172,6 @@ export default function LoginPage() {
                   }}
                 />
               </label>
-              <p
-                style={{
-                  fontSize: "0.75rem",
-                  marginTop: 2,
-                  marginBottom: 4,
-                  color: "#6b7280",
-                }}
-              >
-                Family members: use your promo code to unlock free access.
-              </p>
 
               {/* Login button */}
               <button
