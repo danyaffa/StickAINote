@@ -2,10 +2,54 @@
 import Head from "next/head";
 import Link from "next/link";
 import React, { useState } from "react";
+import { useRouter } from "next/router";
+
+const FAMILY_PROMO_CODE =
+  process.env.NEXT_PUBLIC_FAMILY_PROMO_CODE || "DANFAM2025";
+const DEV_ACCESS_CODE =
+  process.env.NEXT_PUBLIC_DEV_ACCESS_CODE || "DANDEV2025";
 
 export default function LoginPage() {
   const canonicalUrl = "https://stickainote.com/login";
   const [showPassword, setShowPassword] = useState(false);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [devCode, setDevCode] = useState("");
+
+  const router = useRouter();
+
+  function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+
+    // ✅ Family promo – free access
+    if (promoCode.trim() && promoCode.trim() === FAMILY_PROMO_CODE) {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("stickainote-family", "1");
+      }
+      router.push("/app");
+      return;
+    }
+
+    // ✅ Developer access (Dan only)
+    if (devCode.trim() && devCode.trim() === DEV_ACCESS_CODE) {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("stickainote-dev", "1");
+      }
+      router.push("/app");
+      return;
+    }
+
+    // ✅ TEMP: normal login placeholder until Firebase + Stripe are wired
+    // (any email/password goes through)
+    if (!email.trim()) {
+      alert("Please enter your email.");
+      return;
+    }
+
+    router.push("/app");
+  }
 
   return (
     <>
@@ -57,14 +101,21 @@ export default function LoginPage() {
 
             <p style={{ fontSize: "0.9rem", marginBottom: "1.25rem" }}>
               Temporary login page – when Firebase + Stripe are connected this
-              will sign you in. For now, just click the button to open your note.
+              will sign you in. For now, log in here and we&apos;ll open your
+              note in the next step.
             </p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <form
+              onSubmit={handleLogin}
+              style={{ display: "flex", flexDirection: "column", gap: 10 }}
+            >
+              {/* Email */}
               <label style={{ fontSize: "0.85rem" }}>
                 Email
                 <input
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   style={{
                     width: "100%",
                     marginTop: 4,
@@ -75,6 +126,7 @@ export default function LoginPage() {
                 />
               </label>
 
+              {/* Password */}
               <label style={{ fontSize: "0.85rem" }}>
                 Password
                 <div
@@ -89,6 +141,8 @@ export default function LoginPage() {
                 >
                   <input
                     type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     style={{
                       flex: 1,
                       padding: "0.45rem 0.6rem",
@@ -112,26 +166,76 @@ export default function LoginPage() {
                   </button>
                 </div>
               </label>
-            </div>
 
-            <Link
-              href="/app"
-              style={{
-                marginTop: 16,
-                display: "inline-block",
-                textAlign: "center",
-                width: "100%",
-                padding: "0.55rem 1rem",
-                borderRadius: 999,
-                background: "#2563eb",
-                color: "#ffffff",
-                fontWeight: 600,
-                textDecoration: "none",
-                fontSize: "0.95rem",
-              }}
-            >
-              Log in &amp; open my note
-            </Link>
+              {/* Family promo code */}
+              <label style={{ fontSize: "0.85rem" }}>
+                Promo code (optional)
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value)}
+                  placeholder="Enter family promo code if you have one"
+                  style={{
+                    width: "100%",
+                    marginTop: 4,
+                    padding: "0.45rem 0.6rem",
+                    borderRadius: 8,
+                    border: "1px solid #cbd5e1",
+                  }}
+                />
+              </label>
+              <p
+                style={{
+                  fontSize: "0.75rem",
+                  marginTop: 2,
+                  marginBottom: 4,
+                  color: "#6b7280",
+                }}
+              >
+                Family members: use your promo code to unlock free access.
+              </p>
+
+              {/* Developer access (for you only) */}
+              <label style={{ fontSize: "0.8rem", marginTop: 4 }}>
+                Developer access (Dan only)
+                <input
+                  type="password"
+                  value={devCode}
+                  onChange={(e) => setDevCode(e.target.value)}
+                  placeholder="Enter dev code"
+                  style={{
+                    width: "100%",
+                    marginTop: 4,
+                    padding: "0.4rem 0.6rem",
+                    borderRadius: 8,
+                    border: "1px solid #cbd5e1",
+                    fontSize: "0.85rem",
+                  }}
+                />
+              </label>
+
+              {/* Login button */}
+              <button
+                type="submit"
+                style={{
+                  marginTop: 16,
+                  display: "inline-block",
+                  textAlign: "center",
+                  width: "100%",
+                  padding: "0.55rem 1rem",
+                  borderRadius: 999,
+                  background: "#2563eb",
+                  color: "#ffffff",
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  fontSize: "0.95rem",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Log in &amp; open my note
+              </button>
+            </form>
 
             <p
               style={{
