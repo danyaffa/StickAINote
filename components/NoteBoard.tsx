@@ -6,11 +6,14 @@ import React, {
   useRef,
   useState,
   MouseEvent as ReactMouseEvent,
-  ChangeEvent as ReactChangeEvent,
   TouchEvent as ReactTouchEvent,
+  ChangeEvent as ReactChangeEvent,
 } from "react";
 
 type AiAction = "fix" | "summarise" | "translate" | "improve";
+
+type SvgPoint = { x: number; y: number };
+type SvgStroke = { id: string; points: SvgPoint[] };
 
 type Note = {
   text: string;
@@ -20,11 +23,16 @@ type Note = {
   width: number;
   height: number;
   color: string;
-  drawingData?: string | null;
+  // SVG drawing data
+  strokes: SvgStroke[];
+  aiImages: string[]; // data URLs for AI images overlayed in <image> tags
 };
 
-const STORAGE_KEY = "stickanote-note-v2";
+const STORAGE_KEY = "stickanote-note-svg-v1";
 const COLORS = ["#fef3c7", "#e0f2fe", "#fce7f3", "#dcfce7", "#f1f5f9"];
+
+// Simple ID for strokes
+const makeId = () => Math.random().toString(36).slice(2, 9);
 
 export default function NoteBoard() {
   const [note, setNote] = useState<Note | null>(null);
@@ -58,11 +66,15 @@ export default function NoteBoard() {
   const recognitionRef = useRef<any>(null);
   const baseTextRef = useRef<string>("");
 
-  // text / draw mode
+  // Modes
   const [mode, setMode] = useState<"text" | "draw">("text");
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // SVG drawing
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const lastPoint = useRef<{ x: number; y: number } | null>(null);
+  const [currentStroke, setCurrentStroke] = useState<SvgStroke | null>(null);
+  const [strokes, setStrokes] = useState<SvgStroke[]>([]);
+  const [undoneStrokes, setUndoneStrokes] = useState<SvgStroke[]>([]);
 
   // INITIAL LOAD
   useEffect(() => {
@@ -74,12 +86,20 @@ export default function NoteBoard() {
     const saved = window.localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        const parsed = JSON.parse(saved) as Note;
+        const parsed = JSON.parse(saved) as Partial<Note>;
         setNote({
-          ...parsed,
-          title: parsed.title || "My note",
-          drawingData: (parsed as any).drawingData || null,
+          text: parsed.text ?? "",
+          title: parsed.title ?? "My note",
+          x: parsed.x ?? 40,
+          y: parsed.y ?? 40,
+          width: parsed.width ?? (mobile ? window.innerWidth - 32 : 420),
+          height:
+            parsed.height ?? (mobile ? window.innerHeight * 0.65 : 260),
+          color: parsed.color ?? COLORS[0],
+          strokes: parsed.strokes ?? [],
+          aiImages: parsed.aiImages ?? [],
         });
+        setStrokes(parsed.strokes ?? []);
       } catch {
         setNote({
           text: "",
@@ -89,7 +109,8 @@ export default function NoteBoard() {
           width: mobile ? window.innerWidth - 32 : 420,
           height: mobile ? window.innerHeight * 0.65 : 260,
           color: COLORS[0],
-          drawingData: null,
+          strokes: [],
+          aiImages: [],
         });
       }
     } else {
@@ -101,7 +122,8 @@ export default function NoteBoard() {
         width: mobile ? window.innerWidth - 32 : 420,
         height: mobile ? window.innerHeight * 0.65 : 260,
         color: COLORS[0],
-        drawingData: null,
+        strokes: [],
+        aiImages: [],
       });
     }
 
@@ -113,7 +135,13 @@ export default function NoteBoard() {
     setLoaded(true);
   }, []);
 
-  // AUTOSAVE
+  // Sync strokes with note + autosave
+  useEffect(() => {
+    if (!note) return;
+    const merged: Note = { ...note, strokes };
+    setNote(merged);
+  }, [strokes]);
+
   useEffect(() => {
     if (!note || typeof window === "undefined") return;
     try {
@@ -166,6 +194,8 @@ export default function NoteBoard() {
           startY: 0,
         });
       }
+      setIsDrawing(false);
+      setCurrentStroke(null);
     }
 
     window.addEventListener("mousemove", onMove);
@@ -176,155 +206,155 @@ export default function NoteBoard() {
     };
   }, [dragging, resizing, note, isMobile]);
 
-  // DRAW MODE: sync canvas size + redraw saved drawing
-  useEffect(() => {
-    if (mode !== "draw") return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+  if (!loaded || !note) return null;
 
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+  const updateNote = (patch: Partial<Note>) =>
+    setNote((prev) => (prev ? { ...prev, ...patch } : prev));
 
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // ---------------- DRAWING (SVG) ----------------
 
-    if (note?.drawingData) {
-      const img = new Image();
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      };
-      img.src = note.drawingData;
-    }
-  }, [mode, note?.drawingData, note?.width, note?.height]);
-
-  const getCanvasPointMouse = (e: ReactMouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-    const rect = canvas.getBoundingClientRect();
+  const getSvgPointFromMouse = (e: ReactMouseEvent<SVGSVGElement>): SvgPoint | null => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const rect = svg.getBoundingClientRect();
     return {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
     };
   };
 
-  const getCanvasPointTouch = (e: ReactTouchEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
+  const getSvgPointFromTouch = (e: ReactTouchEvent<SVGSVGElement>): SvgPoint | null => {
+    const svg = svgRef.current;
+    if (!svg) return null;
     const touch = e.touches[0];
     if (!touch) return null;
-    const rect = canvas.getBoundingClientRect();
+    const rect = svg.getBoundingClientRect();
     return {
       x: touch.clientX - rect.left,
       y: touch.clientY - rect.top,
     };
   };
 
-  const startDrawingMouse = (e: ReactMouseEvent<HTMLCanvasElement>) => {
+  const startDrawingMouse = (e: ReactMouseEvent<SVGSVGElement>) => {
     e.preventDefault();
-    const p = getCanvasPointMouse(e);
+    const p = getSvgPointFromMouse(e);
     if (!p) return;
+    const stroke: SvgStroke = { id: makeId(), points: [p] };
+    setCurrentStroke(stroke);
     setIsDrawing(true);
-    lastPoint.current = p;
+    // starting a new stroke clears redo history
+    setUndoneStrokes([]);
   };
 
-  const drawMouse = (e: ReactMouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-    const p = getCanvasPointMouse(e);
-    if (!p || !lastPoint.current) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
-
-    ctx.strokeStyle = "#111827";
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-
-    ctx.beginPath();
-    ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-
-    lastPoint.current = p;
-  };
-
-  const startDrawingTouch = (e: ReactTouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const p = getCanvasPointTouch(e);
+  const moveDrawingMouse = (e: ReactMouseEvent<SVGSVGElement>) => {
+    if (!isDrawing || !currentStroke) return;
+    const p = getSvgPointFromMouse(e);
     if (!p) return;
-    setIsDrawing(true);
-    lastPoint.current = p;
-  };
-
-  const drawTouch = (e: ReactTouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    if (!isDrawing) return;
-    const p = getCanvasPointTouch(e);
-    if (!p || !lastPoint.current) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
-
-    ctx.strokeStyle = "#111827";
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-
-    ctx.beginPath();
-    ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-
-    lastPoint.current = p;
-  };
-
-  const endDrawing = () => {
-    if (!isDrawing) return;
-    setIsDrawing(false);
-    lastPoint.current = null;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    try {
-      const dataUrl = canvas.toDataURL("image/png");
-      setNote((prev) =>
-        prev
-          ? {
-              ...prev,
-              drawingData: dataUrl,
-            }
-          : prev
-      );
-    } catch {
-      // ignore
-    }
-  };
-
-  const clearDrawing = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    setNote((prev) =>
-      prev
-        ? {
-            ...prev,
-            drawingData: null,
-          }
-        : prev
+    setCurrentStroke((prev) =>
+      prev ? { ...prev, points: [...prev.points, p] } : prev
     );
   };
 
-  if (!loaded || !note) return null;
+  const endDrawingMouse = () => {
+    if (!isDrawing || !currentStroke) return;
+    setStrokes((prev) => [...prev, currentStroke]);
+    setCurrentStroke(null);
+    setIsDrawing(false);
+  };
 
-  const updateNote = (patch: Partial<Note>) =>
-    setNote((prev) => (prev ? { ...prev, ...patch } : prev));
+  const startDrawingTouch = (e: ReactTouchEvent<SVGSVGElement>) => {
+    e.preventDefault();
+    const p = getSvgPointFromTouch(e);
+    if (!p) return;
+    const stroke: SvgStroke = { id: makeId(), points: [p] };
+    setCurrentStroke(stroke);
+    setIsDrawing(true);
+    setUndoneStrokes([]);
+  };
+
+  const moveDrawingTouch = (e: ReactTouchEvent<SVGSVGElement>) => {
+    e.preventDefault();
+    if (!isDrawing || !currentStroke) return;
+    const p = getSvgPointFromTouch(e);
+    if (!p) return;
+    setCurrentStroke((prev) =>
+      prev ? { ...prev, points: [...prev.points, p] } : prev
+    );
+  };
+
+  const endDrawingTouch = () => {
+    if (!isDrawing || !currentStroke) return;
+    setStrokes((prev) => [...prev, currentStroke]);
+    setCurrentStroke(null);
+    setIsDrawing(false);
+  };
+
+  const handleUndo = () => {
+    setStrokes((prev) => {
+      if (prev.length === 0) return prev;
+      const copy = [...prev];
+      const last = copy.pop()!;
+      setUndoneStrokes((u) => [...u, last]);
+      return copy;
+    });
+  };
+
+  const handleRedo = () => {
+    setUndoneStrokes((prev) => {
+      if (prev.length === 0) return prev;
+      const copy = [...prev];
+      const last = copy.pop()!;
+      setStrokes((s) => [...s, last]);
+      return copy;
+    });
+  };
+
+  const clearDrawing = () => {
+    setStrokes([]);
+    setUndoneStrokes([]);
+    updateNote({ aiImages: [] });
+  };
+
+  // Convert current SVG to PNG data URL (for handwriting AI)
+  const getSvgAsPngDataUrl = async (): Promise<string | null> => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+
+    const serializer = new XMLSerializer();
+    const svgString = serializer.serializeToString(svg);
+    const svgBlob = new Blob([svgString], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(svgBlob);
+
+    // Draw to canvas
+    const img = new Image();
+    const canvas = document.createElement("canvas");
+    const rect = svg.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(rect.width));
+    canvas.height = Math.max(1, Math.floor(rect.height));
+
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => {
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("No canvas context"));
+          return;
+        }
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Failed to load SVG into image"));
+      };
+      img.src = url;
+    });
+
+    return canvas.toDataURL("image/png");
+  };
+
+  // ---------------- DRAG/RESIZE CARD ----------------
 
   const startDrag = (e: ReactMouseEvent<HTMLDivElement>) => {
     if (isMobile || !cardRef.current) return;
@@ -351,7 +381,8 @@ export default function NoteBoard() {
     e.preventDefault();
   };
 
-  // ---------- AI (TEXT) ----------
+  // ---------------- AI (TEXT) ----------------
+
   async function runAi(action: AiAction) {
     if (!note.text.trim()) {
       setAiError("Write something first.");
@@ -385,7 +416,8 @@ export default function NoteBoard() {
     }
   }
 
-  // ---------- AI DRAW: “Draw for me…” ----------
+  // ---------------- AI DRAW ----------------
+
   async function handleAiDraw() {
     if (typeof window === "undefined") return;
     const prompt = window.prompt(
@@ -399,7 +431,7 @@ export default function NoteBoard() {
     try {
       const res = await fetch("/api/ai-draw", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
       });
 
@@ -408,15 +440,10 @@ export default function NoteBoard() {
         throw new Error(data.error || "AI draw failed");
       }
 
-      // save image; useEffect will redraw it in canvas
-      setNote((prev) =>
-        prev
-          ? {
-              ...prev,
-              drawingData: data.imageData as string,
-            }
-          : prev
-      );
+      // Add image overlay and switch to draw mode
+      updateNote(({
+        aiImages: [...note.aiImages, data.imageData as string],
+      } as Partial<Note>));
       setMode("draw");
     } catch (err: any) {
       console.error(err);
@@ -426,35 +453,28 @@ export default function NoteBoard() {
     }
   }
 
-  // ---------- HANDWRITING → IMPROVED TEXT ----------
+  // ---------------- HANDWRITING → TEXT ----------------
+
   async function handleHandwritingToText() {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      setAiError("No drawing found.");
-      return;
-    }
-
-    let imageData: string;
     try {
-      imageData = canvas.toDataURL("image/png");
-    } catch {
-      setAiError("Could not read drawing.");
-      return;
-    }
+      const pngDataUrl = await getSvgAsPngDataUrl();
+      if (!pngDataUrl) {
+        setAiError("No drawing found.");
+        return;
+      }
 
-    setAiError(null);
-    setAiBusy(true);
+      setAiError(null);
+      setAiBusy(true);
 
-    try {
       const res = await fetch("/api/ai-handwriting", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageData }),
+        body: JSON.stringify({ imageData: pngDataUrl }),
       });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.text) {
-        throw new Error(data.error || "Handwriting recognition failed");
+        throw new Error(data.error || "Could not read handwriting");
       }
 
       // Replace with improved text and switch to Text mode
@@ -468,7 +488,8 @@ export default function NoteBoard() {
     }
   }
 
-  // ---------- Dictation ----------
+  // ---------------- DICTATION ----------------
+
   function dictate() {
     if (typeof window === "undefined") return;
     const w = window as any;
@@ -499,9 +520,7 @@ export default function NoteBoard() {
       }
 
       const combined = (baseTextRef.current + " " + transcript).trim();
-      updateNote({
-        text: combined,
-      });
+      updateNote({ text: combined });
     };
 
     recognition.onerror = () => {
@@ -519,7 +538,8 @@ export default function NoteBoard() {
     recognitionRef.current = recognition;
   }
 
-  // ---------- Export / Import / Clear ----------
+  // ---------------- EXPORT / IMPORT / CLEAR ----------------
+
   function exportNote() {
     if (typeof window === "undefined" || !note) return;
     const blob = new Blob([JSON.stringify(note, null, 2)], {
@@ -545,6 +565,8 @@ export default function NoteBoard() {
       try {
         const parsed = JSON.parse(reader.result as string) as Note;
         setNote(parsed);
+        setStrokes(parsed.strokes ?? []);
+        setUndoneStrokes([]);
       } catch {
         alert("Invalid backup file.");
       }
@@ -557,8 +579,22 @@ export default function NoteBoard() {
       const ok = window.confirm("Clear the note?");
       if (!ok) return;
     }
-    updateNote({ text: "", title: "My note", drawingData: null });
+    setStrokes([]);
+    setUndoneStrokes([]);
+    setNote({
+      text: "",
+      title: "My note",
+      x: note.x,
+      y: note.y,
+      width: note.width,
+      height: note.height,
+      color: note.color,
+      strokes: [],
+      aiImages: [],
+    });
   }
+
+  // ---------------- LAYOUT ----------------
 
   const cardStyle: React.CSSProperties = isMobile
     ? {
@@ -695,13 +731,12 @@ export default function NoteBoard() {
             />
           ) : (
             <>
-              <canvas
-                ref={canvasRef}
-                width={800}
-                height={400}
+              <svg
+                ref={svgRef}
                 style={{
                   flex: 1,
                   width: "100%",
+                  height: "100%",
                   borderRadius: 8,
                   border: "1px solid rgba(55,65,81,0.6)",
                   background: "#ffffff",
@@ -709,13 +744,53 @@ export default function NoteBoard() {
                   cursor: "crosshair",
                 }}
                 onMouseDown={startDrawingMouse}
-                onMouseMove={drawMouse}
-                onMouseUp={endDrawing}
-                onMouseLeave={endDrawing}
+                onMouseMove={moveDrawingMouse}
+                onMouseUp={endDrawingMouse}
+                onMouseLeave={endDrawingMouse}
                 onTouchStart={startDrawingTouch}
-                onTouchMove={drawTouch}
-                onTouchEnd={endDrawing}
-              />
+                onTouchMove={moveDrawingTouch}
+                onTouchEnd={endDrawingTouch}
+              >
+                {/* AI images */}
+                {note.aiImages.map((img, idx) => (
+                  <image
+                    key={idx}
+                    href={img}
+                    x={0}
+                    y={0}
+                    width="100%"
+                    height="100%"
+                    preserveAspectRatio="xMidYMid meet"
+                  />
+                ))}
+
+                {/* Past strokes */}
+                {strokes.map((s) => (
+                  <polyline
+                    key={s.id}
+                    points={s.points.map((p) => `${p.x},${p.y}`).join(" ")}
+                    fill="none"
+                    stroke="#111827"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                ))}
+
+                {/* Current stroke */}
+                {currentStroke && (
+                  <polyline
+                    points={currentStroke.points
+                      .map((p) => `${p.x},${p.y}`)
+                      .join(" ")}
+                    fill="none"
+                    stroke="#111827"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+              </svg>
               <div
                 style={{
                   marginTop: 4,
@@ -725,21 +800,49 @@ export default function NoteBoard() {
                   color: "#4b5563",
                 }}
               >
-                <span>Free drawing – use your mouse or finger.</span>
-                <button
-                  type="button"
-                  onClick={clearDrawing}
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    color: "#b91c1c",
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                    padding: 0,
-                  }}
-                >
-                  Clear drawing
-                </button>
+                <span>Free drawing – SVG strokes with undo/redo.</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    type="button"
+                    onClick={handleUndo}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                      padding: 0,
+                    }}
+                  >
+                    Undo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRedo}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                      padding: 0,
+                    }}
+                  >
+                    Redo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearDrawing}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: "#b91c1c",
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                      padding: 0,
+                    }}
+                  >
+                    Clear drawing
+                  </button>
+                </div>
               </div>
             </>
           )}
@@ -843,7 +946,6 @@ export default function NoteBoard() {
               {mode === "text" ? "✏️ Draw" : "📝 Text"}
             </button>
 
-            {/* AI draw + handwriting → text only in Draw mode */}
             {mode === "draw" && (
               <>
                 <button
