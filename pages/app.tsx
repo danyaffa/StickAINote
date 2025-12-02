@@ -1,7 +1,12 @@
 // FILE: /pages/app.tsx
 import React from "react";
 import Head from "next/head";
-import NoteBoard from "../components/NoteBoard";
+import dynamic from "next/dynamic";
+
+// ✅ Load NoteBoard only in the browser (fixes client-side error)
+const NoteBoard = dynamic(() => import("../components/NoteBoard"), {
+  ssr: false,
+});
 
 export default function AppPage() {
   const canonicalUrl = "https://note-on-screen.vercel.app/app";
