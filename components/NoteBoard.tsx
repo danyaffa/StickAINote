@@ -19,7 +19,7 @@ type Note = {
 
 const COLORS = ["#fef3c7", "#e0f2fe", "#fce7f3", "#dcfce7", "#f1f5f9"];
 const DEFAULT_WIDTH = 520;
-the DEFAULT_HEIGHT = 340;
+const DEFAULT_HEIGHT = 340;
 const STORAGE_KEY = "stickanote-single-note-v1";
 
 const createNewNote = (): Note => {
@@ -203,7 +203,7 @@ const NoteBoard: React.FC = () => {
       updateNote({ aiStatus: "error" });
     } finally {
       setAiBusy(false);
-    };
+    }
   };
 
   // Dictation
