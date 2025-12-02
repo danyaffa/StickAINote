@@ -1,6 +1,6 @@
-/* FILE: /styles/globals.css */
-
-/* RESET */
+/* =========================================================
+   GLOBAL RESET & BASE
+   ========================================================= */
 *,
 *::before,
 *::after {
@@ -12,9 +12,15 @@ body {
   margin: 0;
   padding: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  background: #e5e7eb; /* light grey, like desktop */
+    Roboto, sans-serif;
+  background: #e5e7eb; /* Light grey desktop-like background */
   color: #111827;
+  overflow: hidden; /* Prevent scrolling – makes note feel like desktop */
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
 }
 
 a {
@@ -22,87 +28,67 @@ a {
   text-decoration: none;
 }
 
-button {
-  font-family: inherit;
-}
-
-/* APP – full screen, nothing else */
-
+/* =========================================================
+   MAIN APP LAYOUT (FULLSCREEN)
+   ========================================================= */
 .app-root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-}
-
-.app-root-full {
   background: transparent;
 }
 
 .app-main {
   flex: 1;
   display: grid;
-}
-
-.app-main-full {
   grid-template-columns: minmax(0, 1fr);
-  padding: 0;
-}
-
-/* NOTE BOARD – invisible background */
-
-.note-board {
-  position: relative;
-  min-height: 100vh;
-  border: none;
   padding: 0;
   background: transparent;
 }
 
-.note-board-error {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  font-size: 0.8rem;
-  color: #b91c1c;
-  background: #fee2e2;
-  border-radius: 0.5rem;
-  padding: 0.4rem 0.6rem;
+/* =========================================================
+   NOTE BOARD
+   ========================================================= */
+.note-board {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
 }
 
-/* this is the whole browser area */
 .note-board-inner {
   position: relative;
   width: 100%;
   height: 100vh;
   background: transparent;
-  overflow: hidden;
 }
 
-/* We never show the empty state, because at least one note exists. */
+/* Hide empty state (we always create one note) */
 .note-empty-state {
   display: none;
 }
 
-/* NOTE CARD */
-
+/* =========================================================
+   NOTE CARD
+   ========================================================= */
 .note-card {
   position: absolute;
-  border-radius: 0.75rem;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
-  padding: 0.5rem;
   display: flex;
   flex-direction: column;
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
+  padding: 0.65rem;
+  min-width: 160px;
+  min-height: 120px;
 }
 
+/* -------- Header -------- */
 .note-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.4rem;
+  gap: 6px;
   cursor: move;
-  margin-bottom: 0.35rem;
 }
 
 .note-title-input {
@@ -111,17 +97,18 @@ button {
   background: transparent;
   font-size: 0.9rem;
   font-weight: 600;
+  color: #111827;
 }
 
 .note-title-input:focus {
   outline: none;
 }
 
+/* -------- Buttons -------- */
 .note-delete-button {
   border: none;
   background: transparent;
-  cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   opacity: 0.7;
 }
 
@@ -129,38 +116,58 @@ button {
   opacity: 1;
 }
 
+/* -------- Colour Dots -------- */
+.note-color-row {
+  display: flex;
+  gap: 3px;
+  padding-right: 3px;
+}
+
+.note-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.20);
+  cursor: pointer;
+}
+
+.note-color-dot-active {
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.5);
+}
+
+/* -------- Textarea -------- */
 .note-textarea {
   flex: 1;
   border: none;
   resize: none;
-  font-size: 0.85rem;
   background: transparent;
-  min-height: 90px;
+  font-size: 0.85rem;
+  padding-top: 4px;
+  color: #1f2937;
 }
 
 .note-textarea:focus {
   outline: none;
 }
 
+/* -------- Footer -------- */
 .note-card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.25rem;
+  margin-top: 6px;
   font-size: 0.75rem;
 }
 
 .note-ai-buttons {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.2rem;
+  gap: 6px;
 }
 
 .note-footer-right {
   display: flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 6px;
 }
 
 .note-ai-status {
@@ -172,15 +179,13 @@ button {
   color: #b91c1c;
 }
 
-/* BUTTONS */
-
+/* -------- Minimal Buttons -------- */
 .button-ghost {
   padding: 0.15rem 0.45rem;
   border-radius: 0.45rem;
   border: 1px solid transparent;
   background: transparent;
   font-size: 0.75rem;
-  cursor: pointer;
 }
 
 .button-ghost:hover {
@@ -188,26 +193,42 @@ button {
   background: #f9fafb;
 }
 
+/* -------- Select (Translate Language) -------- */
 .toolbar-select {
-  font-size: 0.7rem;
-  padding: 0.15rem 0.4rem;
+  padding: 0.15rem 0.3rem;
   border-radius: 0.35rem;
   border: 1px solid #d1d5db;
   background: #ffffff;
+  font-size: 0.75rem;
 }
 
-/* No footer/sidebars at all */
-
-.app-footer,
-.sidebar,
-.quick-explain {
-  display: none !important;
+/* -------- Resize Handle (bottom-right corner) -------- */
+.note-card > div:last-child {
+  /* handled inline in TSX, but can style here too */
 }
 
-/* Mobile – same behaviour */
+.note-resize-handle {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: rgba(15, 23, 42, 0.4);
+  cursor: se-resize;
+}
 
-@media (max-width: 900px) {
-  .app-main-full {
-    padding: 0;
-  }
+/* =========================================================
+   UTILITY: AI ERROR POPUP
+   ========================================================= */
+.note-board-error {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  border-radius: 8px;
 }
