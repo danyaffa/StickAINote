@@ -45,7 +45,10 @@ export default function NoteBoard() {
   const [isMobile, setIsMobile] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [targetLanguage, setTargetLanguage] = useState("Hebrew");
+
+  // ✅ CHANGED: default language is now English
+  const [targetLanguage, setTargetLanguage] = useState("English");
+
   const [speechSupported, setSpeechSupported] = useState(false);
 
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -522,12 +525,13 @@ export default function NoteBoard() {
                 background: "rgba(255,255,255,0.8)",
               }}
             >
-              <option>Hebrew</option>
+              {/* English first, others ABC */}
               <option>English</option>
               <option>Arabic</option>
-              <option>Spanish</option>
               <option>French</option>
+              <option>Hebrew</option>
               <option>Indonesian</option>
+              <option>Spanish</option>
             </select>
 
             {speechSupported && (
