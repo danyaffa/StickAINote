@@ -13,9 +13,9 @@ type Note = {
   width: number;
   height: number;
   color: string;
-  aiStatus?: "idle" | "loading" | "error";
   createdAt: number;
   updatedAt: number;
+  aiStatus?: "idle" | "loading" | "error";
 };
 
 type DragState = {
@@ -39,6 +39,7 @@ function getStorageKey(userId?: string | null) {
   return `${STORAGE_KEY_BASE}:guest`;
 }
 
+// preset colours for notes
 const COLORS = ["#fef3c7", "#e0f2fe", "#fce7f3", "#dcfce7", "#f1f5f9"];
 
 const DEFAULT_WIDTH = 230;
@@ -84,164 +85,129 @@ const NoteBoard: React.FC = () => {
   const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // ─────────────────────────────────────────────
   // Load notes from localStorage
+  // ─────────────────────────────────────────────
   useEffect(() => {
     if (typeof window === "undefined") return;
     const key = getStorageKey(user?.uid || null);
     const raw = window.localStorage.getItem(key);
     if (!raw) {
-      // first time → create one note automatically
       setNotes([createNewNote()]);
       return;
     }
-
     try {
       const parsed = JSON.parse(raw) as Partial<Note>[];
-      const withSize: Note[] = parsed.map((n) => ({
-        id: n.id || `note_${Date.now()}_${Math.random()}`,
-        title: n.title ?? "Note",
-        content: n.content ?? "",
-        x: typeof n.x === "number" ? n.x : 80,
-        y: typeof n.y === "number" ? n.y : 80,
-        width:
-          typeof n.width === "number" && n.width > 0 ? n.width : DEFAULT_WIDTH,
-        height:
-          typeof n.height === "number" && n.height > 0
-            ? n.height
-            : DEFAULT_HEIGHT,
-        color: n.color || COLORS[0],
-        aiStatus: n.aiStatus ?? "idle",
-        createdAt: n.createdAt || Date.now(),
-        updatedAt: n.updatedAt || Date.now(),
-      }));
-      setNotes(withSize.length ? withSize : [createNewNote()]);
+      const withDefaults: Note[] = parsed.map((n) => {
+        const now = Date.now();
+        return {
+          id: n.id || `note_${now}_${Math.random().toString(16).slice(2)}`,
+          title: n.title ?? "New note",
+          content: n.content ?? "",
+          x: typeof n.x === "number" ? n.x : 80,
+          y: typeof n.y === "number" ? n.y : 80,
+          width: typeof n.width === "number" ? n.width : DEFAULT_WIDTH,
+          height: typeof n.height === "number" ? n.height : DEFAULT_HEIGHT,
+          color: n.color || COLORS[0],
+          createdAt: n.createdAt || now,
+          updatedAt: n.updatedAt || now,
+          aiStatus: "idle",
+        };
+      });
+      if (withDefaults.length === 0) {
+        setNotes([createNewNote()]);
+      } else {
+        setNotes(withDefaults);
+      }
     } catch {
       setNotes([createNewNote()]);
     }
   }, [user?.uid]);
 
-  // Save notes to localStorage
+  // ─────────────────────────────────────────────
+  // Save notes to localStorage whenever they change
+  // ─────────────────────────────────────────────
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!notes.length) return;
     const key = getStorageKey(user?.uid || null);
-    window.localStorage.setItem(key, JSON.stringify(notes));
+    const safe = notes.map((n) => ({
+      ...n,
+      aiStatus: "idle",
+    }));
+    window.localStorage.setItem(key, JSON.stringify(safe));
   }, [notes, user?.uid]);
 
-  // Speech recognition setup
+  // Speech recognition support check
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    const SR =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-
-    if (SR) {
+    const w = window as any;
+    if (w.webkitSpeechRecognition || w.SpeechRecognition) {
       setSpeechSupported(true);
-      const recog = new SR();
-      recog.lang = "en-US";
-      recog.continuous = false;
-      recog.interimResults = false;
-      recognitionRef.current = recog;
-    } else {
-      setSpeechSupported(false);
     }
   }, []);
 
-  const dictate = (noteId: string) => {
-    const recog = recognitionRef.current;
-    if (!recog) return;
-
-    recog.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((r: any) => r[0]?.transcript || "")
-        .join(" ");
-
-      setNotes((prev) =>
-        prev.map((n) =>
-          n.id === noteId
-            ? {
-                ...n,
-                content: (n.content ? n.content + " " : "") + transcript,
-                updatedAt: Date.now(),
-              }
-            : n
-        )
-      );
-    };
-
-    recog.start();
-  };
-
-  // Drag logic
-  const startDrag = (e: React.MouseEvent<HTMLDivElement>, noteId: string) => {
-    const card = e.currentTarget.parentElement as HTMLDivElement | null;
-    if (!card) return;
-    const r = card.getBoundingClientRect();
-
+  // ─────────────────────────────────────────────
+  // Drag / Resize handlers
+  // ─────────────────────────────────────────────
+  const startDrag = (
+    e: React.MouseEvent<HTMLDivElement>,
+    noteId: string
+  ) => {
+    const target = e.currentTarget.parentElement as HTMLDivElement | null;
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
     setDrag({
       noteId,
-      offsetX: e.clientX - r.left,
-      offsetY: e.clientY - r.top,
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top,
     });
-
     e.preventDefault();
   };
 
-  // Resize logic (bottom-right handle)
   const startResize = (
     e: React.MouseEvent<HTMLDivElement>,
     noteId: string
   ) => {
     e.stopPropagation();
-    const card = e.currentTarget.parentElement as HTMLDivElement | null;
+    const card = (e.currentTarget.parentElement as HTMLDivElement) || null;
     if (!card) return;
-    const r = card.getBoundingClientRect();
-
+    const rect = card.getBoundingClientRect();
     setResize({
       noteId,
-      startWidth: r.width,
-      startHeight: r.height,
+      startWidth: rect.width,
+      startHeight: rect.height,
       startX: e.clientX,
       startY: e.clientY,
     });
-
-    e.preventDefault();
   };
 
   useEffect(() => {
-    const move = (e: MouseEvent) => {
-      // Resizing
+    const handleMouseMove = (e: MouseEvent) => {
+      // resizing
       if (resize.noteId) {
         const dx = e.clientX - resize.startX;
         const dy = e.clientY - resize.startY;
-
         const newWidth = Math.max(140, resize.startWidth + dx);
         const newHeight = Math.max(110, resize.startHeight + dy);
-
         setNotes((prev) =>
           prev.map((n) =>
             n.id === resize.noteId
-              ? {
-                  ...n,
-                  width: newWidth,
-                  height: newHeight,
-                  updatedAt: Date.now(),
-                }
+              ? { ...n, width: newWidth, height: newHeight, updatedAt: Date.now() }
               : n
           )
         );
         return;
       }
 
-      // Dragging
+      // dragging
       if (!drag.noteId) return;
-
       const container = document.querySelector(
         ".note-board-inner"
       ) as HTMLDivElement | null;
       if (!container) return;
-
       const rect = container.getBoundingClientRect();
+
       const x = e.clientX - rect.left - drag.offsetX;
       const y = e.clientY - rect.top - drag.offsetY;
 
@@ -250,8 +216,14 @@ const NoteBoard: React.FC = () => {
           n.id === drag.noteId
             ? {
                 ...n,
-                x: Math.max(0, x),
-                y: Math.max(0, y),
+                x: Math.min(
+                  rect.width - 80,
+                  Math.max(10, x)
+                ),
+                y: Math.min(
+                  rect.height - 80,
+                  Math.max(10, y)
+                ),
                 updatedAt: Date.now(),
               }
             : n
@@ -259,11 +231,9 @@ const NoteBoard: React.FC = () => {
       );
     };
 
-    const stop = () => {
-      if (drag.noteId) {
+    const handleMouseUp = () => {
+      if (drag.noteId || resize.noteId) {
         setDrag({ noteId: null, offsetX: 0, offsetY: 0 });
-      }
-      if (resize.noteId) {
         setResize({
           noteId: null,
           startWidth: 0,
@@ -274,25 +244,24 @@ const NoteBoard: React.FC = () => {
       }
     };
 
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", stop);
-
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
     return () => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", stop);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
     };
   }, [drag, resize]);
 
-  // CRUD
+  // ─────────────────────────────────────────────
+  // CRUD helpers
+  // ─────────────────────────────────────────────
   const addNote = () => setNotes((p) => [...p, createNewNote()]);
   const deleteNote = (id: string) =>
     setNotes((p) => p.filter((n) => n.id !== id));
   const updateContent = (id: string, v: string) =>
     setNotes((p) =>
       p.map((n) =>
-        n.id === id
-          ? { ...n, content: v, updatedAt: Date.now() }
-          : n
+        n.id === id ? { ...n, content: v, updatedAt: Date.now() } : n
       )
     );
   const updateTitle = (id: string, v: string) =>
@@ -301,8 +270,16 @@ const NoteBoard: React.FC = () => {
         n.id === id ? { ...n, title: v, updatedAt: Date.now() } : n
       )
     );
+  const updateColor = (id: string, color: string) =>
+    setNotes((p) =>
+      p.map((n) =>
+        n.id === id ? { ...n, color, updatedAt: Date.now() } : n
+      )
+    );
 
+  // ─────────────────────────────────────────────
   // AI
+  // ─────────────────────────────────────────────
   const runAi = async (noteId: string, action: AiAction) => {
     const note = notes.find((n) => n.id === noteId);
     if (!note || !note.content.trim()) {
@@ -312,7 +289,6 @@ const NoteBoard: React.FC = () => {
 
     setAiError(null);
     setAiBusyId(noteId);
-
     setNotes((p) =>
       p.map((n) =>
         n.id === noteId ? { ...n, aiStatus: "loading" } : n
@@ -331,7 +307,6 @@ const NoteBoard: React.FC = () => {
       });
 
       const data = await res.json();
-
       if (!res.ok) throw new Error(data.error || "Error");
 
       setNotes((p) =>
@@ -347,101 +322,123 @@ const NoteBoard: React.FC = () => {
         )
       );
     } catch (err: any) {
-      setAiError(err.message);
+      console.error(err);
+      setAiError(err.message || "AI request failed.");
       setNotes((p) =>
         p.map((n) =>
           n.id === noteId ? { ...n, aiStatus: "error" } : n
         )
       );
+    } finally {
+      setAiBusyId(null);
     }
-
-    setAiBusyId(null);
   };
 
-  // EXPORT backup (board)
+  // ─────────────────────────────────────────────
+  // Dictation
+  // ─────────────────────────────────────────────
+  const dictate = (noteId: string) => {
+    if (typeof window === "undefined") return;
+    const w = window as any;
+    const SpeechRecognition =
+      w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setNotes((p) =>
+        p.map((n) =>
+          n.id === noteId
+            ? {
+                ...n,
+                content: (n.content || "") + (n.content ? " " : "") + transcript,
+                updatedAt: Date.now(),
+              }
+            : n
+        )
+      );
+    };
+
+    recognition.onerror = () => {
+      recognition.stop();
+    };
+
+    recognition.start();
+    recognitionRef.current = recognition;
+  };
+
+  // ─────────────────────────────────────────────
+  // Export / Import / Clear
+  // ─────────────────────────────────────────────
   const exportNotes = () => {
-    if (notes.length === 0) {
-      alert("No notes to export.");
-      return;
-    }
-
-    const data = JSON.stringify(
-      {
-        exportedAt: new Date().toISOString(),
-        userId: user?.uid || null,
-        notes,
-      },
-      null,
-      2
-    );
-
-    const blob = new Blob([data], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(notes, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
-
-    const date = new Date().toISOString().slice(0, 10);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `stickanote-backup-${date}.json`;
-    document.body.appendChild(a);
+    a.download = "notes-backup.json";
     a.click();
-    a.remove();
     URL.revokeObjectURL(url);
   };
 
-  // IMPORT backup
   const triggerImport = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-      fileInputRef.current.click();
-    }
+    if (!fileInputRef.current) return;
+    fileInputRef.current.click();
   };
 
-  const handleImportFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleImportChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const text = String(reader.result || "");
-        const parsed = JSON.parse(text);
-        if (!parsed || !Array.isArray(parsed.notes)) {
-          throw new Error("Invalid backup file.");
+        const parsed = JSON.parse(reader.result as string) as Note[];
+        if (parsed && parsed.length) {
+          setNotes(parsed.map((n) => ({ ...n, aiStatus: "idle" })));
         }
-        const importedNotes: Note[] = parsed.notes.map((n: any) => ({
-          ...n,
-          width:
-            typeof n.width === "number" && n.width > 0
-              ? n.width
-              : DEFAULT_WIDTH,
-          height:
-            typeof n.height === "number" && n.height > 0
-              ? n.height
-              : DEFAULT_HEIGHT,
-        }));
-        setNotes(importedNotes.length ? importedNotes : [createNewNote()]);
-        alert("Notes imported successfully.");
-      } catch (err: any) {
-        alert(err.message || "Could not import this file.");
+      } catch {
+        alert("Invalid backup file.");
       }
     };
     reader.readAsText(file);
   };
 
+  // ─────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────
   return (
-    <section className="note-board">
-      {/* hidden file input for backup import */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="application/json"
-        style={{ display: "none" }}
-        onChange={handleImportFileChange}
-      />
+    <section className="note-board-root">
+      <div className="note-board-toolbar">
+        <div className="note-board-left">
+          <img
+            src="/NoteOnScreen-Logo.png"
+            alt="NoteOnScreen"
+            className="note-logo"
+          />
+          <span className="note-logo-text">Stick a Note – AI Notes</span>
+        </div>
+        <div className="note-board-right">
+          <button className="button-primary" onClick={addNote}>
+            + New note
+          </button>
+        </div>
+      </div>
 
       {aiError && <div className="note-board-error">{aiError}</div>}
+
+      <input
+        type="file"
+        accept="application/json"
+        ref={fileInputRef}
+        style={{ display: "none" }}
+        onChange={handleImportChange}
+      />
 
       <div className="note-board-inner">
         {notes.map((note) => (
@@ -466,7 +463,6 @@ const NoteBoard: React.FC = () => {
                 onChange={(e) => updateTitle(note.id, e.target.value)}
               />
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                {/* new note from this note */}
                 <button
                   type="button"
                   className="note-delete-button"
@@ -478,16 +474,16 @@ const NoteBoard: React.FC = () => {
                 >
                   +
                 </button>
-                {/* delete */}
                 <button
+                  type="button"
                   className="note-delete-button"
-                  title="Delete this note"
+                  title="Delete note"
                   onClick={(e) => {
                     e.stopPropagation();
                     deleteNote(note.id);
                   }}
                 >
-                  ✕
+                  ×
                 </button>
               </div>
             </div>
@@ -500,35 +496,54 @@ const NoteBoard: React.FC = () => {
             />
 
             <div className="note-card-footer">
-              <div className="note-ai-buttons">
-                <button
-                  className="button-ghost"
-                  disabled={aiBusyId === note.id}
-                  onClick={() => runAi(note.id, "fix")}
-                >
-                  Fix
-                </button>
-                <button
-                  className="button-ghost"
-                  disabled={aiBusyId === note.id}
-                  onClick={() => runAi(note.id, "summarise")}
-                >
-                  Summarise
-                </button>
-                <button
-                  className="button-ghost"
-                  disabled={aiBusyId === note.id}
-                  onClick={() => runAi(note.id, "translate")}
-                >
-                  Translate
-                </button>
-                <button
-                  className="button-ghost"
-                  disabled={aiBusyId === note.id}
-                  onClick={() => runAi(note.id, "improve")}
-                >
-                  Improve
-                </button>
+              <div>
+                {/* colour picker row */}
+                <div className="note-color-row">
+                  {COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={
+                        "note-color-dot" +
+                        (note.color === c ? " note-color-dot-active" : "")
+                      }
+                      style={{ backgroundColor: c }}
+                      onClick={() => updateColor(note.id, c)}
+                    />
+                  ))}
+                </div>
+
+                {/* AI buttons */}
+                <div className="note-ai-buttons">
+                  <button
+                    className="button-ghost"
+                    disabled={aiBusyId === note.id}
+                    onClick={() => runAi(note.id, "fix")}
+                  >
+                    Fix
+                  </button>
+                  <button
+                    className="button-ghost"
+                    disabled={aiBusyId === note.id}
+                    onClick={() => runAi(note.id, "summarise")}
+                  >
+                    Summarise
+                  </button>
+                  <button
+                    className="button-ghost"
+                    disabled={aiBusyId === note.id}
+                    onClick={() => runAi(note.id, "translate")}
+                  >
+                    Translate
+                  </button>
+                  <button
+                    className="button-ghost"
+                    disabled={aiBusyId === note.id}
+                    onClick={() => runAi(note.id, "improve")}
+                  >
+                    Improve
+                  </button>
+                </div>
               </div>
 
               <div className="note-footer-right">
@@ -559,7 +574,7 @@ const NoteBoard: React.FC = () => {
                   </button>
                 )}
 
-                {/* export / import / clear all – all from this note */}
+                {/* export / import / clear all */}
                 <button
                   className="button-ghost"
                   title="Export all notes (backup)"
