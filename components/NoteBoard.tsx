@@ -15,6 +15,12 @@ type AiAction = "fix" | "summarise" | "translate" | "improve";
 type SvgPoint = { x: number; y: number };
 type SvgStroke = { id: string; points: SvgPoint[] };
 
+type DetectedObject = {
+  label: string;
+  confidence?: number;
+  notes?: string;
+};
+
 type Note = {
   text: string;
   title: string;
@@ -23,15 +29,13 @@ type Note = {
   width: number;
   height: number;
   color: string;
-  // SVG drawing data
   strokes: SvgStroke[];
-  aiImages: string[]; // data URLs for AI images overlayed in <image> tags
+  aiImages: string[];
 };
 
-const STORAGE_KEY = "stickanote-note-svg-v1";
+const STORAGE_KEY = "stickanote-note-svg-v2";
 const COLORS = ["#fef3c7", "#e0f2fe", "#fce7f3", "#dcfce7", "#f1f5f9"];
 
-// Simple ID for strokes
 const makeId = () => Math.random().toString(36).slice(2, 9);
 
 export default function NoteBoard() {
@@ -61,12 +65,6 @@ export default function NoteBoard() {
   const [speechSupported, setSpeechSupported] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
 
-  const cardRef = useRef<HTMLDivElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const recognitionRef = useRef<any>(null);
-  const baseTextRef = useRef<string>("");
-
-  // Modes
   const [mode, setMode] = useState<"text" | "draw">("text");
 
   // SVG drawing
@@ -75,6 +73,17 @@ export default function NoteBoard() {
   const [currentStroke, setCurrentStroke] = useState<SvgStroke | null>(null);
   const [strokes, setStrokes] = useState<SvgStroke[]>([]);
   const [undoneStrokes, setUndoneStrokes] = useState<SvgStroke[]>([]);
+
+  // AI detection overlay
+  const [detectedObjects, setDetectedObjects] = useState<DetectedObject[]>([]);
+
+  // Zoom (basic whiteboard-style)
+  const [zoom, setZoom] = useState(1);
+
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const baseTextRef = useRef<string>("");
 
   // INITIAL LOAD
   useEffect(() => {
@@ -87,7 +96,7 @@ export default function NoteBoard() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as Partial<Note>;
-        setNote({
+        const initialNote: Note = {
           text: parsed.text ?? "",
           title: parsed.title ?? "My note",
           x: parsed.x ?? 40,
@@ -98,8 +107,9 @@ export default function NoteBoard() {
           color: parsed.color ?? COLORS[0],
           strokes: parsed.strokes ?? [],
           aiImages: parsed.aiImages ?? [],
-        });
-        setStrokes(parsed.strokes ?? []);
+        };
+        setNote(initialNote);
+        setStrokes(initialNote.strokes);
       } catch {
         setNote({
           text: "",
@@ -135,7 +145,7 @@ export default function NoteBoard() {
     setLoaded(true);
   }, []);
 
-  // Sync strokes with note + autosave
+  // Keep note & strokes in sync + autosave
   useEffect(() => {
     if (!note) return;
     const merged: Note = { ...note, strokes };
@@ -211,27 +221,31 @@ export default function NoteBoard() {
   const updateNote = (patch: Partial<Note>) =>
     setNote((prev) => (prev ? { ...prev, ...patch } : prev));
 
-  // ---------------- DRAWING (SVG) ----------------
+  // ---------- DRAWING HELPERS (SVG) ----------
 
-  const getSvgPointFromMouse = (e: ReactMouseEvent<SVGSVGElement>): SvgPoint | null => {
+  const getSvgPointFromMouse = (
+    e: ReactMouseEvent<SVGSVGElement>
+  ): SvgPoint | null => {
     const svg = svgRef.current;
     if (!svg) return null;
     const rect = svg.getBoundingClientRect();
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: (e.clientX - rect.left) / zoom,
+      y: (e.clientY - rect.top) / zoom,
     };
   };
 
-  const getSvgPointFromTouch = (e: ReactTouchEvent<SVGSVGElement>): SvgPoint | null => {
+  const getSvgPointFromTouch = (
+    e: ReactTouchEvent<SVGSVGElement>
+  ): SvgPoint | null => {
     const svg = svgRef.current;
     if (!svg) return null;
     const touch = e.touches[0];
     if (!touch) return null;
     const rect = svg.getBoundingClientRect();
     return {
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top,
+      x: (touch.clientX - rect.left) / zoom,
+      y: (touch.clientY - rect.top) / zoom,
     };
   };
 
@@ -242,8 +256,8 @@ export default function NoteBoard() {
     const stroke: SvgStroke = { id: makeId(), points: [p] };
     setCurrentStroke(stroke);
     setIsDrawing(true);
-    // starting a new stroke clears redo history
     setUndoneStrokes([]);
+    setDetectedObjects([]);
   };
 
   const moveDrawingMouse = (e: ReactMouseEvent<SVGSVGElement>) => {
@@ -270,6 +284,7 @@ export default function NoteBoard() {
     setCurrentStroke(stroke);
     setIsDrawing(true);
     setUndoneStrokes([]);
+    setDetectedObjects([]);
   };
 
   const moveDrawingTouch = (e: ReactTouchEvent<SVGSVGElement>) => {
@@ -297,6 +312,7 @@ export default function NoteBoard() {
       setUndoneStrokes((u) => [...u, last]);
       return copy;
     });
+    setDetectedObjects([]);
   };
 
   const handleRedo = () => {
@@ -307,15 +323,17 @@ export default function NoteBoard() {
       setStrokes((s) => [...s, last]);
       return copy;
     });
+    setDetectedObjects([]);
   };
 
   const clearDrawing = () => {
     setStrokes([]);
     setUndoneStrokes([]);
+    setDetectedObjects([]);
     updateNote({ aiImages: [] });
   };
 
-  // Convert current SVG to PNG data URL (for handwriting AI)
+  // Convert current SVG to PNG data URL (for handwriting & detection)
   const getSvgAsPngDataUrl = async (): Promise<string | null> => {
     const svg = svgRef.current;
     if (!svg) return null;
@@ -325,10 +343,10 @@ export default function NoteBoard() {
     const svgBlob = new Blob([svgString], { type: "image/svg+xml" });
     const url = URL.createObjectURL(svgBlob);
 
-    // Draw to canvas
     const img = new Image();
     const canvas = document.createElement("canvas");
     const rect = svg.getBoundingClientRect();
+    // We scale by zoom so exported looks correct
     canvas.width = Math.max(1, Math.floor(rect.width));
     canvas.height = Math.max(1, Math.floor(rect.height));
 
@@ -354,7 +372,7 @@ export default function NoteBoard() {
     return canvas.toDataURL("image/png");
   };
 
-  // ---------------- DRAG/RESIZE CARD ----------------
+  // ---------- CARD DRAG / RESIZE ----------
 
   const startDrag = (e: ReactMouseEvent<HTMLDivElement>) => {
     if (isMobile || !cardRef.current) return;
@@ -381,7 +399,7 @@ export default function NoteBoard() {
     e.preventDefault();
   };
 
-  // ---------------- AI (TEXT) ----------------
+  // ---------- AI TEXT (existing tools) ----------
 
   async function runAi(action: AiAction) {
     if (!note.text.trim()) {
@@ -416,7 +434,7 @@ export default function NoteBoard() {
     }
   }
 
-  // ---------------- AI DRAW ----------------
+  // ---------- AI DRAW (image gen) ----------
 
   async function handleAiDraw() {
     if (typeof window === "undefined") return;
@@ -431,7 +449,7 @@ export default function NoteBoard() {
     try {
       const res = await fetch("/api/ai-draw", {
         method: "POST",
-          headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
       });
 
@@ -441,10 +459,16 @@ export default function NoteBoard() {
       }
 
       // Add image overlay and switch to draw mode
-      updateNote(({
-        aiImages: [...note.aiImages, data.imageData as string],
-      } as Partial<Note>));
+      setNote((prev) =>
+        prev
+          ? {
+              ...prev,
+              aiImages: [...(prev.aiImages || []), data.imageData as string],
+            }
+          : prev
+      );
       setMode("draw");
+      setDetectedObjects([]);
     } catch (err: any) {
       console.error(err);
       setAiError(err?.message || "AI draw failed.");
@@ -453,7 +477,7 @@ export default function NoteBoard() {
     }
   }
 
-  // ---------------- HANDWRITING → TEXT ----------------
+  // ---------- HANDWRITING → TEXT ----------
 
   async function handleHandwritingToText() {
     try {
@@ -477,9 +501,9 @@ export default function NoteBoard() {
         throw new Error(data.error || "Could not read handwriting");
       }
 
-      // Replace with improved text and switch to Text mode
       updateNote({ text: data.text });
       setMode("text");
+      setDetectedObjects([]);
     } catch (err: any) {
       console.error(err);
       setAiError(err?.message || "Could not improve handwriting.");
@@ -488,7 +512,75 @@ export default function NoteBoard() {
     }
   }
 
-  // ---------------- DICTATION ----------------
+  // ---------- AI LAYOUT CLEANUP ----------
+
+  async function handleAiCleanLayout() {
+    if (strokes.length === 0 && note.aiImages.length === 0) {
+      setAiError("Nothing to clean. Draw something first.");
+      return;
+    }
+    setAiError(null);
+    setAiBusy(true);
+    setDetectedObjects([]);
+
+    try {
+      const res = await fetch("/api/ai-clean-layout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          strokes,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.strokes) {
+        throw new Error(data.error || "AI clean layout failed");
+      }
+
+      // Replace strokes with cleaned ones
+      setStrokes(data.strokes as SvgStroke[]);
+    } catch (err: any) {
+      console.error(err);
+      setAiError(err?.message || "AI layout cleanup failed.");
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
+  // ---------- AI OBJECT DETECTION ----------
+
+  async function handleAiDetectObjects() {
+    try {
+      const pngDataUrl = await getSvgAsPngDataUrl();
+      if (!pngDataUrl) {
+        setAiError("No drawing found.");
+        return;
+      }
+
+      setAiError(null);
+      setAiBusy(true);
+
+      const res = await fetch("/api/ai-detect-objects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageData: pngDataUrl }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.objects) {
+        throw new Error(data.error || "AI detection failed");
+      }
+
+      setDetectedObjects(data.objects as DetectedObject[]);
+    } catch (err: any) {
+      console.error(err);
+      setAiError(err?.message || "AI detection failed.");
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
+  // ---------- DICTATION ----------
 
   function dictate() {
     if (typeof window === "undefined") return;
@@ -538,7 +630,7 @@ export default function NoteBoard() {
     recognitionRef.current = recognition;
   }
 
-  // ---------------- EXPORT / IMPORT / CLEAR ----------------
+  // ---------- EXPORT / IMPORT / CLEAR ----------
 
   function exportNote() {
     if (typeof window === "undefined" || !note) return;
@@ -567,6 +659,7 @@ export default function NoteBoard() {
         setNote(parsed);
         setStrokes(parsed.strokes ?? []);
         setUndoneStrokes([]);
+        setDetectedObjects([]);
       } catch {
         alert("Invalid backup file.");
       }
@@ -581,6 +674,7 @@ export default function NoteBoard() {
     }
     setStrokes([]);
     setUndoneStrokes([]);
+    setDetectedObjects([]);
     setNote({
       text: "",
       title: "My note",
@@ -594,7 +688,13 @@ export default function NoteBoard() {
     });
   }
 
-  // ---------------- LAYOUT ----------------
+  // ---------- ZOOM CONTROL ----------
+
+  const zoomOut = () => setZoom((z) => Math.max(0.5, z - 0.1));
+  const zoomIn = () => setZoom((z) => Math.min(2.0, z + 0.1));
+  const zoomReset = () => setZoom(1);
+
+  // ---------- LAYOUT ----------
 
   const cardStyle: React.CSSProperties = isMobile
     ? {
@@ -607,6 +707,7 @@ export default function NoteBoard() {
         boxShadow: "0 8px 18px rgba(0,0,0,0.18)",
         display: "flex",
         flexDirection: "column",
+        position: "relative",
       }
     : {
         position: "absolute",
@@ -622,6 +723,7 @@ export default function NoteBoard() {
         boxShadow: "0 8px 18px rgba(0,0,0,0.18)",
         display: "flex",
         flexDirection: "column",
+        position: "absolute",
       };
 
   return (
@@ -655,6 +757,34 @@ export default function NoteBoard() {
           }}
         >
           {aiError}
+        </div>
+      )}
+
+      {/* Detected objects overlay */}
+      {detectedObjects.length > 0 && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 16,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "#111827",
+            color: "white",
+            padding: "6px 10px",
+            borderRadius: 8,
+            fontSize: 11,
+            maxWidth: "90vw",
+            zIndex: 49,
+          }}
+        >
+          <strong>AI sees:</strong>{" "}
+          {detectedObjects
+            .map((o) =>
+              o.confidence
+                ? `${o.label} (${Math.round(o.confidence * 100)}%)`
+                : o.label
+            )
+            .join(", ")}
         </div>
       )}
 
@@ -711,6 +841,7 @@ export default function NoteBoard() {
             width: "100%",
             display: "flex",
             flexDirection: "column",
+            overflow: "hidden",
           }}
         >
           {mode === "text" ? (
@@ -731,77 +862,98 @@ export default function NoteBoard() {
             />
           ) : (
             <>
-              <svg
-                ref={svgRef}
+              <div
                 style={{
                   flex: 1,
                   width: "100%",
-                  height: "100%",
-                  borderRadius: 8,
-                  border: "1px solid rgba(55,65,81,0.6)",
-                  background: "#ffffff",
-                  touchAction: "none",
-                  cursor: "crosshair",
+                  overflow: "auto", // basic scroll if zoomed
                 }}
-                onMouseDown={startDrawingMouse}
-                onMouseMove={moveDrawingMouse}
-                onMouseUp={endDrawingMouse}
-                onMouseLeave={endDrawingMouse}
-                onTouchStart={startDrawingTouch}
-                onTouchMove={moveDrawingTouch}
-                onTouchEnd={endDrawingTouch}
               >
-                {/* AI images */}
-                {note.aiImages.map((img, idx) => (
-                  <image
-                    key={idx}
-                    href={img}
-                    x={0}
-                    y={0}
-                    width="100%"
-                    height="100%"
-                    preserveAspectRatio="xMidYMid meet"
-                  />
-                ))}
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    transform: `scale(${zoom})`,
+                    transformOrigin: "top left",
+                  }}
+                >
+                  <svg
+                    ref={svgRef}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: 8,
+                      border: "1px solid rgba(55,65,81,0.6)",
+                      background: "#ffffff",
+                      touchAction: "none",
+                      cursor: "crosshair",
+                    }}
+                    onMouseDown={startDrawingMouse}
+                    onMouseMove={moveDrawingMouse}
+                    onMouseUp={endDrawingMouse}
+                    onMouseLeave={endDrawingMouse}
+                    onTouchStart={startDrawingTouch}
+                    onTouchMove={moveDrawingTouch}
+                    onTouchEnd={endDrawingTouch}
+                  >
+                    {/* AI images */}
+                    {note.aiImages.map((img, idx) => (
+                      <image
+                        key={idx}
+                        href={img}
+                        x={0}
+                        y={0}
+                        width="100%"
+                        height="100%"
+                        preserveAspectRatio="xMidYMid meet"
+                      />
+                    ))}
 
-                {/* Past strokes */}
-                {strokes.map((s) => (
-                  <polyline
-                    key={s.id}
-                    points={s.points.map((p) => `${p.x},${p.y}`).join(" ")}
-                    fill="none"
-                    stroke="#111827"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                ))}
+                    {/* Past strokes */}
+                    {strokes.map((s) => (
+                      <polyline
+                        key={s.id}
+                        points={s.points
+                          .map((p) => `${p.x},${p.y}`)
+                          .join(" ")}
+                        fill="none"
+                        stroke="#111827"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    ))}
 
-                {/* Current stroke */}
-                {currentStroke && (
-                  <polyline
-                    points={currentStroke.points
-                      .map((p) => `${p.x},${p.y}`)
-                      .join(" ")}
-                    fill="none"
-                    stroke="#111827"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                )}
-              </svg>
+                    {/* Current stroke */}
+                    {currentStroke && (
+                      <polyline
+                        points={currentStroke.points
+                          .map((p) => `${p.x},${p.y}`)
+                          .join(" ")}
+                        fill="none"
+                        stroke="#111827"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    )}
+                  </svg>
+                </div>
+              </div>
               <div
                 style={{
                   marginTop: 4,
                   fontSize: 11,
                   display: "flex",
                   justifyContent: "space-between",
+                  alignItems: "center",
                   color: "#4b5563",
+                  gap: 8,
+                  flexWrap: "wrap",
                 }}
               >
-                <span>Free drawing – SVG strokes with undo/redo.</span>
-                <div style={{ display: "flex", gap: 6 }}>
+                <span>Free drawing – SVG strokes with undo/redo & AI tools.</span>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <button
                     type="button"
                     onClick={handleUndo}
@@ -841,6 +993,18 @@ export default function NoteBoard() {
                     }}
                   >
                     Clear drawing
+                  </button>
+                  <span style={{ marginLeft: 8 }}>
+                    Zoom: {(zoom * 100).toFixed(0)}%
+                  </span>
+                  <button type="button" onClick={zoomOut}>
+                    -
+                  </button>
+                  <button type="button" onClick={zoomIn}>
+                    +
+                  </button>
+                  <button type="button" onClick={zoomReset}>
+                    Reset
                   </button>
                 </div>
               </div>
@@ -963,6 +1127,22 @@ export default function NoteBoard() {
                   title="Turn your handwriting into improved text"
                 >
                   ✍️→🔤
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAiCleanLayout}
+                  disabled={aiBusy}
+                  title="AI clean / tidy the layout"
+                >
+                  🧹 AI&nbsp;Clean
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAiDetectObjects}
+                  disabled={aiBusy}
+                  title="Let AI recognise what you drew"
+                >
+                  👁 AI&nbsp;Detect
                 </button>
               </>
             )}
