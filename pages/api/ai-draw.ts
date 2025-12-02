@@ -1,9 +1,7 @@
 // FILE: pages/api/ai-draw.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 
-type Data =
-  | { imageData: string }
-  | { error: string };
+type Data = { imageData: string } | { error: string };
 
 export default async function handler(
   req: NextApiRequest,
@@ -28,20 +26,23 @@ export default async function handler(
   }
 
   try {
-    const response = await fetch("https://api.openai.com/v1/images/generations", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-image-1",
-        prompt,
-        size: "1024x1024",
-        n: 1,
-        response_format: "b64_json",
-      }),
-    });
+    const response = await fetch(
+      "https://api.openai.com/v1/images/generations",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-image-1",
+          prompt,
+          size: "1024x1024",
+          n: 1,
+          response_format: "b64_json",
+        }),
+      }
+    );
 
     const json = await response.json();
     if (!response.ok) {
@@ -58,7 +59,6 @@ export default async function handler(
       return;
     }
 
-    // send as data URL so the front-end can put it straight into <canvas>
     const dataUrl = `data:image/png;base64,${b64}`;
     res.status(200).json({ imageData: dataUrl });
   } catch (err: any) {
