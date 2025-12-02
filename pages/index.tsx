@@ -13,7 +13,7 @@ export default function HomePage() {
         <title>{siteTitle}</title>
         <meta
           name="description"
-          content="StickAINote gives you a simple AI-powered sticky note for daily use, plus a Pro AI Thoughtboard for advanced business thinking, drawing and planning."
+          content="StickAINote provides a simple AI-powered sticky note for daily use, and a Pro AI Thoughtboard for advanced drawing, planning and business work."
         />
         <meta name="robots" content="index,follow" />
       </Head>
@@ -38,7 +38,7 @@ export default function HomePage() {
             gap: 32,
           }}
         >
-          {/* Top bar */}
+          {/* HEADER */}
           <header
             style={{
               display: "flex",
@@ -87,7 +87,7 @@ export default function HomePage() {
             </nav>
           </header>
 
-          {/* Hero */}
+          {/* HERO */}
           <section
             style={{
               display: "grid",
@@ -96,7 +96,7 @@ export default function HomePage() {
               alignItems: "center",
             }}
           >
-            {/* Left: text */}
+            {/* LEFT SIDE */}
             <div>
               <p
                 style={{
@@ -109,6 +109,7 @@ export default function HomePage() {
               >
                 Next-Generation Sticky Notes
               </p>
+
               <h1
                 style={{
                   fontSize: 34,
@@ -121,6 +122,7 @@ export default function HomePage() {
                 One AI sticky note for everyone.  
                 One AI Thoughtboard for professionals.
               </h1>
+
               <p
                 style={{
                   fontSize: 15,
@@ -131,9 +133,10 @@ export default function HomePage() {
               >
                 Use StickAINote as your simple daily sticky note with AI help,
                 or unlock the full Pro AI Thoughtboard for drawing, diagrams,
-                handwriting recognition, and serious business thinking.
+                handwriting recognition and advanced business thinking.
               </p>
 
+              {/* BUTTONS */}
               <div
                 style={{
                   display: "flex",
@@ -157,28 +160,31 @@ export default function HomePage() {
                   Open Free Sticky Note
                 </Link>
 
-                <Link
-                  href="/pro"
+                <a
+                  href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   style={{
                     padding: "10px 18px",
                     borderRadius: 999,
                     border: "1px solid rgba(148,163,184,0.9)",
                     fontSize: 14,
-                    fontWeight: 500,
+                    fontWeight: 600,
+                    color: "white",
                   }}
                 >
-                  Explore Pro AI Thoughtboard
-                </Link>
+                  Upgrade to Pro – $19.80/month
+                </a>
               </div>
 
               <p style={{ fontSize: 12, opacity: 0.75 }}>
                 Basic plan: 1st month free, then{" "}
-                <strong>$6.60 / month (USD)</strong>. <br />
+                <strong>$6.60 / month (USD)</strong>.  
                 Pro AI Thoughtboard: <strong>$19.80 / month (USD)</strong>.
               </p>
             </div>
 
-            {/* Right: app image */}
+            {/* RIGHT: APP IMAGE */}
             <div
               style={{
                 position: "relative",
@@ -213,7 +219,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* Plans section */}
+          {/* PLANS SECTION */}
           <section
             style={{
               marginTop: 8,
@@ -227,7 +233,7 @@ export default function HomePage() {
               gap: 18,
             }}
           >
-            {/* Basic card */}
+            {/* BASIC CARD */}
             <div
               style={{
                 background: "rgba(15,23,42,0.9)",
@@ -251,6 +257,7 @@ export default function HomePage() {
               <p style={{ fontSize: 13, marginTop: 0, opacity: 0.85 }}>
                 Simple AI-assisted sticky note for everyday use.
               </p>
+
               <p style={{ fontSize: 24, margin: "6px 0" }}>
                 $6.60 <span style={{ fontSize: 13 }}>/ month</span>
               </p>
@@ -263,6 +270,7 @@ export default function HomePage() {
               >
                 First month completely free.
               </p>
+
               <ul
                 style={{
                   fontSize: 12,
@@ -273,10 +281,11 @@ export default function HomePage() {
               >
                 <li>Type, move and resize your sticky note</li>
                 <li>AI Fix / Summarise / Translate / Improve</li>
-                <li>Voice dictation for quick capture</li>
+                <li>Voice dictation included</li>
                 <li>Save & load from your browser</li>
-                <li>Perfect for everyday personal use</li>
+                <li>One simple sticky note</li>
               </ul>
+
               <Link
                 href="/basic"
                 style={{
@@ -294,7 +303,7 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* Pro card */}
+            {/* PRO CARD */}
             <div
               style={{
                 background: "rgba(15,23,42,0.9)",
@@ -315,12 +324,16 @@ export default function HomePage() {
               >
                 🟦 Pro AI Business Note
               </h2>
+
               <p style={{ fontSize: 13, marginTop: 0, opacity: 0.85 }}>
-                Full AI Thoughtboard for drawing, planning and business.
+                Full AI Thoughtboard for drawing, business planning and smart
+                AI assistance.
               </p>
+
               <p style={{ fontSize: 24, margin: "6px 0" }}>
                 $19.80 <span style={{ fontSize: 13 }}>/ month</span>
               </p>
+
               <ul
                 style={{
                   fontSize: 12,
@@ -329,14 +342,18 @@ export default function HomePage() {
                   lineHeight: 1.5,
                 }}
               >
-                <li>Full SVG drawing with undo/redo</li>
-                <li>AI handwriting → clean text</li>
-                <li>AI draw logos, diagrams & sketches</li>
+                <li>Full SVG drawing engine with undo/redo</li>
+                <li>AI handwriting → clean professional text</li>
+                <li>AI drawings: logos, icons & diagrams</li>
                 <li>AI layout cleanup & object detection</li>
-                <li>Whiteboard mode & export options</li>
+                <li>Whiteboard mode: infinite canvas + zoom</li>
+                <li>Export to PDF, PNG or SVG</li>
               </ul>
-              <Link
-                href="/pro"
+
+              <a
+                href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
                   marginTop: 12,
                   display: "inline-block",
@@ -345,14 +362,15 @@ export default function HomePage() {
                   border: "1px solid rgba(148,163,184,0.9)",
                   fontSize: 13,
                   fontWeight: 600,
+                  color: "white",
                 }}
               >
-                Explore Pro AI Thoughtboard
-              </Link>
+                Upgrade to Pro – $19.80/month
+              </a>
             </div>
           </section>
 
-          {/* Footer */}
+          {/* FOOTER */}
           <footer
             style={{
               fontSize: 11,
