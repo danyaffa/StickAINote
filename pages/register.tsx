@@ -134,7 +134,7 @@ export default function RegisterPage() {
               }}
             >
               Your <strong>first month is free</strong>. You must enter your
-              credit-card details now to activate the free trial.
+              credit-card details now to activate the free trial. Going forward fee is only US$6.60 per month.
               <br />
               You can <strong>cancel any time before the end of the month</strong>{" "}
               and you will <strong>not be charged</strong>. You can also remove
