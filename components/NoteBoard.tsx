@@ -1,5 +1,13 @@
 // FILE: components/NoteBoard.tsx
-import { useEffect, useRef, useState } from "react";
+"use client";
+
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  MouseEvent as ReactMouseEvent,
+  ChangeEvent as ReactChangeEvent,
+} from "react";
 
 type AiAction = "fix" | "summarise" | "translate" | "improve";
 
@@ -20,7 +28,25 @@ type Note = {
 const COLORS = ["#fef3c7", "#e0f2fe", "#fce7f3", "#dcfce7", "#f1f5f9"];
 const DEFAULT_WIDTH = 520;
 const DEFAULT_HEIGHT = 340;
+// keep same key so existing note still loads
 const STORAGE_KEY = "stickanote-single-note-v1";
+
+function createNewNote(): Note {
+  const now = Date.now();
+  return {
+    id: `note_${now}_${Math.random().toString(16).slice(2)}`,
+    title: "New note",
+    content: "",
+    x: 60,
+    y: 60,
+    width: DEFAULT_WIDTH,
+    height: DEFAULT_HEIGHT,
+    color: COLORS[3],
+    createdAt: now,
+    updatedAt: now,
+    aiStatus: "idle",
+  };
+}
 
 export default function NoteBoard() {
   const [note, setNote] = useState<Note | null>(null);
@@ -43,30 +69,39 @@ export default function NoteBoard() {
   const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Load from localStorage (browser only)
+  // Safe load from localStorage (client only)
   useEffect(() => {
     if (typeof window === "undefined") return;
+
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (!raw) {
         setNote(createNewNote());
         return;
       }
-      const stored = JSON.parse(raw) as Note;
-      setNote({ ...stored, aiStatus: "idle" });
+      const stored = JSON.parse(raw) as Partial<Note>;
+      setNote({
+        ...createNewNote(),
+        ...stored,
+        aiStatus: "idle",
+      });
     } catch {
       setNote(createNewNote());
     }
   }, []);
 
-  // Save to localStorage
+  // Safe save to localStorage
   useEffect(() => {
     if (typeof window === "undefined" || !note) return;
-    const safe: Note = { ...note, aiStatus: "idle" };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(safe));
+    try {
+      const safe: Note = { ...note, aiStatus: "idle" };
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(safe));
+    } catch {
+      // ignore quota / private mode errors
+    }
   }, [note]);
 
-  // Check speech support
+  // Check browser speech support
   useEffect(() => {
     if (typeof window === "undefined") return;
     const w = window as any;
@@ -75,34 +110,18 @@ export default function NoteBoard() {
     }
   }, []);
 
+  // If not yet loaded, render nothing (prevents hydration issues)
   if (!note) return null;
-
-  function createNewNote(): Note {
-    const now = Date.now();
-    return {
-      id: `note_${now}_${Math.random().toString(16).slice(2)}`,
-      title: "New note",
-      content: "",
-      x: 60,
-      y: 60,
-      width: DEFAULT_WIDTH,
-      height: DEFAULT_HEIGHT,
-      color: COLORS[3],
-      createdAt: now,
-      updatedAt: now,
-      aiStatus: "idle",
-    };
-  }
 
   const updateNote = (patch: Partial<Note>) =>
     setNote((prev) =>
       prev ? { ...prev, ...patch, updatedAt: Date.now() } : prev
     );
 
-  const startDrag = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = (
-      e.currentTarget.parentElement as HTMLDivElement
-    ).getBoundingClientRect();
+  const startDrag = (e: ReactMouseEvent<HTMLDivElement>) => {
+    const parent = e.currentTarget.parentElement as HTMLDivElement | null;
+    if (!parent) return;
+    const rect = parent.getBoundingClientRect();
     setDragging({
       active: true,
       offsetX: e.clientX - rect.left,
@@ -111,9 +130,10 @@ export default function NoteBoard() {
     e.preventDefault();
   };
 
-  const startResize = (e: React.MouseEvent<HTMLDivElement>) => {
+  const startResize = (e: ReactMouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    const card = e.currentTarget.parentElement as HTMLDivElement;
+    const card = e.currentTarget.parentElement as HTMLDivElement | null;
+    if (!card) return;
     const rect = card.getBoundingClientRect();
     setResizing({
       active: true,
@@ -124,7 +144,10 @@ export default function NoteBoard() {
     });
   };
 
+  // Global mouse move / up for drag & resize
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     function handleMove(e: MouseEvent) {
       if (!note) return;
 
@@ -188,12 +211,16 @@ export default function NoteBoard() {
           targetLanguage,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "AI error");
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.text) {
+        throw new Error(data.error || "AI error");
+      }
+
       updateNote({ content: data.text, aiStatus: "idle" });
     } catch (err: any) {
       console.error(err);
-      setAiError(err.message || "AI request failed.");
+      setAiError(err?.message || "AI request failed.");
       updateNote({ aiStatus: "error" });
     } finally {
       setAiBusy(false);
@@ -202,10 +229,12 @@ export default function NoteBoard() {
 
   // --- Dictate, Export, Import, Clear ---
   function dictate() {
+    if (typeof window === "undefined") return;
     const w = window as any;
     const SpeechRecognition =
       w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!SpeechRecognition) return;
+
     const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
     recognition.onresult = (event: any) => {
@@ -216,11 +245,15 @@ export default function NoteBoard() {
       });
     };
     recognition.onerror = () => recognition.stop();
+    recognition.onend = () => {
+      recognitionRef.current = null;
+    };
     recognition.start();
     recognitionRef.current = recognition;
   }
 
   function exportNote() {
+    if (typeof window === "undefined" || !note) return;
     const blob = new Blob([JSON.stringify(note, null, 2)], {
       type: "application/json",
     });
@@ -237,7 +270,7 @@ export default function NoteBoard() {
   }
 
   function handleImportChange(
-    e: React.ChangeEvent<HTMLInputElement>
+    e: ReactChangeEvent<HTMLInputElement>
   ) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -246,8 +279,12 @@ export default function NoteBoard() {
       try {
         const parsed = JSON.parse(
           reader.result as string
-        ) as Note;
-        setNote({ ...parsed, aiStatus: "idle" });
+        ) as Partial<Note>;
+        setNote({
+          ...createNewNote(),
+          ...parsed,
+          aiStatus: "idle",
+        });
       } catch {
         alert("Invalid backup file.");
       }
@@ -256,7 +293,10 @@ export default function NoteBoard() {
   }
 
   function clearNote() {
-    if (!confirm("Clear the note?")) return;
+    if (typeof window !== "undefined") {
+      const ok = window.confirm("Clear the note?");
+      if (!ok) return;
+    }
     setNote((prev) =>
       prev
         ? {
