@@ -1,234 +1,201 @@
-/* =========================================================
-   GLOBAL RESET & BASE
-   ========================================================= */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, sans-serif;
-  background: #e5e7eb; /* Light grey desktop-like background */
-  color: #111827;
-  overflow: hidden; /* Prevent scrolling – makes note feel like desktop */
-}
-
-button {
-  font-family: inherit;
-  cursor: pointer;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-/* =========================================================
-   MAIN APP LAYOUT (FULLSCREEN)
-   ========================================================= */
-.app-root {
+/* Stick a Note – landing layout */
+.landing-root {
   min-height: 100vh;
+  background: #e5e7eb;
   display: flex;
   flex-direction: column;
-  background: transparent;
 }
 
-.app-main {
+.landing-main {
   flex: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  padding: 0;
-  background: transparent;
-}
-
-/* =========================================================
-   NOTE BOARD
-   ========================================================= */
-.note-board {
-  position: relative;
-  width: 100%;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.note-board-inner {
-  position: relative;
-  width: 100%;
-  height: 100vh;
-  background: transparent;
-}
-
-/* Hide empty state (we always create one note) */
-.note-empty-state {
-  display: none;
-}
-
-/* =========================================================
-   NOTE CARD
-   ========================================================= */
-.note-card {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  border-radius: 0.75rem;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
-  padding: 0.65rem;
-  min-width: 160px;
-  min-height: 120px;
-}
-
-/* -------- Header -------- */
-.note-card-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  cursor: move;
+  justify-content: center;
+  padding: 3rem 1.5rem;
 }
 
-.note-title-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #111827;
+.landing-grid {
+  width: 100%;
+  max-width: 960px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 2.5rem;
+  align-items: center;
 }
 
-.note-title-input:focus {
-  outline: none;
+/* Typography */
+.landing-title {
+  font-size: 2.3rem;
+  line-height: 1.1;
+  margin-bottom: 1rem;
+  color: #0f172a;
 }
 
-/* -------- Buttons -------- */
-.note-delete-button {
-  border: none;
-  background: transparent;
-  font-size: 0.9rem;
-  opacity: 0.7;
+.landing-title-accent {
+  color: #2563eb;
 }
 
-.note-delete-button:hover {
-  opacity: 1;
+.landing-lead {
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 1.25rem;
+  color: #1e293b;
 }
 
-/* -------- Colour Dots -------- */
-.note-color-row {
+.landing-bullets {
+  padding-left: 1.1rem;
+  margin-bottom: 1.5rem;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.landing-cta-row {
   display: flex;
-  gap: 3px;
-  padding-right: 3px;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
-.note-color-dot {
+.landing-note {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+/* Buttons */
+.btn-primary,
+.btn-dark,
+.btn-ghost {
+  padding: 0.65rem 1.3rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.btn-dark {
+  background: #0f172a;
+  color: #e5e7eb;
+  font-weight: 500;
+}
+
+.btn-ghost {
+  border: 1px solid #64748b;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* Note preview card */
+.landing-note-preview {
+  display: flex;
+  justify-content: center;
+}
+
+.landing-note-card {
+  width: 100%;
+  max-width: 360px;
+  height: 260px;
+  border-radius: 26px;
+  background: #dcfce7;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.28);
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.landing-note-title {
+  font-weight: 600;
+  color: #022c22;
+  font-size: 0.95rem;
+}
+
+.landing-note-close {
+  color: #64748b;
+  font-size: 1rem;
+}
+
+.landing-note-body {
+  flex: 1;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+  color: #065f46;
+  opacity: 0.75;
+}
+
+.landing-note-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: 0.75rem;
+}
+
+.landing-color-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.landing-color-dot {
   width: 12px;
   height: 12px;
   border-radius: 999px;
-  border: 1px solid rgba(0, 0, 0, 0.20);
-  cursor: pointer;
+  border: 1px solid rgba(15, 23, 42, 0.2);
 }
 
-.note-color-dot-active {
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.5);
+.landing-ai-row {
+  display: flex;
+  gap: 6px;
 }
 
-/* -------- Textarea -------- */
-.note-textarea {
-  flex: 1;
-  border: none;
-  resize: none;
-  background: transparent;
-  font-size: 0.85rem;
-  padding-top: 4px;
-  color: #1f2937;
+.landing-tools-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.note-textarea:focus {
-  outline: none;
-}
-
-/* -------- Footer -------- */
-.note-card-footer {
+/* Footer */
+.landing-footer {
+  border-top: 1px solid #cbd5f5;
+  background: #0f172a;
+  color: #e5e7eb;
+  font-size: 0.7rem;
+  padding: 0.45rem 1rem;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-top: 6px;
-  font-size: 0.75rem;
+  gap: 0.5rem;
 }
 
-.note-ai-buttons {
-  display: flex;
-  gap: 6px;
-}
+/* Mobile layout */
+@media (max-width: 768px) {
+  .landing-main {
+    padding: 1.75rem 1.25rem 2.5rem;
+    align-items: flex-start;
+  }
 
-.note-footer-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
+  .landing-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+  }
 
-.note-ai-status {
-  font-size: 0.7rem;
-  color: #374151;
-}
+  .landing-title {
+    font-size: 1.8rem;
+  }
 
-.note-ai-status-error {
-  color: #b91c1c;
-}
-
-/* -------- Minimal Buttons -------- */
-.button-ghost {
-  padding: 0.15rem 0.45rem;
-  border-radius: 0.45rem;
-  border: 1px solid transparent;
-  background: transparent;
-  font-size: 0.75rem;
-}
-
-.button-ghost:hover {
-  border-color: #d1d5db;
-  background: #f9fafb;
-}
-
-/* -------- Select (Translate Language) -------- */
-.toolbar-select {
-  padding: 0.15rem 0.3rem;
-  border-radius: 0.35rem;
-  border: 1px solid #d1d5db;
-  background: #ffffff;
-  font-size: 0.75rem;
-}
-
-/* -------- Resize Handle (bottom-right corner) -------- */
-.note-card > div:last-child {
-  /* handled inline in TSX, but can style here too */
-}
-
-.note-resize-handle {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  background: rgba(15, 23, 42, 0.4);
-  cursor: se-resize;
-}
-
-/* =========================================================
-   UTILITY: AI ERROR POPUP
-   ========================================================= */
-.note-board-error {
-  position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #fee2e2;
-  color: #991b1b;
-  padding: 0.4rem 0.8rem;
-  font-size: 0.8rem;
-  border-radius: 8px;
+  .landing-note-card {
+    max-width: 100%;
+    height: auto;
+  }
 }
