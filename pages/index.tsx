@@ -9,7 +9,7 @@ export default function LandingPage() {
   return (
     <>
       <Head>
-        <title>Stick a Note – AI Sticky Notes on Your Screen</title>
+        <title>Stick ai Note – AI Sticky Notes on Your Screen</title>
         <meta
           name="description"
           content="Stick a Note lets you keep a single AI-powered sticky note on your screen with spell-check, grammar fixes, translation and voice dictation."
@@ -107,10 +107,10 @@ export default function LandingPage() {
 
         <footer className="landing-footer">
           <span>
-            © {new Date().getFullYear()} Stick a Note™ – Leffler International
+            © {new Date().getFullYear()} Stick ai Note™ – Leffler International
             Investments Pty Ltd.
           </span>
-          <span>Stick a Note™ is a registered trademark. All rights reserved.</span>
+          <span>Stick ai Note™ is a registered trademark. All rights reserved.</span>
         </footer>
       </div>
     </>
