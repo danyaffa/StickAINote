@@ -1,9 +1,11 @@
 // FILE: /pages/login.tsx
 import Head from "next/head";
 import Link from "next/link";
+import React, { useState } from "react";
 
 export default function LoginPage() {
   const canonicalUrl = "https://note-on-screen.vercel.app/login";
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <>
@@ -54,8 +56,8 @@ export default function LoginPage() {
             </h1>
 
             <p style={{ fontSize: "0.9rem", marginBottom: "1.25rem" }}>
-              This is a placeholder login page. When we connect Firebase / Stripe,
-              this form will sign you in and open your note.
+              Temporary login page – when Firebase + Stripe are connected this
+              will sign you in. For now, just click the button to open your note.
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -75,37 +77,61 @@ export default function LoginPage() {
 
               <label style={{ fontSize: "0.85rem" }}>
                 Password
-                <input
-                  type="password"
+                <div
                   style={{
-                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
                     marginTop: 4,
-                    padding: "0.45rem 0.6rem",
                     borderRadius: 8,
                     border: "1px solid #cbd5e1",
+                    paddingRight: 6,
                   }}
-                />
+                >
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    style={{
+                      flex: 1,
+                      padding: "0.45rem 0.6rem",
+                      border: "none",
+                      outline: "none",
+                      borderRadius: 8,
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    style={{
+                      fontSize: "0.8rem",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      color: "#2563eb",
+                    }}
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
               </label>
-
-              {/* TEMP: just link to /app */}
-              <Link
-                href="/app"
-                style={{
-                  marginTop: 12,
-                  display: "inline-block",
-                  textAlign: "center",
-                  padding: "0.55rem 1rem",
-                  borderRadius: 999,
-                  background: "#2563eb",
-                  color: "#ffffff",
-                  fontWeight: 600,
-                  textDecoration: "none",
-                  fontSize: "0.95rem",
-                }}
-              >
-                Log in &amp; open my note
-              </Link>
             </div>
+
+            <Link
+              href="/app"
+              style={{
+                marginTop: 16,
+                display: "inline-block",
+                textAlign: "center",
+                width: "100%",
+                padding: "0.55rem 1rem",
+                borderRadius: 999,
+                background: "#2563eb",
+                color: "#ffffff",
+                fontWeight: 600,
+                textDecoration: "none",
+                fontSize: "0.95rem",
+              }}
+            >
+              Log in &amp; open my note
+            </Link>
 
             <p
               style={{
