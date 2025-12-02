@@ -346,7 +346,6 @@ export default function NoteBoard() {
     const img = new Image();
     const canvas = document.createElement("canvas");
     const rect = svg.getBoundingClientRect();
-    // We scale by zoom so exported looks correct
     canvas.width = Math.max(1, Math.floor(rect.width));
     canvas.height = Math.max(1, Math.floor(rect.height));
 
@@ -399,7 +398,7 @@ export default function NoteBoard() {
     e.preventDefault();
   };
 
-  // ---------- AI TEXT (existing tools) ----------
+  // ---------- AI TEXT ----------
 
   async function runAi(action: AiAction) {
     if (!note.text.trim()) {
@@ -458,7 +457,6 @@ export default function NoteBoard() {
         throw new Error(data.error || "AI draw failed");
       }
 
-      // Add image overlay and switch to draw mode
       setNote((prev) =>
         prev
           ? {
@@ -537,7 +535,6 @@ export default function NoteBoard() {
         throw new Error(data.error || "AI clean layout failed");
       }
 
-      // Replace strokes with cleaned ones
       setStrokes(data.strokes as SvgStroke[]);
     } catch (err: any) {
       console.error(err);
@@ -723,7 +720,6 @@ export default function NoteBoard() {
         boxShadow: "0 8px 18px rgba(0,0,0,0.18)",
         display: "flex",
         flexDirection: "column",
-        position: "absolute",
       };
 
   return (
@@ -866,7 +862,7 @@ export default function NoteBoard() {
                 style={{
                   flex: 1,
                   width: "100%",
-                  overflow: "auto", // basic scroll if zoomed
+                  overflow: "auto",
                 }}
               >
                 <div
@@ -952,7 +948,9 @@ export default function NoteBoard() {
                   flexWrap: "wrap",
                 }}
               >
-                <span>Free drawing – SVG strokes with undo/redo & AI tools.</span>
+                <span>
+                  Free drawing – SVG strokes with undo/redo & AI tools.
+                </span>
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <button
                     type="button"
