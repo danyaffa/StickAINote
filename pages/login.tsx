@@ -6,8 +6,6 @@ import { useRouter } from "next/router";
 
 const FAMILY_PROMO_CODE =
   process.env.NEXT_PUBLIC_FAMILY_PROMO_CODE || "DANFAM2025";
-const DEV_ACCESS_CODE =
-  process.env.NEXT_PUBLIC_DEV_ACCESS_CODE || "DANDEV2025";
 
 export default function LoginPage() {
   const canonicalUrl = "https://stickainote.com/login";
@@ -16,7 +14,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [promoCode, setPromoCode] = useState("");
-  const [devCode, setDevCode] = useState("");
 
   const router = useRouter();
 
@@ -32,17 +29,8 @@ export default function LoginPage() {
       return;
     }
 
-    // ✅ Developer access (Dan only)
-    if (devCode.trim() && devCode.trim() === DEV_ACCESS_CODE) {
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("stickainote-dev", "1");
-      }
-      router.push("/app");
-      return;
-    }
-
     // ✅ TEMP: normal login placeholder until Firebase + Stripe are wired
-    // (any email/password goes through)
+    // (any non-empty email/password goes through)
     if (!email.trim()) {
       alert("Please enter your email.");
       return;
@@ -94,6 +82,7 @@ export default function LoginPage() {
                 fontSize: "1.5rem",
                 marginBottom: "0.75rem",
                 color: "#0f172a",
+                fontWeight: 700,
               }}
             >
               Log in
@@ -195,34 +184,13 @@ export default function LoginPage() {
                 Family members: use your promo code to unlock free access.
               </p>
 
-              {/* Developer access (for you only) */}
-              <label style={{ fontSize: "0.8rem", marginTop: 4 }}>
-                Developer access (Dan only)
-                <input
-                  type="password"
-                  value={devCode}
-                  onChange={(e) => setDevCode(e.target.value)}
-                  placeholder="Enter dev code"
-                  style={{
-                    width: "100%",
-                    marginTop: 4,
-                    padding: "0.4rem 0.6rem",
-                    borderRadius: 8,
-                    border: "1px solid #cbd5e1",
-                    fontSize: "0.85rem",
-                  }}
-                />
-              </label>
-
               {/* Login button */}
               <button
                 type="submit"
                 style={{
-                  marginTop: 16,
-                  display: "inline-block",
-                  textAlign: "center",
+                  marginTop: 8,
                   width: "100%",
-                  padding: "0.55rem 1rem",
+                  padding: "0.65rem 1rem",
                   borderRadius: 999,
                   background: "#2563eb",
                   color: "#ffffff",
@@ -239,7 +207,7 @@ export default function LoginPage() {
 
             <p
               style={{
-                marginTop: "0.9rem",
+                marginTop: "0.85rem",
                 fontSize: "0.8rem",
                 color: "#6b7280",
               }}
