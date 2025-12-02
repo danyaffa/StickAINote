@@ -52,6 +52,7 @@ export default function NoteBoard() {
   const [targetLanguage, setTargetLanguage] = useState("English");
 
   const [speechSupported, setSpeechSupported] = useState(false);
+  const [isRecording, setIsRecording] = useState(false); // ✅ NEW: recording state
 
   const cardRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -391,18 +392,38 @@ export default function NoteBoard() {
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!SR) return;
 
+    // If already recording, stop
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+      recognitionRef.current = null;
+      return;
+    }
+
     const recognition = new SR();
     recognition.lang = "en-US";
+
+    recognition.onstart = () => {
+      setIsRecording(true); // ✅ turn green
+    };
+
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       updateNote({
         text: note.text ? note.text + " " + transcript : transcript,
       });
     };
-    recognition.onerror = () => recognition.stop();
+
+    recognition.onerror = () => {
+      setIsRecording(false); // ✅ stop
+      recognition.stop();
+    };
+
     recognition.onend = () => {
+      setIsRecording(false); // ✅ stop
       recognitionRef.current = null;
     };
+
     recognition.start();
     recognitionRef.current = recognition;
   }
@@ -736,7 +757,19 @@ export default function NoteBoard() {
             </button>
 
             {speechSupported && (
-              <button onClick={dictate} title="Dictate">
+              <button
+                onClick={dictate}
+                title={isRecording ? "Stop dictation" : "Dictate"}
+                style={{
+                  background: isRecording ? "#22c55e" : "#ef4444", // green when recording, red when stopped
+                  color: "white",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "2px 8px",
+                  fontSize: 14,
+                  cursor: "pointer",
+                }}
+              >
                 🎤
               </button>
             )}
