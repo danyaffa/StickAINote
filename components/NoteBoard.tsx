@@ -271,7 +271,7 @@ export default function NoteBoard() {
     fileInputRef.current?.click();
   }
 
-  function handleImportChange(e: ChangeEvent<HTMLInputElement>) {
+  function handleImportChange(e: ReactChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
