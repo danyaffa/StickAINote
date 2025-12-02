@@ -10,6 +10,8 @@ type Note = {
   content: string;
   x: number;
   y: number;
+  width: number;
+  height: number;
   color: string;
   aiStatus?: "idle" | "loading" | "error";
   createdAt: number;
@@ -22,6 +24,14 @@ type DragState = {
   offsetY: number;
 };
 
+type ResizeState = {
+  noteId: string | null;
+  startWidth: number;
+  startHeight: number;
+  startX: number;
+  startY: number;
+};
+
 const STORAGE_KEY_BASE = "stickanote-notes";
 
 function getStorageKey(userId?: string | null) {
@@ -31,6 +41,9 @@ function getStorageKey(userId?: string | null) {
 
 const COLORS = ["#fef3c7", "#e0f2fe", "#fce7f3", "#dcfce7", "#f1f5f9"];
 
+const DEFAULT_WIDTH = 230;
+const DEFAULT_HEIGHT = 170;
+
 const createNewNote = (): Note => {
   const now = Date.now();
   return {
@@ -39,6 +52,8 @@ const createNewNote = (): Note => {
     content: "",
     x: 40 + Math.round(Math.random() * 80),
     y: 40 + Math.round(Math.random() * 80),
+    width: DEFAULT_WIDTH,
+    height: DEFAULT_HEIGHT,
     color: COLORS[Math.floor(Math.random() * COLORS.length)],
     createdAt: now,
     updatedAt: now,
@@ -54,32 +69,59 @@ const NoteBoard: React.FC = () => {
     offsetX: 0,
     offsetY: 0,
   });
+  const [resize, setResize] = useState<ResizeState>({
+    noteId: null,
+    startWidth: 0,
+    startHeight: 0,
+    startX: 0,
+    startY: 0,
+  });
   const [aiBusyId, setAiBusyId] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [targetLanguage, setTargetLanguage] = useState("Hebrew");
   const [speechSupported, setSpeechSupported] = useState(false);
 
-  // FIXED: Safe type (no SpeechRecognition type required)
   const recognitionRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Load notes
+  // Load notes from localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
     const key = getStorageKey(user?.uid || null);
     const raw = window.localStorage.getItem(key);
     if (!raw) return;
-
     try {
-      setNotes(JSON.parse(raw));
-    } catch {}
+      const parsed = JSON.parse(raw) as Partial<Note>[];
+      // Ensure width/height exist on old saved notes
+      const withSize: Note[] = parsed.map((n) => ({
+        id: n.id || `note_${Date.now()}_${Math.random()}`,
+        title: n.title ?? "Note",
+        content: n.content ?? "",
+        x: typeof n.x === "number" ? n.x : 40,
+        y: typeof n.y === "number" ? n.y : 40,
+        width:
+          typeof n.width === "number" && n.width > 0 ? n.width : DEFAULT_WIDTH,
+        height:
+          typeof n.height === "number" && n.height > 0
+            ? n.height
+            : DEFAULT_HEIGHT,
+        color: n.color || COLORS[0],
+        aiStatus: n.aiStatus ?? "idle",
+        createdAt: n.createdAt || Date.now(),
+        updatedAt: n.updatedAt || Date.now(),
+      }));
+      setNotes(withSize);
+    } catch {
+      // ignore
+    }
   }, [user?.uid]);
 
-  // Save notes
+  // Save notes to localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
     const key = getStorageKey(user?.uid || null);
     window.localStorage.setItem(key, JSON.stringify(notes));
-  }, [notes]);
+  }, [notes, user?.uid]);
 
   // Speech recognition setup
   useEffect(() => {
@@ -113,7 +155,11 @@ const NoteBoard: React.FC = () => {
       setNotes((prev) =>
         prev.map((n) =>
           n.id === noteId
-            ? { ...n, content: n.content + " " + transcript, updatedAt: Date.now() }
+            ? {
+                ...n,
+                content: (n.content ? n.content + " " : "") + transcript,
+                updatedAt: Date.now(),
+              }
             : n
         )
       );
@@ -126,7 +172,6 @@ const NoteBoard: React.FC = () => {
   const startDrag = (e: React.MouseEvent<HTMLDivElement>, noteId: string) => {
     const card = e.currentTarget.parentElement as HTMLDivElement | null;
     if (!card) return;
-
     const r = card.getBoundingClientRect();
 
     setDrag({
@@ -138,11 +183,58 @@ const NoteBoard: React.FC = () => {
     e.preventDefault();
   };
 
+  // Resize logic (bottom-right corner)
+  const startResize = (
+    e: React.MouseEvent<HTMLDivElement>,
+    noteId: string
+  ) => {
+    e.stopPropagation();
+    const card = e.currentTarget.parentElement as HTMLDivElement | null;
+    if (!card) return;
+    const r = card.getBoundingClientRect();
+
+    setResize({
+      noteId,
+      startWidth: r.width,
+      startHeight: r.height,
+      startX: e.clientX,
+      startY: e.clientY,
+    });
+
+    e.preventDefault();
+  };
+
   useEffect(() => {
     const move = (e: MouseEvent) => {
+      // Resizing
+      if (resize.noteId) {
+        const dx = e.clientX - resize.startX;
+        const dy = e.clientY - resize.startY;
+
+        const newWidth = Math.max(140, resize.startWidth + dx);
+        const newHeight = Math.max(110, resize.startHeight + dy);
+
+        setNotes((prev) =>
+          prev.map((n) =>
+            n.id === resize.noteId
+              ? {
+                  ...n,
+                  width: newWidth,
+                  height: newHeight,
+                  updatedAt: Date.now(),
+                }
+              : n
+          )
+        );
+        return;
+      }
+
+      // Dragging
       if (!drag.noteId) return;
 
-      const container = document.querySelector(".note-board-inner");
+      const container = document.querySelector(
+        ".note-board-inner"
+      ) as HTMLDivElement | null;
       if (!container) return;
 
       const rect = container.getBoundingClientRect();
@@ -152,7 +244,12 @@ const NoteBoard: React.FC = () => {
       setNotes((prev) =>
         prev.map((n) =>
           n.id === drag.noteId
-            ? { ...n, x: Math.max(0, x), y: Math.max(0, y), updatedAt: Date.now() }
+            ? {
+                ...n,
+                x: Math.max(0, x),
+                y: Math.max(0, y),
+                updatedAt: Date.now(),
+              }
             : n
         )
       );
@@ -161,6 +258,15 @@ const NoteBoard: React.FC = () => {
     const stop = () => {
       if (drag.noteId) {
         setDrag({ noteId: null, offsetX: 0, offsetY: 0 });
+      }
+      if (resize.noteId) {
+        setResize({
+          noteId: null,
+          startWidth: 0,
+          startHeight: 0,
+          startX: 0,
+          startY: 0,
+        });
       }
     };
 
@@ -171,18 +277,25 @@ const NoteBoard: React.FC = () => {
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", stop);
     };
-  }, [drag]);
+  }, [drag, resize]);
 
+  // CRUD
   const addNote = () => setNotes((p) => [...p, createNewNote()]);
   const deleteNote = (id: string) =>
     setNotes((p) => p.filter((n) => n.id !== id));
   const updateContent = (id: string, v: string) =>
     setNotes((p) =>
-      p.map((n) => (n.id === id ? { ...n, content: v, updatedAt: Date.now() } : n))
+      p.map((n) =>
+        n.id === id
+          ? { ...n, content: v, updatedAt: Date.now() }
+          : n
+      )
     );
   const updateTitle = (id: string, v: string) =>
     setNotes((p) =>
-      p.map((n) => (n.id === id ? { ...n, title: v, updatedAt: Date.now() } : n))
+      p.map((n) =>
+        n.id === id ? { ...n, title: v, updatedAt: Date.now() } : n
+      )
     );
 
   // AI
@@ -197,7 +310,9 @@ const NoteBoard: React.FC = () => {
     setAiBusyId(noteId);
 
     setNotes((p) =>
-      p.map((n) => (n.id === noteId ? { ...n, aiStatus: "loading" } : n))
+      p.map((n) =>
+        n.id === noteId ? { ...n, aiStatus: "loading" } : n
+      )
     );
 
     try {
@@ -218,22 +333,110 @@ const NoteBoard: React.FC = () => {
       setNotes((p) =>
         p.map((n) =>
           n.id === noteId
-            ? { ...n, content: data.text, aiStatus: "idle", updatedAt: Date.now() }
+            ? {
+                ...n,
+                content: data.text,
+                aiStatus: "idle",
+                updatedAt: Date.now(),
+              }
             : n
         )
       );
     } catch (err: any) {
       setAiError(err.message);
       setNotes((p) =>
-        p.map((n) => (n.id === noteId ? { ...n, aiStatus: "error" } : n))
+        p.map((n) =>
+          n.id === noteId ? { ...n, aiStatus: "error" } : n
+        )
       );
     }
 
     setAiBusyId(null);
   };
 
+  // EXPORT backup
+  const exportNotes = () => {
+    if (notes.length === 0) {
+      alert("No notes to export.");
+      return;
+    }
+
+    const data = JSON.stringify(
+      {
+        exportedAt: new Date().toISOString(),
+        userId: user?.uid || null,
+        notes,
+      },
+      null,
+      2
+    );
+
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const date = new Date().toISOString().slice(0, 10);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `stickanote-backup-${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  // IMPORT backup
+  const triggerImport = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleImportFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || "");
+        const parsed = JSON.parse(text);
+        if (!parsed || !Array.isArray(parsed.notes)) {
+          throw new Error("Invalid backup file.");
+        }
+        const importedNotes: Note[] = parsed.notes.map((n: any) => ({
+          ...n,
+          width:
+            typeof n.width === "number" && n.width > 0
+              ? n.width
+              : DEFAULT_WIDTH,
+          height:
+            typeof n.height === "number" && n.height > 0
+              ? n.height
+              : DEFAULT_HEIGHT,
+        }));
+        setNotes(importedNotes);
+        alert("Notes imported successfully.");
+      } catch (err: any) {
+        alert(err.message || "Could not import this file.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <section className="note-board">
+      {/* Hidden file input for import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/json"
+        style={{ display: "none" }}
+        onChange={handleImportFileChange}
+      />
+
       <div className="note-board-toolbar">
         <div className="note-board-toolbar-left">
           <button className="button-primary" onClick={addNote}>
@@ -249,7 +452,7 @@ const NoteBoard: React.FC = () => {
         </div>
 
         <div className="note-board-toolbar-right">
-          <label>
+          <label className="toolbar-label">
             Translate:
             <select
               value={targetLanguage}
@@ -264,6 +467,23 @@ const NoteBoard: React.FC = () => {
               <option>Indonesian</option>
             </select>
           </label>
+
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={exportNotes}
+            disabled={notes.length === 0}
+          >
+            💾 Export backup
+          </button>
+
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={triggerImport}
+          >
+            📂 Import backup
+          </button>
 
           {speechSupported ? (
             <span className="toolbar-hint">🎤 Dictation available</span>
@@ -287,15 +507,27 @@ const NoteBoard: React.FC = () => {
           <div
             key={note.id}
             className="note-card"
-            style={{ left: note.x, top: note.y, backgroundColor: note.color }}
+            style={{
+              left: note.x,
+              top: note.y,
+              width: note.width,
+              height: note.height,
+              backgroundColor: note.color,
+            }}
           >
-            <div className="note-card-header" onMouseDown={(e) => startDrag(e, note.id)}>
+            <div
+              className="note-card-header"
+              onMouseDown={(e) => startDrag(e, note.id)}
+            >
               <input
                 className="note-title-input"
                 value={note.title}
                 onChange={(e) => updateTitle(note.id, e.target.value)}
               />
-              <button className="note-delete-button" onClick={() => deleteNote(note.id)}>
+              <button
+                className="note-delete-button"
+                onClick={() => deleteNote(note.id)}
+              >
                 ✕
               </button>
             </div>
@@ -304,6 +536,7 @@ const NoteBoard: React.FC = () => {
               className="note-textarea"
               value={note.content}
               onChange={(e) => updateContent(note.id, e.target.value)}
+              placeholder="Type your note…"
             />
 
             <div className="note-card-footer">
@@ -343,7 +576,10 @@ const NoteBoard: React.FC = () => {
 
               <div className="note-footer-right">
                 {speechSupported && (
-                  <button className="button-ghost" onClick={() => dictate(note.id)}>
+                  <button
+                    className="button-ghost"
+                    onClick={() => dictate(note.id)}
+                  >
                     🎤
                   </button>
                 )}
@@ -352,10 +588,27 @@ const NoteBoard: React.FC = () => {
                   <span className="note-ai-status">AI…</span>
                 )}
                 {note.aiStatus === "error" && (
-                  <span className="note-ai-status note-ai-status-error">Error</span>
+                  <span className="note-ai-status note-ai-status-error">
+                    Error
+                  </span>
                 )}
               </div>
             </div>
+
+            {/* Resize handle (bottom-right) */}
+            <div
+              onMouseDown={(e) => startResize(e, note.id)}
+              style={{
+                position: "absolute",
+                right: 4,
+                bottom: 4,
+                width: 12,
+                height: 12,
+                borderRadius: 3,
+                background: "rgba(15,23,42,0.4)",
+                cursor: "se-resize",
+              }}
+            />
           </div>
         ))}
       </div>
