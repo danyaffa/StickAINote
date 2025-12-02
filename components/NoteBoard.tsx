@@ -1,5 +1,7 @@
 // FILE: /components/NoteBoard.tsx
-import React, { useEffect, useRef, useState } from "react";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 
 type AiAction = "fix" | "summarise" | "translate" | "improve";
 
@@ -22,7 +24,7 @@ const DEFAULT_WIDTH = 520;
 const DEFAULT_HEIGHT = 340;
 const STORAGE_KEY = "stickanote-single-note-v1";
 
-const createNewNote = (): Note => {
+function createNewNote(): Note {
   const now = Date.now();
   return {
     id: `note_${now}_${Math.random().toString(16).slice(2)}`,
@@ -37,9 +39,9 @@ const createNewNote = (): Note => {
     updatedAt: now,
     aiStatus: "idle",
   };
-};
+}
 
-const NoteBoard: React.FC = () => {
+export default function NoteBoard() {
   const [note, setNote] = useState<Note | null>(null);
   const [dragging, setDragging] = useState({
     active: false,
@@ -60,15 +62,14 @@ const NoteBoard: React.FC = () => {
   const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Load from localStorage
+  // ── Load once from localStorage ──────────────────────────────
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      setNote(createNewNote());
-      return;
-    }
     try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        setNote(createNewNote());
+        return;
+      }
       const stored = JSON.parse(raw) as Note;
       setNote({ ...stored, aiStatus: "idle" });
     } catch {
@@ -76,17 +77,15 @@ const NoteBoard: React.FC = () => {
     }
   }, []);
 
-  // Save to localStorage
+  // ── Save whenever note changes ──────────────────────────────
   useEffect(() => {
-    if (typeof window === "undefined") return;
     if (!note) return;
-    const safe = { ...note, aiStatus: "idle" as const };
+    const safe: Note = { ...note, aiStatus: "idle" };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(safe));
   }, [note]);
 
-  // Speech support
+  // ── Check speech recognition support ────────────────────────
   useEffect(() => {
-    if (typeof window === "undefined") return;
     const w = window as any;
     if (w.webkitSpeechRecognition || w.SpeechRecognition) {
       setSpeechSupported(true);
@@ -100,7 +99,7 @@ const NoteBoard: React.FC = () => {
       prev ? { ...prev, ...patch, updatedAt: Date.now() } : prev
     );
 
-  // Drag
+  // ── Dragging ────────────────────────────────────────────────
   const startDrag = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = (
       e.currentTarget.parentElement as HTMLDivElement
@@ -113,7 +112,7 @@ const NoteBoard: React.FC = () => {
     e.preventDefault();
   };
 
-  // Resize
+  // ── Resizing ────────────────────────────────────────────────
   const startResize = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
     const card = e.currentTarget.parentElement as HTMLDivElement;
@@ -128,7 +127,7 @@ const NoteBoard: React.FC = () => {
   };
 
   useEffect(() => {
-    const handleMove = (e: MouseEvent) => {
+    function handleMove(e: MouseEvent) {
       if (!note) return;
 
       if (resizing.active) {
@@ -151,9 +150,9 @@ const NoteBoard: React.FC = () => {
         x: Math.min(maxX, Math.max(10, newX)),
         y: Math.min(maxY, Math.max(10, newY)),
       });
-    };
+    }
 
-    const handleUp = () => {
+    function handleUp() {
       if (dragging.active || resizing.active) {
         setDragging({ active: false, offsetX: 0, offsetY: 0 });
         setResizing({
@@ -164,7 +163,7 @@ const NoteBoard: React.FC = () => {
           startY: 0,
         });
       }
-    };
+    }
 
     window.addEventListener("mousemove", handleMove);
     window.addEventListener("mouseup", handleUp);
@@ -174,8 +173,8 @@ const NoteBoard: React.FC = () => {
     };
   }, [dragging, resizing, note]);
 
-  // AI
-  const runAi = async (action: AiAction) => {
+  // ── AI actions ──────────────────────────────────────────────
+  async function runAi(action: AiAction) {
     if (!note.content.trim()) {
       setAiError("Write something before using AI.");
       return;
@@ -204,15 +203,15 @@ const NoteBoard: React.FC = () => {
     } finally {
       setAiBusy(false);
     }
-  };
+  }
 
-  // Dictation
-  const dictate = () => {
-    if (typeof window === "undefined") return;
+  // ── Dictation ───────────────────────────────────────────────
+  function dictate() {
     const w = window as any;
     const SpeechRecognition =
       w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!SpeechRecognition) return;
+
     const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
     recognition.continuous = false;
@@ -226,10 +225,10 @@ const NoteBoard: React.FC = () => {
     recognition.onerror = () => recognition.stop();
     recognition.start();
     recognitionRef.current = recognition;
-  };
+  }
 
-  // Export / import
-  const exportNote = () => {
+  // ── Export / import / clear ─────────────────────────────────
+  function exportNote() {
     const blob = new Blob([JSON.stringify(note, null, 2)], {
       type: "application/json",
     });
@@ -239,11 +238,13 @@ const NoteBoard: React.FC = () => {
     a.download = "stick-a-note-backup.json";
     a.click();
     URL.revokeObjectURL(url);
-  };
+  }
 
-  const triggerImport = () => fileInputRef.current?.click();
+  function triggerImport() {
+    fileInputRef.current?.click();
+  }
 
-  const handleImportChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  function handleImportChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -256,9 +257,9 @@ const NoteBoard: React.FC = () => {
       }
     };
     reader.readAsText(file);
-  };
+  }
 
-  const clearNote = () => {
+  function clearNote() {
     if (!confirm("Clear the note?")) return;
     setNote((prev) =>
       prev
@@ -270,8 +271,9 @@ const NoteBoard: React.FC = () => {
           }
         : prev
     );
-  };
+  }
 
+  // ── Render ──────────────────────────────────────────────────
   return (
     <section
       style={{
@@ -307,7 +309,7 @@ const NoteBoard: React.FC = () => {
         onChange={handleImportChange}
       />
 
-      {/* The single sticky note */}
+      {/* Single sticky note */}
       <div
         style={{
           position: "absolute",
@@ -379,7 +381,7 @@ const NoteBoard: React.FC = () => {
           }}
         />
 
-        {/* Footer inside note */}
+        {/* Footer */}
         <div
           style={{
             display: "flex",
@@ -390,7 +392,7 @@ const NoteBoard: React.FC = () => {
           }}
         >
           <div>
-            {/* Color dots */}
+            {/* Colour dots */}
             <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
               {COLORS.map((c) => (
                 <button
@@ -534,6 +536,4 @@ const NoteBoard: React.FC = () => {
       </div>
     </section>
   );
-};
-
-export default NoteBoard;
+}
