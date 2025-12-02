@@ -1,158 +1,371 @@
-// FILE: /pages/index.tsx
+// FILE: pages/index.tsx
 import React from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Image from "next/image";
 
-export default function LandingPage() {
-  const canonicalUrl = "https://stickainote.com/";
+export default function HomePage() {
+  const siteTitle = "StickAINote – AI Sticky Notes & Pro Thoughtboard";
 
   return (
     <>
       <Head>
-        <title>Stick AI Note – AI Sticky Notes on Your Screen</title>
+        <title>{siteTitle}</title>
         <meta
           name="description"
-          content="Stick AI Note lets you keep a single AI-powered sticky note on your screen with spell-check, grammar fixes, translation and voice dictation."
+          content="StickAINote gives you a simple AI-powered sticky note for daily use, plus a Pro AI Thoughtboard for advanced business thinking, drawing and planning."
         />
-        <link rel="canonical" href={canonicalUrl} />
         <meta name="robots" content="index,follow" />
       </Head>
 
-      {/* ROOT – tighter, no big empty bands */}
-      <div
-        className="landing-root"
+      <main
         style={{
-          padding: "8px 24px 10px",
-          background: "#f8fafc",
+          minHeight: "100vh",
+          background: "linear-gradient(to bottom right, #0f172a, #020617)",
+          color: "white",
+          padding: "24px 16px",
+          boxSizing: "border-box",
+          display: "flex",
+          justifyContent: "center",
         }}
       >
-        {/* LOGO – top left */}
-        <div style={{ marginBottom: "8px" }}>
-          <Image
-            src="/StickAINote-Logo.png"
-            alt="Stick AI Note Logo"
-            width={160}
-            height={160}
-            priority
-          />
-        </div>
-
-        <main className="landing-main" style={{ margin: 0 }}>
-          <div className="landing-grid">
-            {/* LEFT – TEXT */}
-            <div>
-              <h1
-                className="landing-title"
-                style={{
-                  marginTop: 0,
-                  marginBottom: "10px",
-                  fontSize: "2.6rem",
-                  lineHeight: 1.1,
-                }}
-              >
-                Stick AI Note
-                <span
-                  className="landing-title-accent"
-                  style={{ fontSize: "2.4rem" }}
-                >
-                  {" "}
-                  – AI Notes
-                </span>
-              </h1>
-
-              <p
-                className="landing-lead"
-                style={{
-                  fontSize: "1.1rem",
-                  lineHeight: 1.6,
-                  marginBottom: "14px",
-                }}
-              >
-                A single smart sticky note that sits on your screen and helps you
-                write better – fix spelling and grammar, summarise long text,
-                translate to other languages, and even dictate with your voice.
-              </p>
-
-              <ul
-                className="landing-bullets"
-                style={{
-                  fontSize: "1rem",
-                  lineHeight: 1.55,
-                  marginBottom: "16px",
-                }}
-              >
-                <li>✅ Drag the note to any corner of your screen</li>
-                <li>✅ Choose your favourite colour</li>
-                <li>✅ Fix, summarise, translate &amp; improve with AI</li>
-                <li>✅ Voice dictation + backup &amp; restore</li>
-                <li>✅ Switch between Text and Draw (free pen) modes</li>
-              </ul>
-
-              <div
-                className="landing-cta-row"
-                style={{ marginBottom: "10px", gap: "10px" }}
-              >
-                <Link href="/register" className="btn-primary">
-                  Start free trial
-                </Link>
-                <Link href="/login" className="btn-dark">
-                  Log in
-                </Link>
-                {/* ❌ Removed direct "Open my note" access from homepage */}
-              </div>
-
-              <p
-                className="landing-note"
-                style={{ fontSize: "0.95rem", marginBottom: 0 }}
-              >
-                Works instantly in your browser — no download needed.
-              </p>
-            </div>
-
-            {/* RIGHT – REAL APP IMAGE */}
-            <div
-              className="landing-note-preview"
-              style={{ textAlign: "center", marginTop: 0 }}
-            >
-              <Image
-                src="/App.png"
-                alt="Stick AI Note App Preview"
-                width={460}
-                height={340}
-                style={{
-                  borderRadius: "14px",
-                  boxShadow: "0 8px 22px rgba(0,0,0,0.15)",
-                }}
-                priority
-              />
-            </div>
-          </div>
-        </main>
-
-        {/* FOOTER – a bit bigger, closer to content */}
-        <footer
-          className="landing-footer"
+        <div
           style={{
-            marginTop: "16px",
-            padding: "18px 10px",
-            background: "#0f172a",
-            color: "white",
-            textAlign: "center",
-            fontSize: "1rem",
-            fontWeight: 500,
-            borderTop: "3px solid #1e293b",
+            width: "100%",
+            maxWidth: 1120,
+            display: "flex",
+            flexDirection: "column",
+            gap: 32,
           }}
         >
-          <div style={{ marginBottom: "6px" }}>
-            © {new Date().getFullYear()} Stick AI Note™ – Leffler International
-            Investments Pty Ltd.
-          </div>
-          <div style={{ opacity: 0.9 }}>
-            Stick AI Note™ is a registered trademark. All rights reserved.
-          </div>
-        </footer>
-      </div>
+          {/* Top bar */}
+          <header
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 16,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Image
+                src="/StickAINote-Logo.png"
+                alt="StickAINote logo"
+                width={42}
+                height={42}
+                style={{
+                  borderRadius: 8,
+                  objectFit: "contain",
+                }}
+              />
+              <div>
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  StickAINote
+                </div>
+                <div style={{ fontSize: 12, opacity: 0.8 }}>
+                  AI Sticky Notes & Thoughtboard
+                </div>
+              </div>
+            </div>
+
+            <nav
+              style={{
+                display: "flex",
+                gap: 16,
+                fontSize: 13,
+                alignItems: "center",
+              }}
+            >
+              <Link href="/login">Login</Link>
+              <Link href="/register">Register</Link>
+            </nav>
+          </header>
+
+          {/* Hero */}
+          <section
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 1fr)",
+              gap: 32,
+              alignItems: "center",
+            }}
+          >
+            {/* Left: text */}
+            <div>
+              <p
+                style={{
+                  fontSize: 13,
+                  textTransform: "uppercase",
+                  letterSpacing: 2,
+                  opacity: 0.8,
+                  marginBottom: 8,
+                }}
+              >
+                Next-Generation Sticky Notes
+              </p>
+              <h1
+                style={{
+                  fontSize: 34,
+                  lineHeight: 1.2,
+                  margin: 0,
+                  marginBottom: 12,
+                  fontWeight: 800,
+                }}
+              >
+                One AI sticky note for everyone.  
+                One AI Thoughtboard for professionals.
+              </h1>
+              <p
+                style={{
+                  fontSize: 15,
+                  maxWidth: 540,
+                  opacity: 0.9,
+                  lineHeight: 1.5,
+                }}
+              >
+                Use StickAINote as your simple daily sticky note with AI help,
+                or unlock the full Pro AI Thoughtboard for drawing, diagrams,
+                handwriting recognition, and serious business thinking.
+              </p>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 12,
+                  marginTop: 20,
+                  marginBottom: 8,
+                }}
+              >
+                <Link
+                  href="/basic"
+                  style={{
+                    padding: "10px 18px",
+                    borderRadius: 999,
+                    background: "#22c55e",
+                    color: "black",
+                    fontSize: 14,
+                    fontWeight: 600,
+                  }}
+                >
+                  Open Free Sticky Note
+                </Link>
+
+                <Link
+                  href="/pro"
+                  style={{
+                    padding: "10px 18px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(148,163,184,0.9)",
+                    fontSize: 14,
+                    fontWeight: 500,
+                  }}
+                >
+                  Explore Pro AI Thoughtboard
+                </Link>
+              </div>
+
+              <p style={{ fontSize: 12, opacity: 0.75 }}>
+                Basic plan: 1st month free, then{" "}
+                <strong>$6.60 / month (USD)</strong>. <br />
+                Pro AI Thoughtboard: <strong>$19.80 / month (USD)</strong>.
+              </p>
+            </div>
+
+            {/* Right: app image */}
+            <div
+              style={{
+                position: "relative",
+                width: "100%",
+                maxWidth: 420,
+                justifySelf: "center",
+              }}
+            >
+              <div
+                style={{
+                  position: "relative",
+                  borderRadius: 24,
+                  overflow: "hidden",
+                  boxShadow:
+                    "0 18px 45px rgba(15,23,42,0.9), 0 0 0 1px rgba(148,163,184,0.4)",
+                  background: "rgba(15,23,42,0.9)",
+                }}
+              >
+                <Image
+                  src="/App.png"
+                  alt="StickAINote app preview"
+                  width={800}
+                  height={600}
+                  style={{
+                    width: "100%",
+                    height: "auto",
+                    display: "block",
+                    objectFit: "cover",
+                  }}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Plans section */}
+          <section
+            style={{
+              marginTop: 8,
+              marginBottom: 8,
+              padding: 20,
+              borderRadius: 18,
+              background: "rgba(15,23,42,0.9)",
+              border: "1px solid rgba(148,163,184,0.5)",
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+              gap: 18,
+            }}
+          >
+            {/* Basic card */}
+            <div
+              style={{
+                background: "rgba(15,23,42,0.9)",
+                borderRadius: 16,
+                padding: 16,
+                border: "1px solid rgba(74,222,128,0.7)",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: 18,
+                  margin: 0,
+                  marginBottom: 4,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                🟨 Basic Sticky Note
+              </h2>
+              <p style={{ fontSize: 13, marginTop: 0, opacity: 0.85 }}>
+                Simple AI-assisted sticky note for everyday use.
+              </p>
+              <p style={{ fontSize: 24, margin: "6px 0" }}>
+                $6.60 <span style={{ fontSize: 13 }}>/ month</span>
+              </p>
+              <p
+                style={{
+                  fontSize: 12,
+                  margin: "0 0 8px 0",
+                  color: "#bbf7d0",
+                }}
+              >
+                First month completely free.
+              </p>
+              <ul
+                style={{
+                  fontSize: 12,
+                  margin: 0,
+                  paddingLeft: 18,
+                  lineHeight: 1.5,
+                }}
+              >
+                <li>Type, move and resize your sticky note</li>
+                <li>AI Fix / Summarise / Translate / Improve</li>
+                <li>Voice dictation for quick capture</li>
+                <li>Save & load from your browser</li>
+                <li>Perfect for everyday personal use</li>
+              </ul>
+              <Link
+                href="/basic"
+                style={{
+                  marginTop: 12,
+                  display: "inline-block",
+                  padding: "8px 14px",
+                  borderRadius: 999,
+                  background: "#22c55e",
+                  color: "black",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                Start Basic (Free for 1 Month)
+              </Link>
+            </div>
+
+            {/* Pro card */}
+            <div
+              style={{
+                background: "rgba(15,23,42,0.9)",
+                borderRadius: 16,
+                padding: 16,
+                border: "1px solid rgba(56,189,248,0.8)",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: 18,
+                  margin: 0,
+                  marginBottom: 4,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                🟦 Pro AI Business Note
+              </h2>
+              <p style={{ fontSize: 13, marginTop: 0, opacity: 0.85 }}>
+                Full AI Thoughtboard for drawing, planning and business.
+              </p>
+              <p style={{ fontSize: 24, margin: "6px 0" }}>
+                $19.80 <span style={{ fontSize: 13 }}>/ month</span>
+              </p>
+              <ul
+                style={{
+                  fontSize: 12,
+                  margin: 0,
+                  paddingLeft: 18,
+                  lineHeight: 1.5,
+                }}
+              >
+                <li>Full SVG drawing with undo/redo</li>
+                <li>AI handwriting → clean text</li>
+                <li>AI draw logos, diagrams & sketches</li>
+                <li>AI layout cleanup & object detection</li>
+                <li>Whiteboard mode & export options</li>
+              </ul>
+              <Link
+                href="/pro"
+                style={{
+                  marginTop: 12,
+                  display: "inline-block",
+                  padding: "8px 14px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(148,163,184,0.9)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                Explore Pro AI Thoughtboard
+              </Link>
+            </div>
+          </section>
+
+          {/* Footer */}
+          <footer
+            style={{
+              fontSize: 11,
+              opacity: 0.7,
+              marginTop: 4,
+              paddingTop: 8,
+              borderTop: "1px solid rgba(148,163,184,0.4)",
+            }}
+          >
+            © {new Date().getFullYear()} StickAINote. All rights reserved.
+          </footer>
+        </div>
+      </main>
     </>
   );
 }
