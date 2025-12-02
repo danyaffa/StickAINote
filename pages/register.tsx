@@ -3,13 +3,14 @@ import Head from "next/head";
 import React, { useState } from "react";
 import { useRouter } from "next/router";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../lib/firestore"; // ✅ USE EXISTING FIREBASE FILE
+import { auth } from "../lib/firestore"; // uses your existing Firebase setup
 
-// SAME IDEA AS CALMTINNITUS
 const DEVELOPER_EMAIL = "leffleryd@gmail.com";
+
+// ✅ USE YOUR ENV NAME: NEXT_PUBLIC_STRIPE_CHECKOUT_URL
 const STRIPE_LINK =
-  process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK ||
-  "https://buy.stripe.com/9B63cv44u2XSeHxaBK4F20h"; // StickAINote payment link
+  process.env.NEXT_PUBLIC_STRIPE_CHECKOUT_URL ||
+  "https://buy.stripe.com/9B63cv44u2XSeHxaBK4F20h"; // fallback
 
 export default function RegisterPage() {
   const canonicalUrl = "https://stickainote.com/register";
@@ -26,13 +27,13 @@ export default function RegisterPage() {
   const handleSuccessfulAuth = (userEmail: string | null) => {
     const e = (userEmail || "").toLowerCase();
 
-    // Developer bypass → go straight to the app (note)
+    // Developer bypass → straight to the app
     if (e === DEVELOPER_EMAIL.toLowerCase()) {
-      router.push("/app"); // or "/note" if that’s your note page
+      router.push("/app");
       return;
     }
 
-    // Normal users → go to STRIPE to enter card
+    // Normal users → Stripe to enter card details
     const url = new URL(STRIPE_LINK);
     if (email) url.searchParams.set("prefilled_email", email);
     if (name) url.searchParams.set("client_reference_id", name);
@@ -52,10 +53,10 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      // CREATE USER IN FIREBASE (same pattern as CalmTinnitus)
+      // 1️⃣ Create user in Firebase (same pattern as CalmTinnitus)
       const cred = await createUserWithEmailAndPassword(auth, email, password);
 
-      // THEN REDIRECT (dev → app, users → Stripe)
+      // 2️⃣ Then redirect (dev → app, others → Stripe)
       handleSuccessfulAuth(cred.user.email || email);
     } catch (err: any) {
       console.error(err);
@@ -133,8 +134,7 @@ export default function RegisterPage() {
               }}
             >
               Your <strong>first month is free</strong>. You must enter your
-              credit-card details now to activate the free trial, just like
-              other subscription services.
+              credit-card details now to activate the free trial.
               <br />
               You can <strong>cancel any time before the end of the month</strong>{" "}
               and you will <strong>not be charged</strong>. You can also remove
