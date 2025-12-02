@@ -1,9 +1,7 @@
 // FILE: pages/api/ai-handwriting.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 
-type Data =
-  | { text: string }
-  | { error: string };
+type Data = { text: string } | { error: string };
 
 export default async function handler(
   req: NextApiRequest,
@@ -27,7 +25,6 @@ export default async function handler(
   }
 
   try {
-    // imageData is already a data URL ("data:image/png;base64,...")
     const messages = [
       {
         role: "user",
@@ -41,25 +38,28 @@ export default async function handler(
           {
             type: "image_url" as const,
             image_url: {
-              url: imageData,
+              url: imageData, // data:image/png;base64,…
             },
           },
         ],
       },
     ];
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages,
-        temperature: 0.2,
-      }),
-    });
+    const response = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages,
+          temperature: 0.2,
+        }),
+      }
+    );
 
     const json = await response.json();
     if (!response.ok) {
@@ -70,9 +70,7 @@ export default async function handler(
       return;
     }
 
-    const text =
-      json?.choices?.[0]?.message?.content?.trim() || "";
-
+    const text = json?.choices?.[0]?.message?.content?.trim() || "";
     if (!text) {
       res.status(500).json({ error: "No text returned" });
       return;
