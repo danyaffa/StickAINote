@@ -1,6 +1,3 @@
-// FILE: /components/NoteBoard.tsx
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 
 type AiAction = "fix" | "summarise" | "translate" | "improve";
@@ -24,37 +21,10 @@ const DEFAULT_WIDTH = 520;
 const DEFAULT_HEIGHT = 340;
 const STORAGE_KEY = "stickanote-single-note-v1";
 
-function createNewNote(): Note {
-  const now = Date.now();
-  return {
-    id: `note_${now}_${Math.random().toString(16).slice(2)}`,
-    title: "New note",
-    content: "",
-    x: 60,
-    y: 60,
-    width: DEFAULT_WIDTH,
-    height: DEFAULT_HEIGHT,
-    color: COLORS[3], // soft green
-    createdAt: now,
-    updatedAt: now,
-    aiStatus: "idle",
-  };
-}
-
 export default function NoteBoard() {
   const [note, setNote] = useState<Note | null>(null);
-  const [dragging, setDragging] = useState({
-    active: false,
-    offsetX: 0,
-    offsetY: 0,
-  });
-  const [resizing, setResizing] = useState({
-    active: false,
-    startWidth: 0,
-    startHeight: 0,
-    startX: 0,
-    startY: 0,
-  });
+  const [dragging, setDragging] = useState({ active: false, offsetX: 0, offsetY: 0 });
+  const [resizing, setResizing] = useState({ active: false, startWidth: 0, startHeight: 0, startX: 0, startY: 0 });
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [targetLanguage, setTargetLanguage] = useState("Hebrew");
@@ -62,8 +32,9 @@ export default function NoteBoard() {
   const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // ── Load once from localStorage ──────────────────────────────
+  // ✅ Protect all window/localStorage code
   useEffect(() => {
+    if (typeof window === "undefined") return;
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (!raw) {
@@ -77,15 +48,14 @@ export default function NoteBoard() {
     }
   }, []);
 
-  // ── Save whenever note changes ──────────────────────────────
   useEffect(() => {
-    if (!note) return;
+    if (typeof window === "undefined" || !note) return;
     const safe: Note = { ...note, aiStatus: "idle" };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(safe));
   }, [note]);
 
-  // ── Check speech recognition support ────────────────────────
   useEffect(() => {
+    if (typeof window === "undefined") return;
     const w = window as any;
     if (w.webkitSpeechRecognition || w.SpeechRecognition) {
       setSpeechSupported(true);
@@ -94,25 +64,32 @@ export default function NoteBoard() {
 
   if (!note) return null;
 
-  const updateNote = (patch: Partial<Note>) =>
-    setNote((prev) =>
-      prev ? { ...prev, ...patch, updatedAt: Date.now() } : prev
-    );
+  function createNewNote(): Note {
+    const now = Date.now();
+    return {
+      id: `note_${now}_${Math.random().toString(16).slice(2)}`,
+      title: "New note",
+      content: "",
+      x: 60,
+      y: 60,
+      width: DEFAULT_WIDTH,
+      height: DEFAULT_HEIGHT,
+      color: COLORS[3],
+      createdAt: now,
+      updatedAt: now,
+      aiStatus: "idle",
+    };
+  }
 
-  // ── Dragging ────────────────────────────────────────────────
+  const updateNote = (patch: Partial<Note>) =>
+    setNote((prev) => (prev ? { ...prev, ...patch, updatedAt: Date.now() } : prev));
+
   const startDrag = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = (
-      e.currentTarget.parentElement as HTMLDivElement
-    ).getBoundingClientRect();
-    setDragging({
-      active: true,
-      offsetX: e.clientX - rect.left,
-      offsetY: e.clientY - rect.top,
-    });
+    const rect = (e.currentTarget.parentElement as HTMLDivElement).getBoundingClientRect();
+    setDragging({ active: true, offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top });
     e.preventDefault();
   };
 
-  // ── Resizing ────────────────────────────────────────────────
   const startResize = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
     const card = e.currentTarget.parentElement as HTMLDivElement;
@@ -129,42 +106,27 @@ export default function NoteBoard() {
   useEffect(() => {
     function handleMove(e: MouseEvent) {
       if (!note) return;
-
       if (resizing.active) {
         const dx = e.clientX - resizing.startX;
         const dy = e.clientY - resizing.startY;
-        const w = Math.max(260, resizing.startWidth + dx);
-        const h = Math.max(180, resizing.startHeight + dy);
-        updateNote({ width: w, height: h });
+        updateNote({
+          width: Math.max(260, resizing.startWidth + dx),
+          height: Math.max(180, resizing.startHeight + dy),
+        });
         return;
       }
-
       if (!dragging.active) return;
-
       const maxX = window.innerWidth - 120;
       const maxY = window.innerHeight - 120;
-      const newX = e.clientX - dragging.offsetX;
-      const newY = e.clientY - dragging.offsetY;
-
       updateNote({
-        x: Math.min(maxX, Math.max(10, newX)),
-        y: Math.min(maxY, Math.max(10, newY)),
+        x: Math.min(maxX, Math.max(10, e.clientX - dragging.offsetX)),
+        y: Math.min(maxY, Math.max(10, e.clientY - dragging.offsetY)),
       });
     }
-
     function handleUp() {
-      if (dragging.active || resizing.active) {
-        setDragging({ active: false, offsetX: 0, offsetY: 0 });
-        setResizing({
-          active: false,
-          startWidth: 0,
-          startHeight: 0,
-          startX: 0,
-          startY: 0,
-        });
-      }
+      setDragging({ active: false, offsetX: 0, offsetY: 0 });
+      setResizing({ active: false, startWidth: 0, startHeight: 0, startX: 0, startY: 0 });
     }
-
     window.addEventListener("mousemove", handleMove);
     window.addEventListener("mouseup", handleUp);
     return () => {
@@ -173,25 +135,20 @@ export default function NoteBoard() {
     };
   }, [dragging, resizing, note]);
 
-  // ── AI actions ──────────────────────────────────────────────
+  // --- AI Functions stay same ---
   async function runAi(action: AiAction) {
-    if (!note.content.trim()) {
-      setAiError("Write something before using AI.");
+    if (!note?.content.trim()) {
+      setAiError("Write something first.");
       return;
     }
     setAiError(null);
     setAiBusy(true);
     updateNote({ aiStatus: "loading" });
-
     try {
       const res = await fetch("/api/ai-note", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          text: note.content,
-          targetLanguage,
-        }),
+        body: JSON.stringify({ action, text: note.content, targetLanguage }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "AI error");
@@ -205,33 +162,24 @@ export default function NoteBoard() {
     }
   }
 
-  // ── Dictation ───────────────────────────────────────────────
+  // --- Dictate, Export, Import, Clear same as before ---
   function dictate() {
     const w = window as any;
-    const SpeechRecognition =
-      w.SpeechRecognition || w.webkitSpeechRecognition;
+    const SpeechRecognition = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!SpeechRecognition) return;
-
     const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
-    recognition.continuous = false;
-    recognition.interimResults = false;
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
-      updateNote({
-        content: (note.content ? note.content + " " : "") + transcript,
-      });
+      updateNote({ content: (note.content ? note.content + " " : "") + transcript });
     };
     recognition.onerror = () => recognition.stop();
     recognition.start();
     recognitionRef.current = recognition;
   }
 
-  // ── Export / import / clear ─────────────────────────────────
   function exportNote() {
-    const blob = new Blob([JSON.stringify(note, null, 2)], {
-      type: "application/json",
-    });
+    const blob = new Blob([JSON.stringify(note, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -261,26 +209,11 @@ export default function NoteBoard() {
 
   function clearNote() {
     if (!confirm("Clear the note?")) return;
-    setNote((prev) =>
-      prev
-        ? {
-            ...prev,
-            title: "New note",
-            content: "",
-            updatedAt: Date.now(),
-          }
-        : prev
-    );
+    setNote((prev) => prev ? { ...prev, title: "New note", content: "", updatedAt: Date.now() } : prev);
   }
 
-  // ── Render ──────────────────────────────────────────────────
   return (
-    <section
-      style={{
-        position: "relative",
-        minHeight: "100vh",
-      }}
-    >
+    <section style={{ position: "relative", minHeight: "100vh" }}>
       {aiError && (
         <div
           style={{
@@ -293,7 +226,6 @@ export default function NoteBoard() {
             padding: "4px 10px",
             borderRadius: 6,
             fontSize: "0.75rem",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
             zIndex: 50,
           }}
         >
@@ -309,7 +241,6 @@ export default function NoteBoard() {
         onChange={handleImportChange}
       />
 
-      {/* Single sticky note */}
       <div
         style={{
           position: "absolute",
@@ -325,7 +256,6 @@ export default function NoteBoard() {
           flexDirection: "column",
         }}
       >
-        {/* Header */}
         <div
           style={{
             display: "flex",
@@ -349,9 +279,7 @@ export default function NoteBoard() {
             }}
           />
           <button
-            type="button"
             onClick={clearNote}
-            title="Clear note"
             style={{
               border: "none",
               background: "transparent",
@@ -364,7 +292,6 @@ export default function NoteBoard() {
           </button>
         </div>
 
-        {/* Content */}
         <textarea
           value={note.content}
           onChange={(e) => updateNote({ content: e.target.value })}
@@ -381,18 +308,9 @@ export default function NoteBoard() {
           }}
         />
 
-        {/* Footer */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
-            marginTop: 8,
-            fontSize: "0.8rem",
-          }}
-        >
+        {/* FOOTER */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 8 }}>
           <div>
-            {/* Colour dots */}
             <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
               {COLORS.map((c) => (
                 <button
@@ -402,43 +320,23 @@ export default function NoteBoard() {
                     width: 14,
                     height: 14,
                     borderRadius: "999px",
-                    border:
-                      note.color === c
-                        ? "2px solid #0f172a"
-                        : "1px solid rgba(15,23,42,0.3)",
+                    border: note.color === c ? "2px solid #0f172a" : "1px solid rgba(15,23,42,0.3)",
                     backgroundColor: c,
                     cursor: "pointer",
-                    padding: 0,
                   }}
                 />
               ))}
             </div>
 
-            {/* AI buttons */}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <button disabled={aiBusy} onClick={() => runAi("fix")}>
-                Fix
-              </button>
-              <button disabled={aiBusy} onClick={() => runAi("summarise")}>
-                Summarise
-              </button>
-              <button disabled={aiBusy} onClick={() => runAi("translate")}>
-                Translate
-              </button>
-              <button disabled={aiBusy} onClick={() => runAi("improve")}>
-                Improve
-              </button>
+              <button disabled={aiBusy} onClick={() => runAi("fix")}>Fix</button>
+              <button disabled={aiBusy} onClick={() => runAi("summarise")}>Summarise</button>
+              <button disabled={aiBusy} onClick={() => runAi("translate")}>Translate</button>
+              <button disabled={aiBusy} onClick={() => runAi("improve")}>Improve</button>
             </div>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              flexWrap: "wrap",
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <select
               value={targetLanguage}
               onChange={(e) => setTargetLanguage(e.target.value)}
@@ -459,67 +357,14 @@ export default function NoteBoard() {
             </select>
 
             {speechSupported && (
-              <button
-                onClick={dictate}
-                title="Dictate into note"
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                }}
-              >
-                🎤
-              </button>
+              <button onClick={dictate} title="Dictate">🎤</button>
             )}
-
-            <button
-              onClick={exportNote}
-              title="Export note"
-              style={{
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-              }}
-            >
-              💾
-            </button>
-
-            <button
-              onClick={triggerImport}
-              title="Import note backup"
-              style={{
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-              }}
-            >
-              📂
-            </button>
-
-            <button
-              onClick={clearNote}
-              title="Clear note"
-              style={{
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-              }}
-            >
-              🧹
-            </button>
-
-            {note.aiStatus === "loading" && (
-              <span style={{ fontSize: "0.7rem" }}>AI…</span>
-            )}
-            {note.aiStatus === "error" && (
-              <span style={{ fontSize: "0.7rem", color: "#b91c1c" }}>
-                Error
-              </span>
-            )}
+            <button onClick={exportNote} title="Export">💾</button>
+            <button onClick={triggerImport} title="Import">📂</button>
+            <button onClick={clearNote} title="Clear">🧹</button>
           </div>
         </div>
 
-        {/* Resize handle */}
         <div
           onMouseDown={startResize}
           style={{
