@@ -7,6 +7,7 @@ import React, {
   useState,
   MouseEvent as ReactMouseEvent,
   ChangeEvent as ReactChangeEvent,
+  TouchEvent as ReactTouchEvent,
 } from "react";
 
 type AiAction = "fix" | "summarise" | "translate" | "improve";
@@ -19,6 +20,7 @@ type Note = {
   width: number;
   height: number;
   color: string;
+  drawingData?: string | null; // ✅ NEW: saved drawing
 };
 
 const STORAGE_KEY = "stickanote-note-v2";
@@ -46,7 +48,7 @@ export default function NoteBoard() {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  // ✅ CHANGED: default language is now English
+  // ✅ CHANGED previously: default language is English
   const [targetLanguage, setTargetLanguage] = useState("English");
 
   const [speechSupported, setSpeechSupported] = useState(false);
@@ -54,6 +56,12 @@ export default function NoteBoard() {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recognitionRef = useRef<any>(null);
+
+  // ✅ NEW: drawing / pen mode
+  const [mode, setMode] = useState<"text" | "draw">("text");
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const lastPoint = useRef<{ x: number; y: number } | null>(null);
 
   // INITIAL LOAD (client only)
   useEffect(() => {
@@ -70,6 +78,7 @@ export default function NoteBoard() {
         setNote({
           ...parsed,
           title: parsed.title || "My note",
+          drawingData: (parsed as any).drawingData || null,
         });
       } catch {
         setNote({
@@ -80,6 +89,7 @@ export default function NoteBoard() {
           width: mobile ? window.innerWidth - 32 : 420,
           height: mobile ? window.innerHeight * 0.65 : 260,
           color: COLORS[0],
+          drawingData: null,
         });
       }
     } else {
@@ -91,6 +101,7 @@ export default function NoteBoard() {
         width: mobile ? window.innerWidth - 32 : 420,
         height: mobile ? window.innerHeight * 0.65 : 260,
         color: COLORS[0],
+        drawingData: null,
       });
     }
 
@@ -165,6 +176,148 @@ export default function NoteBoard() {
       window.removeEventListener("mouseup", onUp);
     };
   }, [dragging, resizing, note, isMobile]);
+
+  // ---------- DRAWING: load existing image into canvas ----------
+  useEffect(() => {
+    if (mode !== "draw") return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // reset background
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (note?.drawingData) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      };
+      img.src = note.drawingData;
+    }
+  }, [mode, note?.drawingData]);
+
+  const getCanvasPointMouse = (e: ReactMouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+  };
+
+  const getCanvasPointTouch = (e: ReactTouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const touch = e.touches[0];
+    if (!touch) return null;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top,
+    };
+  };
+
+  const startDrawingMouse = (e: ReactMouseEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const p = getCanvasPointMouse(e);
+    if (!p) return;
+    setIsDrawing(true);
+    lastPoint.current = p;
+  };
+
+  const drawMouse = (e: ReactMouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const p = getCanvasPointMouse(e);
+    if (!p || !lastPoint.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+
+    ctx.strokeStyle = "#111827";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+
+    ctx.beginPath();
+    ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+
+    lastPoint.current = p;
+  };
+
+  const startDrawingTouch = (e: ReactTouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const p = getCanvasPointTouch(e);
+    if (!p) return;
+    setIsDrawing(true);
+    lastPoint.current = p;
+  };
+
+  const drawTouch = (e: ReactTouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    if (!isDrawing) return;
+    const p = getCanvasPointTouch(e);
+    if (!p || !lastPoint.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+
+    ctx.strokeStyle = "#111827";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+
+    ctx.beginPath();
+    ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+
+    lastPoint.current = p;
+  };
+
+  const endDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    lastPoint.current = null;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    try {
+      const dataUrl = canvas.toDataURL("image/png");
+      setNote((prev) =>
+        prev
+          ? {
+              ...prev,
+              drawingData: dataUrl,
+            }
+          : prev
+      );
+    } catch {
+      // ignore
+    }
+  };
+
+  const clearDrawing = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    setNote((prev) =>
+      prev
+        ? {
+            ...prev,
+            drawingData: null,
+          }
+        : prev
+    );
+  };
 
   if (!loaded || !note) return null;
 
@@ -243,9 +396,7 @@ export default function NoteBoard() {
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       updateNote({
-        text: note.text
-          ? note.text + " " + transcript
-          : transcript,
+        text: note.text ? note.text + " " + transcript : transcript,
       });
     };
     recognition.onerror = () => recognition.stop();
@@ -294,7 +445,7 @@ export default function NoteBoard() {
       const ok = window.confirm("Clear the note?");
       if (!ok) return;
     }
-    updateNote({ text: "", title: "My note" });
+    updateNote({ text: "", title: "My note", drawingData: null });
   }
 
   // ---------- LAYOUT ----------
@@ -382,9 +533,7 @@ export default function NoteBoard() {
         >
           <input
             value={note.title}
-            onChange={(e) =>
-              updateNote({ title: e.target.value })
-            }
+            onChange={(e) => updateNote({ title: e.target.value })}
             style={{
               border: "none",
               background: "transparent",
@@ -408,26 +557,84 @@ export default function NoteBoard() {
           </button>
         </div>
 
-        {/* Text area */}
-        <textarea
-          value={note.text}
-          onChange={(e) =>
-            updateNote({ text: e.target.value })
-          }
-          placeholder="Type your note…"
+        {/* MAIN CONTENT: text OR drawing (no layout change) */}
+        <div
           style={{
             flex: 1,
             width: "100%",
-            border: "none",
-            outline: "none",
-            background: "transparent",
-            fontSize: 15,
-            resize: "none",
-            lineHeight: 1.4,
+            display: "flex",
+            flexDirection: "column",
           }}
-        />
+        >
+          {mode === "text" ? (
+            <textarea
+              value={note.text}
+              onChange={(e) => updateNote({ text: e.target.value })}
+              placeholder="Type your note…"
+              style={{
+                flex: 1,
+                width: "100%",
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                fontSize: 15,
+                resize: "none",
+                lineHeight: 1.4,
+              }}
+            />
+          ) : (
+            <>
+              <canvas
+                ref={canvasRef}
+                width={800}
+                height={400}
+                style={{
+                  flex: 1,
+                  width: "100%",
+                  borderRadius: 8,
+                  border: "1px solid rgba(55,65,81,0.6)",
+                  background: "#ffffff",
+                  touchAction: "none",
+                  cursor: "crosshair",
+                }}
+                onMouseDown={startDrawingMouse}
+                onMouseMove={drawMouse}
+                onMouseUp={endDrawing}
+                onMouseLeave={endDrawing}
+                onTouchStart={startDrawingTouch}
+                onTouchMove={drawTouch}
+                onTouchEnd={endDrawing}
+              />
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 11,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  color: "#4b5563",
+                }}
+              >
+                <span>Free drawing – use your mouse or finger.</span>
+                <button
+                  type="button"
+                  onClick={clearDrawing}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: "#b91c1c",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    padding: 0,
+                  }}
+                >
+                  Clear drawing
+                </button>
+              </div>
+            </>
+          )}
+        </div>
 
-        {/* Footer */}
+        {/* Footer (unchanged, plus one ✏️ button) */}
         <div
           style={{
             display: "flex",
@@ -457,9 +664,7 @@ export default function NoteBoard() {
                     height: 18,
                     borderRadius: "50%",
                     border:
-                      note.color === c
-                        ? "2px solid #000"
-                        : "1px solid #777",
+                      note.color === c ? "2px solid #000" : "1px solid #777",
                     background: c,
                     padding: 0,
                   }}
@@ -476,28 +681,16 @@ export default function NoteBoard() {
                 fontSize: 12,
               }}
             >
-              <button
-                disabled={aiBusy}
-                onClick={() => runAi("fix")}
-              >
+              <button disabled={aiBusy} onClick={() => runAi("fix")}>
                 Fix
               </button>
-              <button
-                disabled={aiBusy}
-                onClick={() => runAi("summarise")}
-              >
+              <button disabled={aiBusy} onClick={() => runAi("summarise")}>
                 Summarise
               </button>
-              <button
-                disabled={aiBusy}
-                onClick={() => runAi("translate")}
-              >
+              <button disabled={aiBusy} onClick={() => runAi("translate")}>
                 Translate
               </button>
-              <button
-                disabled={aiBusy}
-                onClick={() => runAi("improve")}
-              >
+              <button disabled={aiBusy} onClick={() => runAi("improve")}>
                 Improve
               </button>
             </div>
@@ -514,9 +707,7 @@ export default function NoteBoard() {
           >
             <select
               value={targetLanguage}
-              onChange={(e) =>
-                setTargetLanguage(e.target.value)
-              }
+              onChange={(e) => setTargetLanguage(e.target.value)}
               style={{
                 fontSize: 12,
                 borderRadius: 6,
@@ -525,7 +716,6 @@ export default function NoteBoard() {
                 background: "rgba(255,255,255,0.8)",
               }}
             >
-              {/* English first, others ABC */}
               <option>English</option>
               <option>Arabic</option>
               <option>French</option>
@@ -533,6 +723,17 @@ export default function NoteBoard() {
               <option>Indonesian</option>
               <option>Spanish</option>
             </select>
+
+            {/* ✅ NEW: toggle Text / Draw */}
+            <button
+              type="button"
+              onClick={() =>
+                setMode((m) => (m === "text" ? "draw" : "text"))
+              }
+              title="Toggle drawing mode"
+            >
+              {mode === "text" ? "✏️ Draw" : "📝 Text"}
+            </button>
 
             {speechSupported && (
               <button onClick={dictate} title="Dictate">
