@@ -14,13 +14,13 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
-import { getAuth } from "firebase/auth"; // ✅ ADD THIS
+import { getAuth } from "firebase/auth";
 
 // 🔹 1. NOTE TYPE (includes color)
 export type Note = {
   id: string;
   content: string;
-  color: string; // ✅ NEW FIELD
+  color: string;
   createdAt: number;
   updatedAt: number;
   userId: string;
@@ -47,7 +47,7 @@ const app = getFirebaseApp();
 
 // 🔹 Firestore & Auth exports (shared app)
 export const db = getFirestore(app);
-export const auth = getAuth(app); // ✅ THIS MAKES THE REGISTER PAGE COMPILE
+export const auth = getAuth(app);
 
 // 🔹 Helper to convert Firestore timestamps safely
 function tsToMillis(value: any): number {
@@ -68,7 +68,7 @@ export async function createNote(
   const docRef = await addDoc(notesRef, {
     userId,
     content,
-    color, // ✅ stored here
+    color,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -103,7 +103,7 @@ export async function getUserNotes(userId: string): Promise<Note[]> {
       id: docSnap.id,
       userId: data.userId,
       content: data.content ?? "",
-      color: data.color ?? "#fff8a8", // ✅ default yellow if missing
+      color: data.color ?? "#fff8a8", // default yellow if missing
       createdAt: tsToMillis(data.createdAt),
       updatedAt: tsToMillis(data.updatedAt),
     });
@@ -130,4 +130,14 @@ export async function updateNote(
 export async function deleteNote(noteId: string): Promise<void> {
   const noteRef = doc(db, "notes", noteId);
   await deleteDoc(noteRef);
+}
+
+// 🔹 7. ADD REVIEW (New Function)
+export async function addReview(userId: string, rating: number, comment: string) {
+  await addDoc(collection(db, "reviews"), {
+    userId,
+    rating,
+    comment,
+    createdAt: serverTimestamp(),
+  });
 }
