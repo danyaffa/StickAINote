@@ -98,12 +98,12 @@ export default function NoteBoard() {
         const parsed = JSON.parse(saved) as Partial<Note>;
         const initialNote: Note = {
           text: parsed.text ?? "",
-          title: parsed.title ?? "My note",
+          title: parsed.title ?? "My Pro Note",
           x: parsed.x ?? 40,
           y: parsed.y ?? 40,
-          width: parsed.width ?? (mobile ? window.innerWidth - 32 : 420),
+          width: parsed.width ?? (mobile ? window.innerWidth - 32 : 500),
           height:
-            parsed.height ?? (mobile ? window.innerHeight * 0.65 : 260),
+            parsed.height ?? (mobile ? window.innerHeight * 0.65 : 350),
           color: parsed.color ?? COLORS[0],
           strokes: parsed.strokes ?? [],
           aiImages: parsed.aiImages ?? [],
@@ -113,11 +113,11 @@ export default function NoteBoard() {
       } catch {
         setNote({
           text: "",
-          title: "My note",
+          title: "My Pro Note",
           x: 40,
           y: 40,
-          width: mobile ? window.innerWidth - 32 : 420,
-          height: mobile ? window.innerHeight * 0.65 : 260,
+          width: mobile ? window.innerWidth - 32 : 500,
+          height: mobile ? window.innerHeight * 0.65 : 350,
           color: COLORS[0],
           strokes: [],
           aiImages: [],
@@ -126,11 +126,11 @@ export default function NoteBoard() {
     } else {
       setNote({
         text: "",
-        title: "My note",
+        title: "My Pro Note",
         x: 40,
         y: 40,
-        width: mobile ? window.innerWidth - 32 : 420,
-        height: mobile ? window.innerHeight * 0.65 : 260,
+        width: mobile ? window.innerWidth - 32 : 500,
+        height: mobile ? window.innerHeight * 0.65 : 350,
         color: COLORS[0],
         strokes: [],
         aiImages: [],
@@ -436,6 +436,9 @@ export default function NoteBoard() {
   // ---------- AI DRAW (image gen) ----------
 
   async function handleAiDraw() {
+    // FORCE DRAW MODE
+    setMode("draw");
+
     if (typeof window === "undefined") return;
     const prompt = window.prompt(
       "What should I draw?\n(e.g. 'a cute sheep', 'a logo with DL', 'a blue house')"
@@ -465,7 +468,6 @@ export default function NoteBoard() {
             }
           : prev
       );
-      setMode("draw");
       setDetectedObjects([]);
     } catch (err: any) {
       console.error(err);
@@ -478,6 +480,7 @@ export default function NoteBoard() {
   // ---------- HANDWRITING → TEXT ----------
 
   async function handleHandwritingToText() {
+    setMode("draw");
     try {
       const pngDataUrl = await getSvgAsPngDataUrl();
       if (!pngDataUrl) {
@@ -500,6 +503,7 @@ export default function NoteBoard() {
       }
 
       updateNote({ text: data.text });
+      // Switch back to text so they can see the result
       setMode("text");
       setDetectedObjects([]);
     } catch (err: any) {
@@ -513,6 +517,7 @@ export default function NoteBoard() {
   // ---------- AI LAYOUT CLEANUP ----------
 
   async function handleAiCleanLayout() {
+    setMode("draw");
     if (strokes.length === 0 && note.aiImages.length === 0) {
       setAiError("Nothing to clean. Draw something first.");
       return;
@@ -547,6 +552,7 @@ export default function NoteBoard() {
   // ---------- AI OBJECT DETECTION ----------
 
   async function handleAiDetectObjects() {
+    setMode("draw");
     try {
       const pngDataUrl = await getSvgAsPngDataUrl();
       if (!pngDataUrl) {
@@ -637,7 +643,7 @@ export default function NoteBoard() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "stick-a-note-backup.json";
+    a.download = "stick-pro-backup.json";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -674,7 +680,7 @@ export default function NoteBoard() {
     setDetectedObjects([]);
     setNote({
       text: "",
-      title: "My note",
+      title: "My Pro Note",
       x: note.x,
       y: note.y,
       width: note.width,
@@ -844,7 +850,7 @@ export default function NoteBoard() {
             <textarea
               value={note.text}
               onChange={(e) => updateNote({ text: e.target.value })}
-              placeholder="Type your note…"
+              placeholder="Type your notes here..."
               style={{
                 flex: 1,
                 width: "100%",
@@ -949,7 +955,7 @@ export default function NoteBoard() {
                 }}
               >
                 <span>
-                  Free drawing – SVG strokes with undo/redo & AI tools.
+                  Infinite Canvas - Zoom & Draw
                 </span>
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <button
@@ -1014,163 +1020,147 @@ export default function NoteBoard() {
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
+            flexDirection: "column",
             marginTop: 8,
             gap: 8,
-            flexWrap: "wrap",
           }}
         >
-          {/* Colors + AI text */}
-          <div>
-            <div
-              style={{
-                display: "flex",
-                gap: 6,
-                marginBottom: 4,
-              }}
-            >
-              {COLORS.map((c) => (
+          {/* TOP ROW: Basic Tools + Mode Toggle */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+             <div style={{display: "flex", gap: 6}}>
+                {COLORS.map((c) => (
+                    <button
+                    key={c}
+                    onClick={() => updateNote({ color: c })}
+                    style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: "50%",
+                        border:
+                        note.color === c ? "2px solid #000" : "1px solid #777",
+                        background: c,
+                        padding: 0,
+                    }}
+                    />
+                ))}
+             </div>
+             
+             <div style={{display: "flex", gap: 8, alignItems: "center"}}>
                 <button
-                  key={c}
-                  onClick={() => updateNote({ color: c })}
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: "50%",
-                    border:
-                      note.color === c ? "2px solid #000" : "1px solid #777",
-                    background: c,
-                    padding: 0,
-                  }}
-                />
-              ))}
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                gap: 6,
-                flexWrap: "wrap",
-                fontSize: 12,
-              }}
-            >
-              <button disabled={aiBusy} onClick={() => runAi("fix")}>
-                Fix
-              </button>
-              <button disabled={aiBusy} onClick={() => runAi("summarise")}>
-                Summarise
-              </button>
-              <button disabled={aiBusy} onClick={() => runAi("translate")}>
-                Translate
-              </button>
-              <button disabled={aiBusy} onClick={() => runAi("improve")}>
-                Improve
-              </button>
-            </div>
+                type="button"
+                onClick={() =>
+                    setMode((m) => (m === "text" ? "draw" : "text"))
+                }
+                title="Toggle drawing mode"
+                style={{
+                    background: mode === "draw" ? "#2563eb" : "#e5e7eb",
+                    color: mode === "draw" ? "white" : "black",
+                    border: "1px solid #999",
+                    padding: "2px 8px",
+                    borderRadius: 4,
+                    fontWeight: 600
+                }}
+                >
+                {mode === "text" ? "✏️ Switch to Draw" : "📝 Switch to Text"}
+                </button>
+                
+                <button onClick={exportNote} title="Export">💾</button>
+                <button onClick={triggerImport} title="Import">📂</button>
+             </div>
           </div>
 
-          {/* Tools */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              flexWrap: "wrap",
-            }}
-          >
-            <select
-              value={targetLanguage}
-              onChange={(e) => setTargetLanguage(e.target.value)}
-              style={{
-                fontSize: 12,
-                borderRadius: 6,
-                padding: "2px 6px",
-                border: "1px solid #6b7280",
-                background: "rgba(255,255,255,0.8)",
-              }}
-            >
-              <option>English</option>
-              <option>Arabic</option>
-              <option>French</option>
-              <option>Hebrew</option>
-              <option>Indonesian</option>
-              <option>Spanish</option>
-            </select>
+          {/* MIDDLE ROW: Text AI */}
+          <div style={{display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 12}}>
+              <span style={{opacity: 0.7}}>Text AI:</span>
+              <button disabled={aiBusy} onClick={() => runAi("fix")}>Fix</button>
+              <button disabled={aiBusy} onClick={() => runAi("summarise")}>Summarise</button>
+              <select
+                value={targetLanguage}
+                onChange={(e) => setTargetLanguage(e.target.value)}
+                style={{
+                    fontSize: 12,
+                    borderRadius: 6,
+                    padding: "2px 6px",
+                    border: "1px solid #6b7280",
+                    background: "rgba(255,255,255,0.8)",
+                }}
+                >
+                <option>English</option>
+                <option>Spanish</option>
+                <option>French</option>
+             </select>
+             <button disabled={aiBusy} onClick={() => runAi("translate")}>Translate</button>
+          </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                setMode((m) => (m === "text" ? "draw" : "text"))
-              }
-              title="Toggle drawing mode"
-            >
-              {mode === "text" ? "✏️ Draw" : "📝 Text"}
-            </button>
-
-            {mode === "draw" && (
-              <>
+          {/* BOTTOM ROW: PRO TOOLS (Always Visible) */}
+          <div style={{
+              display: "flex", 
+              gap: 8, 
+              alignItems: "center", 
+              flexWrap: "wrap", 
+              fontSize: 12,
+              borderTop: "1px solid rgba(0,0,0,0.1)",
+              paddingTop: 8
+            }}>
+                <span style={{fontWeight: 700, color: "#2563eb"}}>PRO TOOLS:</span>
+                
                 <button
                   type="button"
                   onClick={handleAiDraw}
                   disabled={aiBusy}
                   title="Ask AI to draw a picture or logo"
+                  style={{background: "#e0f2fe", border: "1px solid #38bdf8", padding: "2px 6px", borderRadius: 4}}
                 >
                   🖼️ AI&nbsp;Draw
                 </button>
+                
                 <button
                   type="button"
                   onClick={handleHandwritingToText}
                   disabled={aiBusy}
                   title="Turn your handwriting into improved text"
+                  style={{background: "#e0f2fe", border: "1px solid #38bdf8", padding: "2px 6px", borderRadius: 4}}
                 >
-                  ✍️→🔤
+                  ✍️ Handwriting to Text
                 </button>
+                
                 <button
                   type="button"
                   onClick={handleAiCleanLayout}
                   disabled={aiBusy}
                   title="AI clean / tidy the layout"
+                  style={{background: "#e0f2fe", border: "1px solid #38bdf8", padding: "2px 6px", borderRadius: 4}}
                 >
-                  🧹 AI&nbsp;Clean
+                  🧹 Auto-Clean
                 </button>
+                
                 <button
                   type="button"
                   onClick={handleAiDetectObjects}
                   disabled={aiBusy}
                   title="Let AI recognise what you drew"
+                  style={{background: "#e0f2fe", border: "1px solid #38bdf8", padding: "2px 6px", borderRadius: 4}}
                 >
                   👁 AI&nbsp;Detect
                 </button>
-              </>
-            )}
 
-            {speechSupported && (
-              <button
-                onClick={dictate}
-                title={isRecording ? "Stop dictation" : "Dictate"}
-                style={{
-                  background: isRecording ? "#22c55e" : "#ef4444",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "2px 8px",
-                  fontSize: 14,
-                  cursor: "pointer",
-                }}
-              >
-                🎤
-              </button>
-            )}
-            <button onClick={exportNote} title="Export">
-              💾
-            </button>
-            <button onClick={triggerImport} title="Import">
-              📂
-            </button>
-            <button onClick={clearNote} title="Clear">
-              🧹
-            </button>
+                {speechSupported && (
+                <button
+                    onClick={dictate}
+                    title={isRecording ? "Stop dictation" : "Dictate"}
+                    style={{
+                    background: isRecording ? "#22c55e" : "#ef4444",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "2px 8px",
+                    marginLeft: "auto",
+                    cursor: "pointer",
+                    }}
+                >
+                    🎤
+                </button>
+                )}
           </div>
         </div>
 
