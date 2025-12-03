@@ -23,7 +23,7 @@ export default function HomePage() {
           minHeight: "100vh",
           background: "linear-gradient(to bottom right, #0f172a, #020617)",
           color: "white",
-          padding: "24px 16px",
+          padding: "28px 18px",
           boxSizing: "border-box",
           display: "flex",
           justifyContent: "center",
@@ -35,7 +35,7 @@ export default function HomePage() {
             maxWidth: 1120,
             display: "flex",
             flexDirection: "column",
-            gap: 32,
+            gap: 36,
           }}
         >
           {/* HEADER */}
@@ -51,8 +51,8 @@ export default function HomePage() {
               <Image
                 src="/StickAINote-Logo.png"
                 alt="StickAINote logo"
-                width={42}
-                height={42}
+                width={46}
+                height={46}
                 style={{
                   borderRadius: 8,
                   objectFit: "contain",
@@ -61,29 +61,52 @@ export default function HomePage() {
               <div>
                 <div
                   style={{
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: 700,
                     letterSpacing: 0.3,
                   }}
                 >
                   StickAINote
                 </div>
-                <div style={{ fontSize: 12, opacity: 0.8 }}>
+                <div style={{ fontSize: 13, opacity: 0.85 }}>
                   AI Sticky Notes & Thoughtboard
                 </div>
               </div>
             </div>
 
+            {/* NAV – BIG, WHITE BUTTONS */}
             <nav
               style={{
                 display: "flex",
-                gap: 16,
-                fontSize: 13,
+                gap: 12,
+                fontSize: 15,
                 alignItems: "center",
               }}
             >
-              <Link href="/login">Login</Link>
-              <Link href="/register">Register</Link>
+              <Link
+                href="/login"
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(148,163,184,0.9)",
+                  color: "#f9fafb",
+                  fontWeight: 600,
+                }}
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                style={{
+                  padding: "7px 16px",
+                  borderRadius: 999,
+                  background: "#38bdf8",
+                  color: "#020617",
+                  fontWeight: 700,
+                }}
+              >
+                Register
+              </Link>
             </nav>
           </header>
 
@@ -92,7 +115,7 @@ export default function HomePage() {
             style={{
               display: "grid",
               gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 1fr)",
-              gap: 32,
+              gap: 36,
               alignItems: "center",
             }}
           >
@@ -100,11 +123,11 @@ export default function HomePage() {
             <div>
               <p
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   textTransform: "uppercase",
                   letterSpacing: 2,
-                  opacity: 0.8,
-                  marginBottom: 8,
+                  opacity: 0.85,
+                  marginBottom: 10,
                 }}
               >
                 Next-Generation Sticky Notes
@@ -112,23 +135,24 @@ export default function HomePage() {
 
               <h1
                 style={{
-                  fontSize: 34,
+                  fontSize: 38,
                   lineHeight: 1.2,
                   margin: 0,
-                  marginBottom: 12,
+                  marginBottom: 14,
                   fontWeight: 800,
                 }}
               >
-                One AI sticky note for everyone.  
+                One AI sticky note for everyone.
+                <br />
                 One AI Thoughtboard for professionals.
               </h1>
 
               <p
                 style={{
-                  fontSize: 15,
-                  maxWidth: 540,
-                  opacity: 0.9,
-                  lineHeight: 1.5,
+                  fontSize: 16,
+                  maxWidth: 560,
+                  opacity: 0.92,
+                  lineHeight: 1.6,
                 }}
               >
                 Use StickAINote as your simple daily sticky note with AI help,
@@ -141,19 +165,19 @@ export default function HomePage() {
                 style={{
                   display: "flex",
                   flexWrap: "wrap",
-                  gap: 12,
-                  marginTop: 20,
-                  marginBottom: 8,
+                  gap: 14,
+                  marginTop: 22,
+                  marginBottom: 10,
                 }}
               >
                 <Link
                   href="/basic"
                   style={{
-                    padding: "10px 18px",
+                    padding: "11px 20px",
                     borderRadius: 999,
                     background: "#22c55e",
                     color: "black",
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: 600,
                   }}
                 >
@@ -165,10 +189,10 @@ export default function HomePage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
-                    padding: "10px 18px",
+                    padding: "11px 20px",
                     borderRadius: 999,
                     border: "1px solid rgba(148,163,184,0.9)",
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: 600,
                     color: "white",
                   }}
@@ -177,10 +201,10 @@ export default function HomePage() {
                 </a>
               </div>
 
-              <p style={{ fontSize: 12, opacity: 0.75 }}>
+              <p style={{ fontSize: 13, opacity: 0.8 }}>
                 Basic plan: 1st month free, then{" "}
-                <strong>$6.60 / month (USD)</strong>.  
-                Pro AI Thoughtboard: <strong>$19.80 / month (USD)</strong>.
+                <strong>$6.60 / month (USD)</strong>. Pro AI Thoughtboard:{" "}
+                <strong>$19.80 / month (USD)</strong>.
               </p>
             </div>
 
@@ -189,7 +213,7 @@ export default function HomePage() {
               style={{
                 position: "relative",
                 width: "100%",
-                maxWidth: 420,
+                maxWidth: 440,
                 justifySelf: "center",
               }}
             >
@@ -206,8 +230,8 @@ export default function HomePage() {
                 <Image
                   src="/App.png"
                   alt="StickAINote app preview"
-                  width={800}
-                  height={600}
+                  width={900}
+                  height={650}
                   style={{
                     width: "100%",
                     height: "auto",
@@ -222,15 +246,15 @@ export default function HomePage() {
           {/* PLANS SECTION */}
           <section
             style={{
-              marginTop: 8,
-              marginBottom: 8,
-              padding: 20,
+              marginTop: 10,
+              marginBottom: 10,
+              padding: 22,
               borderRadius: 18,
               background: "rgba(15,23,42,0.9)",
               border: "1px solid rgba(148,163,184,0.5)",
               display: "grid",
               gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-              gap: 18,
+              gap: 20,
             }}
           >
             {/* BASIC CARD */}
@@ -238,15 +262,15 @@ export default function HomePage() {
               style={{
                 background: "rgba(15,23,42,0.9)",
                 borderRadius: 16,
-                padding: 16,
+                padding: 18,
                 border: "1px solid rgba(74,222,128,0.7)",
               }}
             >
               <h2
                 style={{
-                  fontSize: 18,
+                  fontSize: 20,
                   margin: 0,
-                  marginBottom: 4,
+                  marginBottom: 6,
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
@@ -254,17 +278,17 @@ export default function HomePage() {
               >
                 🟨 Basic Sticky Note
               </h2>
-              <p style={{ fontSize: 13, marginTop: 0, opacity: 0.85 }}>
+              <p style={{ fontSize: 14, marginTop: 0, opacity: 0.88 }}>
                 Simple AI-assisted sticky note for everyday use.
               </p>
 
-              <p style={{ fontSize: 24, margin: "6px 0" }}>
-                $6.60 <span style={{ fontSize: 13 }}>/ month</span>
+              <p style={{ fontSize: 26, margin: "8px 0" }}>
+                $6.60 <span style={{ fontSize: 14 }}>/ month</span>
               </p>
               <p
                 style={{
-                  fontSize: 12,
-                  margin: "0 0 8px 0",
+                  fontSize: 13,
+                  margin: "0 0 10px 0",
                   color: "#bbf7d0",
                 }}
               >
@@ -273,10 +297,10 @@ export default function HomePage() {
 
               <ul
                 style={{
-                  fontSize: 12,
+                  fontSize: 13,
                   margin: 0,
-                  paddingLeft: 18,
-                  lineHeight: 1.5,
+                  paddingLeft: 20,
+                  lineHeight: 1.6,
                 }}
               >
                 <li>Type, move and resize your sticky note</li>
@@ -289,13 +313,13 @@ export default function HomePage() {
               <Link
                 href="/basic"
                 style={{
-                  marginTop: 12,
+                  marginTop: 14,
                   display: "inline-block",
-                  padding: "8px 14px",
+                  padding: "9px 16px",
                   borderRadius: 999,
                   background: "#22c55e",
                   color: "black",
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 600,
                 }}
               >
@@ -308,15 +332,15 @@ export default function HomePage() {
               style={{
                 background: "rgba(15,23,42,0.9)",
                 borderRadius: 16,
-                padding: 16,
+                padding: 18,
                 border: "1px solid rgba(56,189,248,0.8)",
               }}
             >
               <h2
                 style={{
-                  fontSize: 18,
+                  fontSize: 20,
                   margin: 0,
-                  marginBottom: 4,
+                  marginBottom: 6,
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
@@ -325,21 +349,21 @@ export default function HomePage() {
                 🟦 Pro AI Business Note
               </h2>
 
-              <p style={{ fontSize: 13, marginTop: 0, opacity: 0.85 }}>
+              <p style={{ fontSize: 14, marginTop: 0, opacity: 0.88 }}>
                 Full AI Thoughtboard for drawing, business planning and smart
                 AI assistance.
               </p>
 
-              <p style={{ fontSize: 24, margin: "6px 0" }}>
-                $19.80 <span style={{ fontSize: 13 }}>/ month</span>
+              <p style={{ fontSize: 26, margin: "8px 0" }}>
+                $19.80 <span style={{ fontSize: 14 }}>/ month</span>
               </p>
 
               <ul
                 style={{
-                  fontSize: 12,
+                  fontSize: 13,
                   margin: 0,
-                  paddingLeft: 18,
-                  lineHeight: 1.5,
+                  paddingLeft: 20,
+                  lineHeight: 1.6,
                 }}
               >
                 <li>Full SVG drawing engine with undo/redo</li>
@@ -355,12 +379,12 @@ export default function HomePage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  marginTop: 12,
+                  marginTop: 14,
                   display: "inline-block",
-                  padding: "8px 14px",
+                  padding: "9px 16px",
                   borderRadius: 999,
                   border: "1px solid rgba(148,163,184,0.9)",
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 600,
                   color: "white",
                 }}
@@ -370,17 +394,42 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* FOOTER */}
+          {/* FOOTER WITH LEGAL LINKS */}
           <footer
             style={{
-              fontSize: 11,
-              opacity: 0.7,
-              marginTop: 4,
-              paddingTop: 8,
+              fontSize: 12,
+              opacity: 0.85,
+              marginTop: 6,
+              paddingTop: 10,
               borderTop: "1px solid rgba(148,163,184,0.4)",
             }}
           >
-            © {new Date().getFullYear()} StickAINote. All rights reserved.
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <span>
+                © {new Date().getFullYear()} StickAINote. All rights reserved.
+              </span>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 14,
+                  flexWrap: "wrap",
+                }}
+              >
+                <Link href="/about">About</Link>
+                <Link href="/disclaimer">Disclaimer</Link>
+                <Link href="/legal">Legal</Link>
+                <Link href="/privacy">Privacy</Link>
+                <Link href="/terms">Terms of Use</Link>
+              </div>
+            </div>
           </footer>
         </div>
       </main>
