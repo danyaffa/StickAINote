@@ -18,7 +18,7 @@ export default function HomePage() {
         <meta name="robots" content="index,follow" />
       </Head>
 
-      {/* GLOBAL: kill white margins + set dark background everywhere */}
+      {/* Kill white margins and give the whole page a dark background */}
       <style jsx global>{`
         html,
         body {
@@ -36,7 +36,7 @@ export default function HomePage() {
           minHeight: "100vh",
           background: "linear-gradient(to bottom right, #0f172a, #020617)",
           color: "white",
-          padding: "24px 12px 24px 12px",
+          padding: "24px 12px",
           boxSizing: "border-box",
         }}
       >
@@ -65,10 +65,7 @@ export default function HomePage() {
                 alt="StickAINote logo"
                 width={50}
                 height={50}
-                style={{
-                  borderRadius: 8,
-                  objectFit: "contain",
-                }}
+                style={{ borderRadius: 8, objectFit: "contain" }}
               />
               <div>
                 <div
@@ -86,7 +83,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* NAV – BIG, WHITE BUTTONS */}
+            {/* NAV – WHITE LOGIN + BLUE REGISTER */}
             <nav
               style={{
                 display: "flex",
@@ -124,7 +121,7 @@ export default function HomePage() {
             </nav>
           </header>
 
-          {/* HERO – SINGLE COLUMN (MOBILE FRIENDLY) */}
+          {/* HERO */}
           <section
             style={{
               display: "flex",
@@ -133,7 +130,6 @@ export default function HomePage() {
               alignItems: "flex-start",
             }}
           >
-            {/* TEXT */}
             <div>
               <p
                 style={{
@@ -174,55 +170,15 @@ export default function HomePage() {
                 handwriting recognition and advanced business thinking.
               </p>
 
-              {/* CTA BUTTONS */}
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 12,
-                  marginTop: 20,
-                  marginBottom: 8,
-                }}
-              >
-                <Link
-                  href="/basic"
-                  style={{
-                    padding: "11px 20px",
-                    borderRadius: 999,
-                    background: "#22c55e",
-                    color: "black",
-                    fontSize: 16,
-                    fontWeight: 600,
-                  }}
-                >
-                  Open Free Sticky Note
-                </Link>
-
-                <a
-                  href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    padding: "11px 20px",
-                    borderRadius: 999,
-                    border: "1px solid rgba(148,163,184,0.9)",
-                    fontSize: 16,
-                    fontWeight: 600,
-                    color: "white",
-                  }}
-                >
-                  Upgrade to Pro – $19.80/month
-                </a>
-              </div>
-
-              <p style={{ fontSize: 14, opacity: 0.85 }}>
+              {/* Prices text only – the two big buttons are REMOVED */}
+              <p style={{ fontSize: 14, opacity: 0.85, marginTop: 16 }}>
                 Basic plan: 1st month free, then{" "}
                 <strong>$6.60 / month (USD)</strong>. Pro AI Thoughtboard:{" "}
                 <strong>$19.80 / month (USD)</strong>.
               </p>
             </div>
 
-            {/* APP IMAGE BELOW TEXT */}
+            {/* App image under the text */}
             <div
               style={{
                 position: "relative",
@@ -257,7 +213,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* PLANS – STACKED CARDS FOR MOBILE */}
+          {/* PLANS */}
           <section
             style={{
               marginTop: 4,
@@ -271,7 +227,7 @@ export default function HomePage() {
               gap: 16,
             }}
           >
-            {/* BASIC CARD */}
+            {/* BASIC */}
             <div
               style={{
                 background: "rgba(15,23,42,0.9)",
@@ -325,7 +281,7 @@ export default function HomePage() {
               </ul>
 
               <Link
-                href="/basic"
+                href="/app"
                 style={{
                   marginTop: 14,
                   display: "inline-block",
@@ -341,7 +297,7 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* PRO CARD */}
+            {/* PRO */}
             <div
               style={{
                 background: "rgba(15,23,42,0.9)",
@@ -364,8 +320,8 @@ export default function HomePage() {
               </h2>
 
               <p style={{ fontSize: 15, marginTop: 0, opacity: 0.9 }}>
-                Full AI Thoughtboard for drawing, business planning and smart
-                AI assistance.
+                Full AI Thoughtboard for drawing, business planning and smart AI
+                assistance.
               </p>
 
               <p style={{ fontSize: 26, margin: "8px 0" }}>
@@ -408,7 +364,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* FOOTER WITH LEGAL LINKS */}
+          {/* FOOTER */}
           <footer
             style={{
               fontSize: 13,
