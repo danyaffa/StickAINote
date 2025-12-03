@@ -762,34 +762,6 @@ export default function NoteBoard() {
         </div>
       )}
 
-      {/* Detected objects overlay */}
-      {detectedObjects.length > 0 && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 16,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "#111827",
-            color: "white",
-            padding: "6px 10px",
-            borderRadius: 8,
-            fontSize: 11,
-            maxWidth: "90vw",
-            zIndex: 49,
-          }}
-        >
-          <strong>AI sees:</strong>{" "}
-          {detectedObjects
-            .map((o) =>
-              o.confidence
-                ? `${o.label} (${Math.round(o.confidence * 100)}%)`
-                : o.label
-            )
-            .join(", ")}
-        </div>
-      )}
-
       <input
         type="file"
         accept="application/json"
@@ -844,8 +816,41 @@ export default function NoteBoard() {
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
+            position: "relative",
           }}
         >
+          {/* MOVED THE AI OVERLAY INSIDE THE CANVAS CONTAINER 
+              so it moves with the sticky note.
+          */}
+          {detectedObjects.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: 8,
+                left: "50%",
+                transform: "translateX(-50%)",
+                background: "#111827",
+                color: "white",
+                padding: "6px 10px",
+                borderRadius: 8,
+                fontSize: 11,
+                maxWidth: "90%",
+                zIndex: 49,
+                whiteSpace: "nowrap",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
+              }}
+            >
+              <strong>AI sees:</strong>{" "}
+              {detectedObjects
+                .map((o) =>
+                  o.confidence
+                    ? `${o.label} (${Math.round(o.confidence * 100)}%)`
+                    : o.label
+                )
+                .join(", ")}
+            </div>
+          )}
+
           {mode === "text" ? (
             <textarea
               value={note.text}
