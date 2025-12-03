@@ -1,4 +1,4 @@
-// FILE: /pages/_document.tsx
+// FILE: pages/_document.tsx
 import Document, { Html, Head, Main, NextScript } from "next/document";
 
 class MyDocument extends Document {
@@ -6,58 +6,32 @@ class MyDocument extends Document {
     return (
       <Html lang="en">
         <Head>
-          {/* PWA / app-like behaviour */}
+          {/* --- PWA & App Store Setup --- */}
+          {/* Links to the manifest file which controls the install experience */}
           <link rel="manifest" href="/manifest.json" />
-          <meta name="theme-color" content="#0f172a" />
-          <meta name="mobile-web-app-capable" content="yes" />
-          <meta name="apple-mobile-web-app-capable" content="yes" />
-          <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+          
+          {/* Theme color for the browser toolbar (matches your dark theme) */}
+          <meta name="theme-color" content="#020617" />
+          
+          {/* iOS / Apple specific settings */}
           <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+          <meta name="apple-mobile-web-app-title" content="StickAINote" />
+          
+          {/* General App settings */}
+          <meta name="application-name" content="StickAINote" />
+          <meta name="mobile-web-app-capable" content="yes" />
+          <meta name="format-detection" content="telephone=no" />
 
           {/* Default favicon */}
           <link rel="icon" href="/favicon.ico" />
 
-          {/* Global SEO defaults (page can override) */}
+          {/* SEO Defaults */}
           <meta
             name="description"
-            content="Stick AI Note lets you pin AI-powered stick...h instant fixing, summarising, translation and voice dictation."
+            content="Stick AI Note – The AI-powered sticky note and professional thoughtboard."
           />
-          <meta name="robots" content="index,follow" />
-
-          {/* Open Graph (fallback for all pages) */}
-          <meta property="og:type" content="website" />
-          <meta
-            property="og:title"
-            content="Stick AI Note – AI Sticky Notes on Your Screen"
-          />
-          <meta
-            property="og:description"
-            content="Stick AI Note – AI Sticky Notes on Your Screen"
-          />
-          <meta property="og:url" content="https://stickainote.com/" />
-          <meta
-            property="og:image"
-            content="https://stickainote.com/og-image.png"
-          />
-
-          {/* Twitter Card */}
-          <meta name="twitter:card" content="summary_large_image" />
-          <meta
-            name="twitter:title"
-            content="Stick AI Note – AI Sticky Notes on Your Screen"
-          />
-          <meta
-            name="twitter:description"
-            content="Stick AI Note – AI Sticky Notes on Your Screen"
-          />
-          <meta
-            name="twitter:image"
-            content="https://stickainote.com/og-image.png"
-          />
-
-          {/* ✅ Bing & Google verification – replace content values when you have them */}
-          {/* <meta name="msvalidate.01" content="YOUR_BING_CODE" /> */}
-          {/* <meta name="google-site-verification" content="YOUR_GOOGLE_CODE" /> */}
         </Head>
         <body>
           <Main />
