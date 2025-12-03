@@ -3,6 +3,7 @@
 
 import React, { useEffect, useState } from "react";
 
+// Basic only gets these 4 simple tools
 type AiAction = "fix" | "summarise" | "translate" | "improve";
 
 type NoteData = {
@@ -28,11 +29,14 @@ export default function BasicNote() {
     if (typeof window !== "undefined") {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        try {
-          setNote(JSON.parse(saved));
-        } catch {
-          // ignore error
-        }
+        try { 
+            const parsed = JSON.parse(saved);
+            setNote({
+                text: parsed.text || "",
+                title: parsed.title || "My Basic Note",
+                color: parsed.color || COLORS[0]
+            });
+        } catch {}
       }
     }
   }, []);
@@ -44,8 +48,7 @@ export default function BasicNote() {
     }
   }, [note]);
 
-  const update = (patch: Partial<NoteData>) =>
-    setNote((prev) => ({ ...prev, ...patch }));
+  const update = (patch: Partial<NoteData>) => setNote(prev => ({ ...prev, ...patch }));
 
   async function runAi(action: AiAction) {
     if (!note.text) return;
@@ -66,54 +69,22 @@ export default function BasicNote() {
   }
 
   return (
-    <div
-      style={{
-        width: "100%",
-        maxWidth: 600,
-        height: "60vh",
-        margin: "0 auto",
-        background: note.color,
-        borderRadius: 18,
-        padding: 20,
-        boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div style={{
+      width: "100%", maxWidth: 600, height: "60vh", margin: "0 auto",
+      background: note.color, borderRadius: 18, padding: 20,
+      boxShadow: "0 10px 30px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column"
+    }}>
       {/* HEADER */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 10,
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
         <input
           value={note.title}
           onChange={(e) => update({ title: e.target.value })}
-          style={{
-            background: "transparent",
-            border: "none",
-            fontWeight: "bold",
-            fontSize: 18,
-            outline: "none",
-            width: "70%",
-          }}
+          style={{ background: "transparent", border: "none", fontWeight: "bold", fontSize: 18, outline: "none", width: "70%" }}
         />
         <div style={{ display: "flex", gap: 5 }}>
-          {COLORS.map((c) => (
-            <button
-              key={c}
-              onClick={() => update({ color: c })}
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: "50%",
-                background: c,
-                border:
-                  note.color === c ? "2px solid #000" : "1px solid #999",
-                cursor: "pointer",
-              }}
+          {COLORS.map(c => (
+            <button key={c} onClick={() => update({ color: c })}
+              style={{ width: 18, height: 18, borderRadius: "50%", background: c, border: note.color === c ? "2px solid #000" : "1px solid #999", cursor: "pointer" }}
             />
           ))}
         </div>
@@ -125,87 +96,33 @@ export default function BasicNote() {
         onChange={(e) => update({ text: e.target.value })}
         placeholder="Type your note here..."
         style={{
-          flex: 1,
-          width: "100%",
-          background: "rgba(255,255,255,0.3)",
-          border: "none",
-          borderRadius: 8,
-          padding: 12,
-          fontSize: 16,
-          resize: "none",
-          outline: "none",
-          lineHeight: 1.5,
+          flex: 1, width: "100%", background: "rgba(255,255,255,0.3)",
+          border: "none", borderRadius: 8, padding: 12, fontSize: 16,
+          resize: "none", outline: "none", lineHeight: 1.5
         }}
       />
 
       {/* BASIC TOOLS ONLY */}
-      <div
-        style={{
-          marginTop: 15,
-          display: "flex",
-          gap: 8,
-          flexWrap: "wrap",
-          alignItems: "center",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: "bold",
-            opacity: 0.6,
-            textTransform: "uppercase",
-          }}
-        >
-          Basic AI:
-        </span>
-        <button disabled={aiBusy} onClick={() => runAi("fix")}>
-          Fix
-        </button>
-        <button disabled={aiBusy} onClick={() => runAi("summarise")}>
-          Summarise
-        </button>
-        <button disabled={aiBusy} onClick={() => runAi("improve")}>
-          Improve
-        </button>
+      <div style={{ marginTop: 15, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <span style={{ fontSize: 11, fontWeight: "bold", opacity: 0.6, textTransform: "uppercase" }}>Basic AI:</span>
+        <button disabled={aiBusy} onClick={() => runAi("fix")}>Fix</button>
+        <button disabled={aiBusy} onClick={() => runAi("summarise")}>Summarise</button>
+        <button disabled={aiBusy} onClick={() => runAi("improve")}>Improve</button>
+        
+        <div style={{width: 1, height: 20, background: "#ccc", margin: "0 4px"}}></div>
 
-        <div
-          style={{ width: 1, height: 20, background: "#ccc", margin: "0 4px" }}
-        ></div>
-
-        <select
-          value={targetLanguage}
-          onChange={(e) => setTargetLanguage(e.target.value)}
-          style={{
-            background: "rgba(255,255,255,0.5)",
-            border: "1px solid #aaa",
-            borderRadius: 4,
-            fontSize: 12,
-            padding: "2px 4px",
-          }}
+        <select 
+          value={targetLanguage} onChange={e => setTargetLanguage(e.target.value)}
+          style={{ background: "rgba(255,255,255,0.5)", border: "1px solid #aaa", borderRadius: 4, fontSize: 12, padding: "2px 4px" }}
         >
-          <option>Spanish</option>
-          <option>French</option>
-          <option>German</option>
-          <option>Hebrew</option>
+          <option>English</option><option>Spanish</option><option>French</option><option>German</option><option>Hebrew</option>
         </select>
-        <button disabled={aiBusy} onClick={() => runAi("translate")}>
-          Translate
-        </button>
+        <button disabled={aiBusy} onClick={() => runAi("translate")}>Translate</button>
       </div>
 
       {/* UPSELL MESSAGE */}
-      <div
-        style={{
-          marginTop: 12,
-          fontSize: 11,
-          textAlign: "center",
-          opacity: 0.6,
-        }}
-      >
-        Want to draw, use handwriting or generate images?{" "}
-        <a href="/pro" style={{ color: "#2563eb", fontWeight: "bold" }}>
-          Get Pro
-        </a>
+      <div style={{ marginTop: 12, fontSize: 11, textAlign: "center", opacity: 0.6 }}>
+        Want to draw, use handwriting or generate images? <a href="/pro" style={{ color: "#2563eb", fontWeight: "bold" }}>Get Pro</a>
       </div>
     </div>
   );
