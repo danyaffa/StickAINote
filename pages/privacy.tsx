@@ -53,7 +53,7 @@ export default function PrivacyPage() {
           </p>
 
           <p style={{ marginTop: 24, fontSize: 13 }}>
-            <Link href="/" style={{ textDecoration: "underline" }}>
+            <Link href="/" style={{ textDecoration: "underline", color: "white" }}>
               ← Back to home
             </Link>
           </p>
