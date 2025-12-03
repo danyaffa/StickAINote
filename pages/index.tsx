@@ -23,7 +23,7 @@ export default function HomePage() {
           minHeight: "100vh",
           background: "linear-gradient(to bottom right, #0f172a, #020617)",
           color: "white",
-          padding: "32px 22px",
+          padding: "32px 16px",
           boxSizing: "border-box",
           display: "flex",
           justifyContent: "center",
@@ -35,7 +35,7 @@ export default function HomePage() {
             maxWidth: 1120,
             display: "flex",
             flexDirection: "column",
-            gap: 40,
+            gap: 32,
           }}
         >
           {/* HEADER */}
@@ -78,7 +78,7 @@ export default function HomePage() {
             <nav
               style={{
                 display: "flex",
-                gap: 14,
+                gap: 10,
                 fontSize: 16,
                 alignItems: "center",
               }}
@@ -86,11 +86,12 @@ export default function HomePage() {
               <Link
                 href="/login"
                 style={{
-                  padding: "7px 16px",
+                  padding: "7px 14px",
                   borderRadius: 999,
                   border: "1px solid rgba(148,163,184,0.9)",
                   color: "#f9fafb",
                   fontWeight: 600,
+                  whiteSpace: "nowrap",
                 }}
               >
                 Login
@@ -98,11 +99,12 @@ export default function HomePage() {
               <Link
                 href="/register"
                 style={{
-                  padding: "8px 18px",
+                  padding: "8px 16px",
                   borderRadius: 999,
                   background: "#38bdf8",
                   color: "#020617",
                   fontWeight: 700,
+                  whiteSpace: "nowrap",
                 }}
               >
                 Register
@@ -110,16 +112,16 @@ export default function HomePage() {
             </nav>
           </header>
 
-          {/* HERO */}
+          {/* HERO – SINGLE COLUMN (MOBILE FRIENDLY) */}
           <section
             style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 1fr)",
-              gap: 40,
-              alignItems: "center",
+              display: "flex",
+              flexDirection: "column",
+              gap: 28,
+              alignItems: "flex-start",
             }}
           >
-            {/* LEFT SIDE */}
+            {/* TEXT */}
             <div>
               <p
                 style={{
@@ -135,8 +137,8 @@ export default function HomePage() {
 
               <h1
                 style={{
-                  fontSize: 42,
-                  lineHeight: 1.2,
+                  fontSize: 38,
+                  lineHeight: 1.25,
                   margin: 0,
                   marginBottom: 16,
                   fontWeight: 800,
@@ -150,7 +152,7 @@ export default function HomePage() {
               <p
                 style={{
                   fontSize: 17,
-                  maxWidth: 580,
+                  maxWidth: 640,
                   opacity: 0.95,
                   lineHeight: 1.7,
                 }}
@@ -160,20 +162,20 @@ export default function HomePage() {
                 handwriting recognition and advanced business thinking.
               </p>
 
-              {/* BUTTONS */}
+              {/* CTA BUTTONS */}
               <div
                 style={{
                   display: "flex",
                   flexWrap: "wrap",
-                  gap: 16,
-                  marginTop: 26,
-                  marginBottom: 12,
+                  gap: 12,
+                  marginTop: 22,
+                  marginBottom: 10,
                 }}
               >
                 <Link
                   href="/basic"
                   style={{
-                    padding: "12px 22px",
+                    padding: "11px 20px",
                     borderRadius: 999,
                     background: "#22c55e",
                     color: "black",
@@ -189,7 +191,7 @@ export default function HomePage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
-                    padding: "12px 22px",
+                    padding: "11px 20px",
                     borderRadius: 999,
                     border: "1px solid rgba(148,163,184,0.9)",
                     fontSize: 16,
@@ -208,13 +210,13 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* RIGHT: APP IMAGE */}
+            {/* APP IMAGE BELOW TEXT */}
             <div
               style={{
                 position: "relative",
                 width: "100%",
-                maxWidth: 460,
-                justifySelf: "center",
+                maxWidth: 420,
+                alignSelf: "center",
               }}
             >
               <div
@@ -243,18 +245,18 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* PLANS SECTION */}
+          {/* PLANS – STACKED CARDS FOR MOBILE */}
           <section
             style={{
-              marginTop: 12,
+              marginTop: 8,
               marginBottom: 12,
-              padding: 24,
+              padding: 20,
               borderRadius: 18,
               background: "rgba(15,23,42,0.9)",
               border: "1px solid rgba(148,163,184,0.5)",
-              display: "grid",
-              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-              gap: 22,
+              display: "flex",
+              flexDirection: "column",
+              gap: 18,
             }}
           >
             {/* BASIC CARD */}
@@ -262,15 +264,15 @@ export default function HomePage() {
               style={{
                 background: "rgba(15,23,42,0.9)",
                 borderRadius: 16,
-                padding: 20,
+                padding: 18,
                 border: "1px solid rgba(74,222,128,0.7)",
               }}
             >
               <h2
                 style={{
-                  fontSize: 22,
+                  fontSize: 20,
                   margin: 0,
-                  marginBottom: 8,
+                  marginBottom: 6,
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
@@ -282,13 +284,13 @@ export default function HomePage() {
                 Simple AI-assisted sticky note for everyday use.
               </p>
 
-              <p style={{ fontSize: 28, margin: "10px 0" }}>
+              <p style={{ fontSize: 26, margin: "8px 0" }}>
                 $6.60 <span style={{ fontSize: 15 }}>/ month</span>
               </p>
               <p
                 style={{
                   fontSize: 14,
-                  margin: "0 0 12px 0",
+                  margin: "0 0 10px 0",
                   color: "#bbf7d0",
                 }}
               >
@@ -313,7 +315,7 @@ export default function HomePage() {
               <Link
                 href="/basic"
                 style={{
-                  marginTop: 16,
+                  marginTop: 14,
                   display: "inline-block",
                   padding: "10px 18px",
                   borderRadius: 999,
@@ -332,15 +334,15 @@ export default function HomePage() {
               style={{
                 background: "rgba(15,23,42,0.9)",
                 borderRadius: 16,
-                padding: 20,
+                padding: 18,
                 border: "1px solid rgba(56,189,248,0.8)",
               }}
             >
               <h2
                 style={{
-                  fontSize: 22,
+                  fontSize: 20,
                   margin: 0,
-                  marginBottom: 8,
+                  marginBottom: 6,
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
@@ -354,7 +356,7 @@ export default function HomePage() {
                 AI assistance.
               </p>
 
-              <p style={{ fontSize: 28, margin: "10px 0" }}>
+              <p style={{ fontSize: 26, margin: "8px 0" }}>
                 $19.80 <span style={{ fontSize: 15 }}>/ month</span>
               </p>
 
@@ -379,7 +381,7 @@ export default function HomePage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  marginTop: 16,
+                  marginTop: 14,
                   display: "inline-block",
                   padding: "10px 18px",
                   borderRadius: 999,
@@ -399,8 +401,8 @@ export default function HomePage() {
             style={{
               fontSize: 13,
               opacity: 0.9,
-              marginTop: 8,
-              paddingTop: 12,
+              marginTop: 4,
+              paddingTop: 10,
               borderTop: "1px solid rgba(148,163,184,0.4)",
             }}
           >
@@ -419,7 +421,7 @@ export default function HomePage() {
               <div
                 style={{
                   display: "flex",
-                  gap: 16,
+                  gap: 14,
                   flexWrap: "wrap",
                 }}
               >
