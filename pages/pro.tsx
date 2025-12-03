@@ -63,11 +63,27 @@ export default function ProPage() {
             </span>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <Link href="/" style={{ opacity: 0.8 }}>
+            <Link 
+              href="/" 
+              style={{ 
+                opacity: 0.9, 
+                color: "#f9fafb", // White color
+                textDecoration: "underline",
+                textUnderlineOffset: 3 
+              }}
+            >
               Home
             </Link>
-            {/* LINK FIXED: Points to /app instead of /basic */}
-            <Link href="/app" style={{ opacity: 0.8 }}>
+            
+            <Link 
+              href="/app" 
+              style={{ 
+                opacity: 0.9, 
+                color: "#f9fafb", // White color
+                textDecoration: "underline",
+                textUnderlineOffset: 3 
+              }}
+            >
               Switch to Basic
             </Link>
 
@@ -83,6 +99,7 @@ export default function ProPage() {
                   color: "#022c22",
                   fontWeight: 600,
                   fontSize: 12,
+                  textDecoration: "none"
                 }}
               >
                 Subscribe / Manage
