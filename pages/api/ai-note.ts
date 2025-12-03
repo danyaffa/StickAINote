@@ -44,7 +44,7 @@ export default async function handler(
       instruction = "Improve clarity and tone. Make the text sound professional but natural. Keep the same meaning.";
       break;
     
-    // ✅ NEW PRO FEATURE: STRUCTURE
+    // ✅ DEEP POLISH LOGIC
     case "structure":
       instruction = `
         You are a high-end business consultant. 
