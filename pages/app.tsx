@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
-// FORCE IMPORT BASIC NOTE
 import BasicNote from "../components/BasicNote";
 
 export default function AppPage() {
@@ -22,28 +21,36 @@ export default function AppPage() {
   return (
     <>
       <Head><title>StickAINote – Basic</title></Head>
-      <main style={{ minHeight: "100vh", background: "#0f172a", color: "white", padding: 20 }}>
-        <div style={{ maxWidth: 800, margin: "0 auto" }}>
-            {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                <div>
-                    <h1 style={{ fontSize: 20, margin: 0 }}>StickAINote Basic</h1>
-                    <span style={{ fontSize: 12, opacity: 0.7 }}>Text-only edition</span>
-                </div>
-                <div>
-                    {isVip ? (
-                        <Link href="/pro" style={{ background: "#2563eb", color: "white", padding: "8px 16px", borderRadius: 99, textDecoration: "none", fontWeight: "bold" }}>
-                            Open Pro Plan →
-                        </Link>
-                    ) : (
-                        <a href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i" target="_blank" style={{ background: "#38bdf8", color: "black", padding: "8px 16px", borderRadius: 99, textDecoration: "none", fontWeight: "bold" }}>
-                            Upgrade to Pro
-                        </a>
-                    )}
-                </div>
+      <main style={{ 
+          minHeight: "100vh", 
+          background: "#0f172a", 
+          color: "white", 
+          display: "flex", 
+          flexDirection: "column" 
+      }}>
+        {/* HEADER */}
+        <header style={{ 
+            padding: "12px 20px", 
+            borderBottom: "1px solid rgba(255,255,255,0.1)", 
+            display: "flex", 
+            justifyContent: "space-between", 
+            alignItems: "center" 
+        }}>
+            <div>
+                <span style={{ fontWeight: "bold", fontSize: 16 }}>StickAINote Basic</span>
             </div>
+            <div style={{ display: "flex", gap: 15, fontSize: 14 }}>
+                <Link href="/" style={{ color: "#cbd5e1" }}>Home</Link>
+                {isVip ? (
+                    <Link href="/pro" style={{ color: "#60a5fa", fontWeight: "bold" }}>Open Pro Plan →</Link>
+                ) : (
+                    <a href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i" target="_blank" style={{ color: "#38bdf8" }}>Upgrade</a>
+                )}
+            </div>
+        </header>
 
-            {/* THE BASIC NOTE */}
+        {/* CONTENT */}
+        <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", padding: 20 }}>
             <BasicNote />
         </div>
       </main>
