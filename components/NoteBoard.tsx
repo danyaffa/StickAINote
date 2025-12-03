@@ -10,8 +10,8 @@ import React, {
   ChangeEvent as ReactChangeEvent,
 } from "react";
 
+// --- TYPES ---
 type AiAction = "fix" | "summarise" | "translate" | "improve" | "structure";
-
 type SvgPoint = { x: number; y: number };
 type SvgStroke = { id: string; points: SvgPoint[] };
 type DetectedObject = { label: string; confidence?: number };
@@ -26,7 +26,7 @@ type Note = {
   color: string;
   strokes: SvgStroke[];
   aiImages: string[];
-  lastImagePrompt?: string;
+  lastImagePrompt?: string; // For conversational drawing
 };
 
 const STORAGE_KEY = "stickanote-note-svg-v2";
@@ -34,6 +34,7 @@ const COLORS = ["#fef3c7", "#e0f2fe", "#fce7f3", "#dcfce7", "#f1f5f9"];
 const makeId = () => Math.random().toString(36).slice(2, 9);
 
 export default function NoteBoard() {
+  // --- STATE ---
   const [note, setNote] = useState<Note | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [mode, setMode] = useState<"text" | "draw">("text");
@@ -43,21 +44,21 @@ export default function NoteBoard() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentStroke, setCurrentStroke] = useState<SvgStroke | null>(null);
   const [strokes, setStrokes] = useState<SvgStroke[]>([]);
-  const [undoneStrokes, setUndoneStrokes] = useState<SvgStroke[]>([]);
-  
-  // AI Tools
+  const [undoneStrokes, setUndoneStrokes] = useState<SvgStroke[]>([]); // For Redo
+
+  // AI & Tools
   const [detectedObjects, setDetectedObjects] = useState<DetectedObject[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState("English");
-  
+  const [zoom, setZoom] = useState(1);
+
   // Dictation
   const [speechSupported, setSpeechSupported] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<any>(null);
   const baseTextRef = useRef<string>("");
 
-  // UI
-  const [zoom, setZoom] = useState(1);
+  // Refs
   const cardRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -68,9 +69,12 @@ export default function NoteBoard() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        // Clean legacy text if present
+        const cleanText = parsed.text?.includes("My name is Deb") ? "" : (parsed.text || "");
+        
         setNote({
           ...parsed,
-          text: parsed.text.includes("My name is Deb") ? "" : parsed.text,
+          text: cleanText,
           strokes: parsed.strokes || [],
           aiImages: parsed.aiImages || [],
           lastImagePrompt: parsed.lastImagePrompt || ""
@@ -84,6 +88,7 @@ export default function NoteBoard() {
       });
     }
 
+    // Check Dictation Support
     const w = window as any;
     if (w.SpeechRecognition || w.webkitSpeechRecognition) {
       setSpeechSupported(true);
@@ -120,7 +125,7 @@ export default function NoteBoard() {
     if (!p) return;
     setIsDrawing(true);
     setCurrentStroke({ id: makeId(), points: [p] });
-    setUndoneStrokes([]); // Clear redo stack on new draw
+    setUndoneStrokes([]); // Clear redo stack
   };
   const moveDraw = (e: any) => {
     if (e.cancelable) e.preventDefault();
@@ -136,7 +141,9 @@ export default function NoteBoard() {
     setIsDrawing(false);
   };
 
-  // --- UNDO / REDO ---
+  // --- ACTION HANDLERS ---
+  
+  // Undo / Redo
   const handleUndo = () => {
     setStrokes(prev => {
       if (prev.length === 0) return prev;
@@ -155,20 +162,22 @@ export default function NoteBoard() {
       return copy;
     });
   };
-  const clearCanvas = () => {
-    if(!window.confirm("Clear all drawings?")) return;
+
+  // Zoom
+  const handleZoomIn = () => setZoom(z => Math.min(z + 0.1, 3));
+  const handleZoomOut = () => setZoom(z => Math.max(z - 0.1, 0.5));
+  const handleZoomReset = () => setZoom(1);
+
+  // Clear
+  const handleClear = () => {
+    if(!window.confirm("Clear drawing canvas?")) return;
     setStrokes([]);
     setDetectedObjects([]);
     updateNote({ aiImages: [], lastImagePrompt: "" });
   };
 
-  // --- ZOOM ---
-  const zoomIn = () => setZoom(z => Math.min(z + 0.1, 3));
-  const zoomOut = () => setZoom(z => Math.max(z - 0.1, 0.5));
-  const zoomReset = () => setZoom(1);
-
-  // --- EXPORT / IMPORT ---
-  const exportNote = () => {
+  // Export / Import
+  const handleExport = () => {
     const blob = new Blob([JSON.stringify(note, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -206,7 +215,7 @@ export default function NoteBoard() {
     const recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = "en-US"; // Could map to targetLanguage if supported
+    recognition.lang = "en-US";
 
     recognition.onstart = () => {
       setIsRecording(true);
@@ -238,7 +247,7 @@ export default function NoteBoard() {
     } catch { alert("AI Error"); } finally { setAiBusy(false); }
   }
 
-  // --- AI DRAW ---
+  // --- AI DRAWING (Conversational) ---
   async function handleAiDraw() {
     setMode("draw");
     let prompt = "";
@@ -255,7 +264,7 @@ export default function NoteBoard() {
         prompt = window.prompt("How should I change the picture?", "Make the cat orange") || "";
     } else {
         prompt = window.prompt("What should I draw?", "A futuristic city") || "";
-        previousPrompt = ""; 
+        previousPrompt = "";
     }
 
     if (!prompt) return;
@@ -298,25 +307,26 @@ export default function NoteBoard() {
 
       {/* CANVAS AREA */}
       <div style={{ flex: 1, position: "relative", background: "rgba(255,255,255,0.4)", borderRadius: 12, overflow: "hidden" }}>
-         {/* AI SEES POPUP */}
+         
+         {/* ZOOM CONTROLS (Top Right) */}
+         {mode === "draw" && (
+             <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 4, background: "white", padding: 4, borderRadius: 6, zIndex: 20, border:"1px solid #ddd" }}>
+                 <button onClick={handleZoomOut} style={{width: 24}}>-</button>
+                 <span style={{fontSize: 12, padding:"0 4px"}}>{Math.round(zoom*100)}%</span>
+                 <button onClick={handleZoomIn} style={{width: 24}}>+</button>
+                 <button onClick={handleZoomReset}>R</button>
+             </div>
+         )}
+
+         {/* AI POPUP (Bottom Left) */}
          {detectedObjects.length > 0 && (
              <div style={{ position: "absolute", bottom: 10, left: 10, background: "#1e293b", color: "white", padding: "4px 8px", borderRadius: 6, fontSize: 11, zIndex: 10 }}>
                 AI Sees: {detectedObjects.map(d => d.label).join(", ")}
              </div>
          )}
 
-         {/* ZOOM CONTROLS (Only visible in Draw Mode) */}
-         {mode === "draw" && (
-             <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 4, background: "rgba(255,255,255,0.8)", padding: 4, borderRadius: 6, zIndex: 20 }}>
-                 <button onClick={zoomOut}>-</button>
-                 <span style={{fontSize: 12}}>{Math.round(zoom*100)}%</span>
-                 <button onClick={zoomIn}>+</button>
-                 <button onClick={zoomReset}>R</button>
-             </div>
-         )}
-
          {mode === "text" ? (
-             <textarea value={note.text} onChange={e => updateNote({ text: e.target.value })} style={{ width: "100%", height: "100%", background: "transparent", border: "none", padding: 10, resize: "none", outline: "none" }} />
+             <textarea value={note.text} onChange={e => updateNote({ text: e.target.value })} style={{ width: "100%", height: "100%", background: "transparent", border: "none", padding: 10, resize: "none", outline: "none", fontSize: 16 }} />
          ) : (
              <div style={{ width: "100%", height: "100%", cursor: "crosshair" }}>
                  <svg
@@ -335,9 +345,10 @@ export default function NoteBoard() {
          )}
       </div>
 
-      {/* PRO TOOLBAR */}
+      {/* FOOTER TOOLBAR */}
       <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-         {/* TEXT TOOLS */}
+         
+         {/* ROW 1: TEXT TOOLS */}
          <div style={{ display: "flex", gap: 8, alignItems: "center", paddingBottom: 8, borderBottom: "1px solid rgba(0,0,0,0.1)", flexWrap: "wrap" }}>
              <button onClick={() => setMode("text")} style={{ fontWeight: mode === "text" ? "bold" : "normal" }}>📝 Text</button>
              <button onClick={() => runAi("structure")} style={{ background: "linear-gradient(to right, #8b5cf6, #ec4899)", color: "white", border: "none", borderRadius: 4, padding: "4px 10px", fontWeight: "bold" }}>✨ Deep Polish</button>
@@ -345,31 +356,22 @@ export default function NoteBoard() {
              <button onClick={() => runAi("summarise")}>Summarise</button>
              
              {/* LANGUAGES */}
-             <select 
-                value={targetLanguage} 
-                onChange={(e) => setTargetLanguage(e.target.value)}
-                style={{ borderRadius: 4, border: "1px solid #ccc", padding: "2px" }}
-             >
-                <option>Arabic</option>
-                <option>Chinese</option>
-                <option>English</option>
-                <option>French</option>
-                <option>German</option>
-                <option>Hebrew</option>
-                <option>Indonesian</option>
-                <option>Japanese</option>
-                <option>Spanish</option>
+             <select value={targetLanguage} onChange={(e) => setTargetLanguage(e.target.value)} style={{ borderRadius: 4, border: "1px solid #ccc", padding: "2px" }}>
+                <option>English</option><option>Arabic</option><option>Chinese</option><option>French</option>
+                <option>German</option><option>Hebrew</option><option>Indonesian</option><option>Japanese</option><option>Spanish</option>
              </select>
              <button onClick={() => runAi("translate")}>Translate</button>
          </div>
 
-         {/* DRAW / ACTION TOOLS */}
+         {/* ROW 2: DRAWING & UTILITIES */}
          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
              <button onClick={() => setMode("draw")} style={{ fontWeight: mode === "draw" ? "bold" : "normal" }}>✏️ Draw</button>
+             
+             {/* Undo/Redo */}
              <button onClick={handleUndo} title="Undo">↩️</button>
              <button onClick={handleRedo} title="Redo">↪️</button>
-             
-             {/* CONVERSATIONAL DRAW */}
+
+             {/* Conversational AI Draw */}
              <button onClick={handleAiDraw} style={{ background: "#e0f2fe", border: "1px solid #38bdf8", borderRadius: 4, padding: "2px 8px" }}>
                  {note.lastImagePrompt ? "🎨 Refine Image" : "🖼️ AI Draw"}
              </button>
@@ -377,21 +379,21 @@ export default function NoteBoard() {
              <button onClick={handleHandwriting}>✍️ Text</button>
              <button onClick={handleDetect}>👁 Detect</button>
              <button onClick={handleClean}>🧹 Clean</button>
-             <button onClick={clearCanvas} style={{color: "red"}}>Clear</button>
+             <button onClick={handleClear} style={{color: "red"}}>Clear</button>
 
-             {/* DICTATION (Red/Green) */}
+             {/* Dictation (Red = Off, Green = On) */}
              {speechSupported && (
                  <button onClick={toggleDictation} style={{ 
                      background: isRecording ? "#22c55e" : "#ef4444", 
                      color: "white", border: "none", borderRadius: "50%", width: 28, height: 28, 
                      marginLeft: "auto", display: "flex", alignItems: "center", justifyContent: "center"
-                 }}>
+                 }} title="Voice Dictation">
                      🎤
                  </button>
              )}
 
-             {/* IMPORT / EXPORT */}
-             <button onClick={exportNote} title="Save/Export">💾</button>
+             {/* Export / Import (Inside the note) */}
+             <button onClick={handleExport} title="Save/Export">💾</button>
              <button onClick={triggerImport} title="Load/Import">📂</button>
          </div>
       </div>
