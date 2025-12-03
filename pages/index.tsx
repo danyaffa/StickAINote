@@ -281,7 +281,7 @@ export default function HomePage() {
               </ul>
 
               <Link
-                href="/app"
+                href="/register"
                 style={{
                   marginTop: 14,
                   display: "inline-block",
