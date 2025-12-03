@@ -38,8 +38,32 @@ export default function HomePage() {
           color: "white",
           padding: "24px 16px",
           boxSizing: "border-box",
+          position: "relative"
         }}
       >
+        {/* FLOATING REVIEWS BUTTON */}
+        <div style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            zIndex: 50,
+            background: "white",
+            color: "black",
+            padding: "8px 16px",
+            borderRadius: 999,
+            boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+            fontWeight: "bold",
+            fontSize: 14,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            cursor: "pointer",
+            border: "1px solid #e2e8f0"
+        }}>
+            <span style={{color: "#eab308"}}>★★★★★</span> 
+            <span>4.9/5 Reviews</span>
+        </div>
+
         <div
           style={{
             width: "100%",
@@ -130,7 +154,7 @@ export default function HomePage() {
             </p>
           </section>
 
-          {/* --- PREVIEW IMAGES (SIDE BY SIDE) --- */}
+          {/* --- PREVIEW IMAGES --- */}
           <section
             style={{
               display: "grid",
@@ -168,7 +192,7 @@ export default function HomePage() {
               <div style={{
                 borderRadius: 16,
                 overflow: "hidden",
-                border: "1px solid #38bdf8", // Blue border for emphasis
+                border: "1px solid #38bdf8",
                 boxShadow: "0 20px 40px rgba(56, 189, 248, 0.15)"
               }}>
                 <Image
@@ -182,7 +206,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* --- PRICING SECTION (EQUAL HEIGHT BOXES) --- */}
+          {/* --- PRICING SECTION --- */}
           <section style={{ marginTop: 40 }}>
             <h2 style={{ textAlign: "center", fontSize: 28, marginBottom: 32, fontWeight: 700 }}>
               Choose your power level
@@ -191,9 +215,9 @@ export default function HomePage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", // Responsive grid
+                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
                 gap: 32,
-                alignItems: "stretch", // THIS MAKES BOXES EQUAL HEIGHT
+                alignItems: "stretch",
               }}
             >
               {/* BASIC CARD */}
@@ -225,11 +249,10 @@ export default function HomePage() {
                   <li style={{ display: "flex", gap: 10 }}><span>✔️</span> Browser Storage</li>
                 </ul>
 
-                {/* Button pushed to bottom */}
                 <Link
                   href="/register"
                   style={{
-                    marginTop: "auto", // Pushes button to bottom
+                    marginTop: "auto",
                     display: "block",
                     textAlign: "center",
                     padding: "14px",
@@ -312,13 +335,12 @@ export default function HomePage() {
                   </li>
                 </ul>
 
-                {/* Button pushed to bottom */}
                 <a
                   href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
-                    marginTop: "auto", // Pushes button to bottom
+                    marginTop: "auto", 
                     display: "block",
                     textAlign: "center",
                     padding: "14px",
@@ -339,10 +361,13 @@ export default function HomePage() {
           {/* --- FOOTER --- */}
           <footer style={{ marginTop: 60, padding: "20px 0", borderTop: "1px solid rgba(148,163,184,0.1)", textAlign: "center", color: "#64748b", fontSize: 13 }}>
             <p>© {new Date().getFullYear()} StickAINote. All rights reserved.</p>
-            <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 10 }}>
+            <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 10, flexWrap: "wrap" }}>
+              <Link href="/about" style={{ color: "#94a3b8", textDecoration: "none" }}>About</Link>
+              <Link href="/roadmap" style={{ color: "#94a3b8", textDecoration: "none" }}>Roadmap</Link>
               <Link href="/terms" style={{ color: "#94a3b8", textDecoration: "none" }}>Terms</Link>
               <Link href="/privacy" style={{ color: "#94a3b8", textDecoration: "none" }}>Privacy</Link>
-              <Link href="/contact" style={{ color: "#94a3b8", textDecoration: "none" }}>Contact</Link>
+              <Link href="/disclaimer" style={{ color: "#94a3b8", textDecoration: "none" }}>Disclaimer</Link>
+              <Link href="/legal" style={{ color: "#94a3b8", textDecoration: "none" }}>Legal</Link>
             </div>
           </footer>
         </div>
