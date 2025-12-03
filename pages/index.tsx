@@ -173,31 +173,68 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* App Preview Image */}
+            {/* DUAL IMAGE PREVIEW (Basic vs Pro) */}
             <div
               style={{
-                position: "relative",
                 width: "100%",
-                maxWidth: 600,
-                alignSelf: "center",
-                borderRadius: 24,
-                overflow: "hidden",
-                boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
-                border: "1px solid #334155",
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 24,
+                marginTop: 10,
+                justifyContent: "flex-start", // Aligns to the left/start
               }}
             >
-              <Image
-                src="/App.png"
-                alt="StickAINote app preview"
-                width={900}
-                height={650}
-                style={{
-                  width: "100%",
-                  height: "auto",
-                  display: "block",
-                  objectFit: "cover",
-                }}
-              />
+              {/* BASIC IMAGE */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 360 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#fcd34d", textAlign: "center" }}>Basic Plan</span>
+                <div
+                  style={{
+                    borderRadius: 20,
+                    overflow: "hidden",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+                    border: "1px solid #334155",
+                  }}
+                >
+                  <Image
+                    src="/Basic.png"
+                    alt="Basic StickAINote Preview"
+                    width={500}
+                    height={400}
+                    style={{
+                      width: "100%",
+                      height: "auto",
+                      display: "block",
+                      objectFit: "cover",
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* PRO IMAGE */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 360 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#38bdf8", textAlign: "center" }}>Pro Plan</span>
+                <div
+                  style={{
+                    borderRadius: 20,
+                    overflow: "hidden",
+                    boxShadow: "0 10px 30px rgba(56,189,248,0.15)",
+                    border: "1px solid #38bdf8", // Blue border for Pro
+                  }}
+                >
+                  <Image
+                    src="/Pro.png"
+                    alt="Pro StickAINote Preview"
+                    width={500}
+                    height={400}
+                    style={{
+                      width: "100%",
+                      height: "auto",
+                      display: "block",
+                      objectFit: "cover",
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           </section>
 
