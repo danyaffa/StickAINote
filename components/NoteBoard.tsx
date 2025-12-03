@@ -10,7 +10,6 @@ import React, {
   ChangeEvent as ReactChangeEvent,
 } from "react";
 
-// Added "structure" here
 type AiAction = "fix" | "summarise" | "translate" | "improve" | "structure";
 
 type SvgPoint = { x: number; y: number };
@@ -27,7 +26,7 @@ type Note = {
   color: string;
   strokes: SvgStroke[];
   aiImages: string[];
-  lastImagePrompt?: string; // Memory for conversational AI
+  lastImagePrompt?: string;
 };
 
 const STORAGE_KEY = "stickanote-note-svg-v2";
@@ -51,6 +50,12 @@ export default function NoteBoard() {
   const [aiBusy, setAiBusy] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState("English");
   
+  // Dictation
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const baseTextRef = useRef<string>("");
+
   // UI
   const [zoom, setZoom] = useState(1);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -65,6 +70,7 @@ export default function NoteBoard() {
         const parsed = JSON.parse(saved);
         setNote({
           ...parsed,
+          text: parsed.text.includes("My name is Deb") ? "" : parsed.text,
           strokes: parsed.strokes || [],
           aiImages: parsed.aiImages || [],
           lastImagePrompt: parsed.lastImagePrompt || ""
@@ -77,6 +83,12 @@ export default function NoteBoard() {
         color: COLORS[0], strokes: [], aiImages: [], lastImagePrompt: ""
       });
     }
+
+    const w = window as any;
+    if (w.SpeechRecognition || w.webkitSpeechRecognition) {
+      setSpeechSupported(true);
+    }
+
     setLoaded(true);
   }, []);
 
@@ -108,6 +120,7 @@ export default function NoteBoard() {
     if (!p) return;
     setIsDrawing(true);
     setCurrentStroke({ id: makeId(), points: [p] });
+    setUndoneStrokes([]); // Clear redo stack on new draw
   };
   const moveDraw = (e: any) => {
     if (e.cancelable) e.preventDefault();
@@ -123,20 +136,101 @@ export default function NoteBoard() {
     setIsDrawing(false);
   };
 
+  // --- UNDO / REDO ---
+  const handleUndo = () => {
+    setStrokes(prev => {
+      if (prev.length === 0) return prev;
+      const copy = [...prev];
+      const last = copy.pop()!;
+      setUndoneStrokes(u => [...u, last]);
+      return copy;
+    });
+  };
+  const handleRedo = () => {
+    setUndoneStrokes(prev => {
+      if (prev.length === 0) return prev;
+      const copy = [...prev];
+      const last = copy.pop()!;
+      setStrokes(s => [...s, last]);
+      return copy;
+    });
+  };
   const clearCanvas = () => {
+    if(!window.confirm("Clear all drawings?")) return;
     setStrokes([]);
     setDetectedObjects([]);
     updateNote({ aiImages: [], lastImagePrompt: "" });
   };
 
-  // --- AI TEXT ACTIONS (Including Structure) ---
+  // --- ZOOM ---
+  const zoomIn = () => setZoom(z => Math.min(z + 0.1, 3));
+  const zoomOut = () => setZoom(z => Math.max(z - 0.1, 0.5));
+  const zoomReset = () => setZoom(1);
+
+  // --- EXPORT / IMPORT ---
+  const exportNote = () => {
+    const blob = new Blob([JSON.stringify(note, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "stick-pro-backup.json";
+    a.click();
+  };
+  const triggerImport = () => fileInputRef.current?.click();
+  const handleImport = (e: ReactChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result as string);
+        setNote(parsed);
+        setStrokes(parsed.strokes || []);
+      } catch { alert("Invalid file"); }
+    };
+    reader.readAsText(file);
+  };
+
+  // --- DICTATION ---
+  const toggleDictation = () => {
+    const w = window as any;
+    const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!SR) return;
+
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+      return;
+    }
+
+    const recognition = new SR();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US"; // Could map to targetLanguage if supported
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+      baseTextRef.current = note?.text || "";
+    };
+    recognition.onresult = (event: any) => {
+      let transcript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      updateNote({ text: (baseTextRef.current + " " + transcript).trim() });
+    };
+    recognition.onend = () => setIsRecording(false);
+    recognition.start();
+    recognitionRef.current = recognition;
+  };
+
+  // --- AI TEXT ACTIONS ---
   async function runAi(action: AiAction) {
-    if (!note?.text) return;
+    if (!note?.text.trim()) { alert("Write text first."); return; }
     setAiBusy(true);
     try {
       const res = await fetch("/api/ai-note", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, text: note.text, targetLanguage })
       });
       const data = await res.json();
@@ -144,14 +238,13 @@ export default function NoteBoard() {
     } catch { alert("AI Error"); } finally { setAiBusy(false); }
   }
 
-  // --- 🌟 SMART AI DRAWING (Refinement) ---
+  // --- AI DRAW ---
   async function handleAiDraw() {
     setMode("draw");
     let prompt = "";
     let previousPrompt = note?.lastImagePrompt || "";
     let isRefining = false;
 
-    // Check if we have history to refine
     if (previousPrompt) {
         if (window.confirm("Refine your existing image? (OK)\nOr create new? (Cancel)")) {
             isRefining = true;
@@ -162,7 +255,7 @@ export default function NoteBoard() {
         prompt = window.prompt("How should I change the picture?", "Make the cat orange") || "";
     } else {
         prompt = window.prompt("What should I draw?", "A futuristic city") || "";
-        previousPrompt = ""; // Reset if new
+        previousPrompt = ""; 
     }
 
     if (!prompt) return;
@@ -170,19 +263,17 @@ export default function NoteBoard() {
 
     try {
       const res = await fetch("/api/ai-draw", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Sending previousPrompt enables the conversational merge logic in API
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, previousPrompt }) 
       });
       const data = await res.json();
       if (data.imageData) {
           updateNote({ 
               aiImages: [...(note?.aiImages || []), data.imageData], 
-              lastImagePrompt: data.usedPrompt // Save NEW prompt for next time
+              lastImagePrompt: data.usedPrompt 
           });
       }
-    } catch { alert("Draw Failed"); } finally { setAiBusy(false); }
+    } catch (e: any) { alert("Draw Failed: " + e.message); } finally { setAiBusy(false); }
   }
 
   // --- MOCK PRO TOOLS ---
@@ -195,6 +286,8 @@ export default function NoteBoard() {
       width: "100%", height: "80vh", background: note.color, borderRadius: 18,
       boxShadow: "0 20px 50px rgba(0,0,0,0.3)", display: "flex", flexDirection: "column", padding: 16, position: "relative"
     }}>
+      <input type="file" ref={fileInputRef} style={{display:"none"}} onChange={handleImport} />
+
       {/* HEADER */}
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
          <input value={note.title} onChange={e => updateNote({ title: e.target.value })} style={{ background: "transparent", border: "none", fontSize: 18, fontWeight: "bold", outline: "none" }} />
@@ -205,10 +298,20 @@ export default function NoteBoard() {
 
       {/* CANVAS AREA */}
       <div style={{ flex: 1, position: "relative", background: "rgba(255,255,255,0.4)", borderRadius: 12, overflow: "hidden" }}>
-         {/* AI SEES POPUP - INSIDE CANVAS */}
+         {/* AI SEES POPUP */}
          {detectedObjects.length > 0 && (
              <div style={{ position: "absolute", bottom: 10, left: 10, background: "#1e293b", color: "white", padding: "4px 8px", borderRadius: 6, fontSize: 11, zIndex: 10 }}>
                 AI Sees: {detectedObjects.map(d => d.label).join(", ")}
+             </div>
+         )}
+
+         {/* ZOOM CONTROLS (Only visible in Draw Mode) */}
+         {mode === "draw" && (
+             <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 4, background: "rgba(255,255,255,0.8)", padding: 4, borderRadius: 6, zIndex: 20 }}>
+                 <button onClick={zoomOut}>-</button>
+                 <span style={{fontSize: 12}}>{Math.round(zoom*100)}%</span>
+                 <button onClick={zoomIn}>+</button>
+                 <button onClick={zoomReset}>R</button>
              </div>
          )}
 
@@ -223,7 +326,7 @@ export default function NoteBoard() {
                    onTouchStart={startDraw} onTouchMove={moveDraw} onTouchEnd={endDraw}
                  >
                     {note.aiImages.map((img, i) => (
-                        <image key={i} href={img} width="300" height="300" x={i*20} y={i*20} />
+                        <image key={i} href={img} width="400" height="400" x={i*20} y={i*20} preserveAspectRatio="xMidYMid meet" />
                     ))}
                     {strokes.map(s => <polyline key={s.id} points={s.points.map(p => `${p.x},${p.y}`).join(" ")} fill="none" stroke="#000" strokeWidth="2" />)}
                     {currentStroke && <polyline points={currentStroke.points.map(p => `${p.x},${p.y}`).join(" ")} fill="none" stroke="#000" strokeWidth="2" />}
@@ -235,25 +338,61 @@ export default function NoteBoard() {
       {/* PRO TOOLBAR */}
       <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
          {/* TEXT TOOLS */}
-         <div style={{ display: "flex", gap: 8, alignItems: "center", paddingBottom: 8, borderBottom: "1px solid rgba(0,0,0,0.1)" }}>
+         <div style={{ display: "flex", gap: 8, alignItems: "center", paddingBottom: 8, borderBottom: "1px solid rgba(0,0,0,0.1)", flexWrap: "wrap" }}>
              <button onClick={() => setMode("text")} style={{ fontWeight: mode === "text" ? "bold" : "normal" }}>📝 Text</button>
-             {/* NEW DEEP POLISH BUTTON */}
              <button onClick={() => runAi("structure")} style={{ background: "linear-gradient(to right, #8b5cf6, #ec4899)", color: "white", border: "none", borderRadius: 4, padding: "4px 10px", fontWeight: "bold" }}>✨ Deep Polish</button>
              <button onClick={() => runAi("fix")}>Fix</button>
              <button onClick={() => runAi("summarise")}>Summarise</button>
+             
+             {/* LANGUAGES */}
+             <select 
+                value={targetLanguage} 
+                onChange={(e) => setTargetLanguage(e.target.value)}
+                style={{ borderRadius: 4, border: "1px solid #ccc", padding: "2px" }}
+             >
+                <option>Arabic</option>
+                <option>Chinese</option>
+                <option>English</option>
+                <option>French</option>
+                <option>German</option>
+                <option>Hebrew</option>
+                <option>Indonesian</option>
+                <option>Japanese</option>
+                <option>Spanish</option>
+             </select>
+             <button onClick={() => runAi("translate")}>Translate</button>
          </div>
 
-         {/* DRAW TOOLS */}
+         {/* DRAW / ACTION TOOLS */}
          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
              <button onClick={() => setMode("draw")} style={{ fontWeight: mode === "draw" ? "bold" : "normal" }}>✏️ Draw</button>
-             {/* CONVERSATIONAL DRAW BUTTON */}
+             <button onClick={handleUndo} title="Undo">↩️</button>
+             <button onClick={handleRedo} title="Redo">↪️</button>
+             
+             {/* CONVERSATIONAL DRAW */}
              <button onClick={handleAiDraw} style={{ background: "#e0f2fe", border: "1px solid #38bdf8", borderRadius: 4, padding: "2px 8px" }}>
                  {note.lastImagePrompt ? "🎨 Refine Image" : "🖼️ AI Draw"}
              </button>
-             <button onClick={handleHandwriting}>✍️ Handwriting</button>
+             
+             <button onClick={handleHandwriting}>✍️ Text</button>
              <button onClick={handleDetect}>👁 Detect</button>
              <button onClick={handleClean}>🧹 Clean</button>
-             <button onClick={clearCanvas} style={{color: "red", marginLeft: "auto"}}>Clear Canvas</button>
+             <button onClick={clearCanvas} style={{color: "red"}}>Clear</button>
+
+             {/* DICTATION (Red/Green) */}
+             {speechSupported && (
+                 <button onClick={toggleDictation} style={{ 
+                     background: isRecording ? "#22c55e" : "#ef4444", 
+                     color: "white", border: "none", borderRadius: "50%", width: 28, height: 28, 
+                     marginLeft: "auto", display: "flex", alignItems: "center", justifyContent: "center"
+                 }}>
+                     🎤
+                 </button>
+             )}
+
+             {/* IMPORT / EXPORT */}
+             <button onClick={exportNote} title="Save/Export">💾</button>
+             <button onClick={triggerImport} title="Load/Import">📂</button>
          </div>
       </div>
     </div>
