@@ -3,7 +3,6 @@
 
 import React, { useEffect, useState } from "react";
 
-// Basic only gets these 4 simple tools
 type AiAction = "fix" | "summarise" | "translate" | "improve";
 
 type NoteData = {
@@ -24,15 +23,16 @@ export default function BasicNote() {
   const [aiBusy, setAiBusy] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState("English");
 
-  // Load from local storage
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved) {
         try { 
             const parsed = JSON.parse(saved);
+            // Clean unwanted text if present
+            const cleanText = parsed.text?.includes("My name is Deb") ? "" : (parsed.text || "");
             setNote({
-                text: parsed.text || "",
+                text: cleanText,
                 title: parsed.title || "My Basic Note",
                 color: parsed.color || COLORS[0]
             });
@@ -41,7 +41,6 @@ export default function BasicNote() {
     }
   }, []);
 
-  // Save on change
   useEffect(() => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(note));
@@ -51,7 +50,10 @@ export default function BasicNote() {
   const update = (patch: Partial<NoteData>) => setNote(prev => ({ ...prev, ...patch }));
 
   async function runAi(action: AiAction) {
-    if (!note.text) return;
+    if (!note.text.trim()) {
+        alert("Please write some text first.");
+        return;
+    }
     setAiBusy(true);
     try {
       const res = await fetch("/api/ai-note", {
@@ -90,7 +92,7 @@ export default function BasicNote() {
         </div>
       </div>
 
-      {/* TEXT AREA ONLY - NO DRAWING */}
+      {/* TEXT AREA ONLY */}
       <textarea
         value={note.text}
         onChange={(e) => update({ text: e.target.value })}
@@ -111,11 +113,20 @@ export default function BasicNote() {
         
         <div style={{width: 1, height: 20, background: "#ccc", margin: "0 4px"}}></div>
 
+        {/* UPDATED LANGUAGE LIST */}
         <select 
           value={targetLanguage} onChange={e => setTargetLanguage(e.target.value)}
           style={{ background: "rgba(255,255,255,0.5)", border: "1px solid #aaa", borderRadius: 4, fontSize: 12, padding: "2px 4px" }}
         >
-          <option>English</option><option>Spanish</option><option>French</option><option>German</option><option>Hebrew</option>
+            <option>Arabic</option>
+            <option>Chinese</option>
+            <option>English</option>
+            <option>French</option>
+            <option>German</option>
+            <option>Hebrew</option>
+            <option>Indonesian</option>
+            <option>Japanese</option>
+            <option>Spanish</option>
         </select>
         <button disabled={aiBusy} onClick={() => runAi("translate")}>Translate</button>
       </div>
