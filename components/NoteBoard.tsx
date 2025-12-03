@@ -250,13 +250,21 @@ export default function NoteBoard() {
         body: JSON.stringify({ prompt, previousPrompt }) 
       });
       const data = await res.json();
+      
+      if (data.error) {
+          throw new Error(data.error);
+      }
+
       if (data.imageData) {
           updateNote({ 
               aiImages: [...(note?.aiImages || []), data.imageData], 
               lastImagePrompt: data.usedPrompt 
           });
       }
-    } catch (e: any) { alert("Draw Failed: " + e.message); } finally { setAiBusy(false); }
+    } catch (e: any) { 
+        console.error(e);
+        alert("Draw Failed: " + (e.message || "Unknown error")); 
+    } finally { setAiBusy(false); }
   }
 
   // MOCK TOOLS
@@ -265,10 +273,10 @@ export default function NoteBoard() {
   async function handleDetect() { setMode("draw"); alert("Detection API connected."); }
 
   return (
-    // MAIN NOTE CONTAINER - Now fits 100% of parent width/height
+    // MAIN NOTE CONTAINER
     <div style={{
       width: "100%", 
-      height: "100%", // Takes full height of parent container
+      height: "100%", 
       background: note.color, 
       borderRadius: 18,
       boxShadow: "0 20px 50px rgba(0,0,0,0.3)", 
@@ -288,7 +296,7 @@ export default function NoteBoard() {
          </div>
       </div>
 
-      {/* CANVAS AREA - Takes available space */}
+      {/* CANVAS AREA */}
       <div style={{ flex: 1, position: "relative", background: "rgba(255,255,255,0.4)", borderRadius: 12, overflow: "hidden", minHeight: 0 }}>
          {/* AI POPUP */}
          {detectedObjects.length > 0 && (
@@ -370,7 +378,7 @@ export default function NoteBoard() {
                  </button>
              )}
 
-             {/* Export/Import (Inside the toolbar!) */}
+             {/* Export/Import */}
              <button onClick={handleExport} title="Save/Export" style={{cursor:"pointer"}}>💾</button>
              <button onClick={triggerImport} title="Load/Import" style={{cursor:"pointer"}}>📂</button>
          </div>
