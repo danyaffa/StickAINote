@@ -23,7 +23,7 @@ export default function HomePage() {
           minHeight: "100vh",
           background: "linear-gradient(to bottom right, #0f172a, #020617)",
           color: "white",
-          padding: "28px 18px",
+          padding: "32px 22px",
           boxSizing: "border-box",
           display: "flex",
           justifyContent: "center",
@@ -35,7 +35,7 @@ export default function HomePage() {
             maxWidth: 1120,
             display: "flex",
             flexDirection: "column",
-            gap: 36,
+            gap: 40,
           }}
         >
           {/* HEADER */}
@@ -51,8 +51,8 @@ export default function HomePage() {
               <Image
                 src="/StickAINote-Logo.png"
                 alt="StickAINote logo"
-                width={46}
-                height={46}
+                width={50}
+                height={50}
                 style={{
                   borderRadius: 8,
                   objectFit: "contain",
@@ -61,14 +61,14 @@ export default function HomePage() {
               <div>
                 <div
                   style={{
-                    fontSize: 20,
+                    fontSize: 22,
                     fontWeight: 700,
                     letterSpacing: 0.3,
                   }}
                 >
                   StickAINote
                 </div>
-                <div style={{ fontSize: 13, opacity: 0.85 }}>
+                <div style={{ fontSize: 14, opacity: 0.9 }}>
                   AI Sticky Notes & Thoughtboard
                 </div>
               </div>
@@ -78,15 +78,15 @@ export default function HomePage() {
             <nav
               style={{
                 display: "flex",
-                gap: 12,
-                fontSize: 15,
+                gap: 14,
+                fontSize: 16,
                 alignItems: "center",
               }}
             >
               <Link
                 href="/login"
                 style={{
-                  padding: "6px 14px",
+                  padding: "7px 16px",
                   borderRadius: 999,
                   border: "1px solid rgba(148,163,184,0.9)",
                   color: "#f9fafb",
@@ -98,7 +98,7 @@ export default function HomePage() {
               <Link
                 href="/register"
                 style={{
-                  padding: "7px 16px",
+                  padding: "8px 18px",
                   borderRadius: 999,
                   background: "#38bdf8",
                   color: "#020617",
@@ -115,7 +115,7 @@ export default function HomePage() {
             style={{
               display: "grid",
               gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 1fr)",
-              gap: 36,
+              gap: 40,
               alignItems: "center",
             }}
           >
@@ -123,11 +123,11 @@ export default function HomePage() {
             <div>
               <p
                 style={{
-                  fontSize: 14,
+                  fontSize: 15,
                   textTransform: "uppercase",
                   letterSpacing: 2,
-                  opacity: 0.85,
-                  marginBottom: 10,
+                  opacity: 0.9,
+                  marginBottom: 12,
                 }}
               >
                 Next-Generation Sticky Notes
@@ -135,10 +135,10 @@ export default function HomePage() {
 
               <h1
                 style={{
-                  fontSize: 38,
+                  fontSize: 42,
                   lineHeight: 1.2,
                   margin: 0,
-                  marginBottom: 14,
+                  marginBottom: 16,
                   fontWeight: 800,
                 }}
               >
@@ -149,10 +149,10 @@ export default function HomePage() {
 
               <p
                 style={{
-                  fontSize: 16,
-                  maxWidth: 560,
-                  opacity: 0.92,
-                  lineHeight: 1.6,
+                  fontSize: 17,
+                  maxWidth: 580,
+                  opacity: 0.95,
+                  lineHeight: 1.7,
                 }}
               >
                 Use StickAINote as your simple daily sticky note with AI help,
@@ -165,19 +165,19 @@ export default function HomePage() {
                 style={{
                   display: "flex",
                   flexWrap: "wrap",
-                  gap: 14,
-                  marginTop: 22,
-                  marginBottom: 10,
+                  gap: 16,
+                  marginTop: 26,
+                  marginBottom: 12,
                 }}
               >
                 <Link
                   href="/basic"
                   style={{
-                    padding: "11px 20px",
+                    padding: "12px 22px",
                     borderRadius: 999,
                     background: "#22c55e",
                     color: "black",
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: 600,
                   }}
                 >
@@ -189,10 +189,10 @@ export default function HomePage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
-                    padding: "11px 20px",
+                    padding: "12px 22px",
                     borderRadius: 999,
                     border: "1px solid rgba(148,163,184,0.9)",
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: 600,
                     color: "white",
                   }}
@@ -201,7 +201,7 @@ export default function HomePage() {
                 </a>
               </div>
 
-              <p style={{ fontSize: 13, opacity: 0.8 }}>
+              <p style={{ fontSize: 14, opacity: 0.85 }}>
                 Basic plan: 1st month free, then{" "}
                 <strong>$6.60 / month (USD)</strong>. Pro AI Thoughtboard:{" "}
                 <strong>$19.80 / month (USD)</strong>.
@@ -213,7 +213,7 @@ export default function HomePage() {
               style={{
                 position: "relative",
                 width: "100%",
-                maxWidth: 440,
+                maxWidth: 460,
                 justifySelf: "center",
               }}
             >
@@ -246,15 +246,15 @@ export default function HomePage() {
           {/* PLANS SECTION */}
           <section
             style={{
-              marginTop: 10,
-              marginBottom: 10,
-              padding: 22,
+              marginTop: 12,
+              marginBottom: 12,
+              padding: 24,
               borderRadius: 18,
               background: "rgba(15,23,42,0.9)",
               border: "1px solid rgba(148,163,184,0.5)",
               display: "grid",
               gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-              gap: 20,
+              gap: 22,
             }}
           >
             {/* BASIC CARD */}
@@ -262,15 +262,15 @@ export default function HomePage() {
               style={{
                 background: "rgba(15,23,42,0.9)",
                 borderRadius: 16,
-                padding: 18,
+                padding: 20,
                 border: "1px solid rgba(74,222,128,0.7)",
               }}
             >
               <h2
                 style={{
-                  fontSize: 20,
+                  fontSize: 22,
                   margin: 0,
-                  marginBottom: 6,
+                  marginBottom: 8,
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
@@ -278,17 +278,17 @@ export default function HomePage() {
               >
                 🟨 Basic Sticky Note
               </h2>
-              <p style={{ fontSize: 14, marginTop: 0, opacity: 0.88 }}>
+              <p style={{ fontSize: 15, marginTop: 0, opacity: 0.9 }}>
                 Simple AI-assisted sticky note for everyday use.
               </p>
 
-              <p style={{ fontSize: 26, margin: "8px 0" }}>
-                $6.60 <span style={{ fontSize: 14 }}>/ month</span>
+              <p style={{ fontSize: 28, margin: "10px 0" }}>
+                $6.60 <span style={{ fontSize: 15 }}>/ month</span>
               </p>
               <p
                 style={{
-                  fontSize: 13,
-                  margin: "0 0 10px 0",
+                  fontSize: 14,
+                  margin: "0 0 12px 0",
                   color: "#bbf7d0",
                 }}
               >
@@ -297,10 +297,10 @@ export default function HomePage() {
 
               <ul
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   margin: 0,
-                  paddingLeft: 20,
-                  lineHeight: 1.6,
+                  paddingLeft: 22,
+                  lineHeight: 1.7,
                 }}
               >
                 <li>Type, move and resize your sticky note</li>
@@ -313,13 +313,13 @@ export default function HomePage() {
               <Link
                 href="/basic"
                 style={{
-                  marginTop: 14,
+                  marginTop: 16,
                   display: "inline-block",
-                  padding: "9px 16px",
+                  padding: "10px 18px",
                   borderRadius: 999,
                   background: "#22c55e",
                   color: "black",
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: 600,
                 }}
               >
@@ -332,15 +332,15 @@ export default function HomePage() {
               style={{
                 background: "rgba(15,23,42,0.9)",
                 borderRadius: 16,
-                padding: 18,
+                padding: 20,
                 border: "1px solid rgba(56,189,248,0.8)",
               }}
             >
               <h2
                 style={{
-                  fontSize: 20,
+                  fontSize: 22,
                   margin: 0,
-                  marginBottom: 6,
+                  marginBottom: 8,
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
@@ -349,21 +349,21 @@ export default function HomePage() {
                 🟦 Pro AI Business Note
               </h2>
 
-              <p style={{ fontSize: 14, marginTop: 0, opacity: 0.88 }}>
+              <p style={{ fontSize: 15, marginTop: 0, opacity: 0.9 }}>
                 Full AI Thoughtboard for drawing, business planning and smart
                 AI assistance.
               </p>
 
-              <p style={{ fontSize: 26, margin: "8px 0" }}>
-                $19.80 <span style={{ fontSize: 14 }}>/ month</span>
+              <p style={{ fontSize: 28, margin: "10px 0" }}>
+                $19.80 <span style={{ fontSize: 15 }}>/ month</span>
               </p>
 
               <ul
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   margin: 0,
-                  paddingLeft: 20,
-                  lineHeight: 1.6,
+                  paddingLeft: 22,
+                  lineHeight: 1.7,
                 }}
               >
                 <li>Full SVG drawing engine with undo/redo</li>
@@ -379,12 +379,12 @@ export default function HomePage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  marginTop: 14,
+                  marginTop: 16,
                   display: "inline-block",
-                  padding: "9px 16px",
+                  padding: "10px 18px",
                   borderRadius: 999,
                   border: "1px solid rgba(148,163,184,0.9)",
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: 600,
                   color: "white",
                 }}
@@ -397,10 +397,10 @@ export default function HomePage() {
           {/* FOOTER WITH LEGAL LINKS */}
           <footer
             style={{
-              fontSize: 12,
-              opacity: 0.85,
-              marginTop: 6,
-              paddingTop: 10,
+              fontSize: 13,
+              opacity: 0.9,
+              marginTop: 8,
+              paddingTop: 12,
               borderTop: "1px solid rgba(148,163,184,0.4)",
             }}
           >
@@ -419,15 +419,40 @@ export default function HomePage() {
               <div
                 style={{
                   display: "flex",
-                  gap: 14,
+                  gap: 16,
                   flexWrap: "wrap",
                 }}
               >
-                <Link href="/about">About</Link>
-                <Link href="/disclaimer">Disclaimer</Link>
-                <Link href="/legal">Legal</Link>
-                <Link href="/privacy">Privacy</Link>
-                <Link href="/terms">Terms of Use</Link>
+                <Link
+                  href="/about"
+                  style={{ color: "#f9fafb", textDecoration: "none" }}
+                >
+                  About
+                </Link>
+                <Link
+                  href="/disclaimer"
+                  style={{ color: "#f9fafb", textDecoration: "none" }}
+                >
+                  Disclaimer
+                </Link>
+                <Link
+                  href="/legal"
+                  style={{ color: "#f9fafb", textDecoration: "none" }}
+                >
+                  Legal
+                </Link>
+                <Link
+                  href="/privacy"
+                  style={{ color: "#f9fafb", textDecoration: "none" }}
+                >
+                  Privacy
+                </Link>
+                <Link
+                  href="/terms"
+                  style={{ color: "#f9fafb", textDecoration: "none" }}
+                >
+                  Terms of Use
+                </Link>
               </div>
             </div>
           </footer>
