@@ -1,10 +1,22 @@
 // FILE: pages/basic.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import BasicNote from "../components/BasicNote";
 
 export default function BasicPage() {
+  const [isVip, setIsVip] = useState(false);
+
+  useEffect(() => {
+    // Check if the user is the Developer or has the Promo Code (set during Login)
+    if (typeof window !== "undefined") {
+      const promo = window.localStorage.getItem("stickainote-promo");
+      if (promo === "1") {
+        setIsVip(true);
+      }
+    }
+  }, []);
+
   return (
     <>
       <Head>
@@ -38,36 +50,67 @@ export default function BasicPage() {
         >
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <span style={{ fontWeight: 700 }}>StickAINote – Basic</span>
-            <span style={{ opacity: 0.7 }}>
-              1st month free · then $6.60/month (USD)
-            </span>
+            {!isVip && (
+              <span style={{ opacity: 0.7 }}>
+                1st month free · then $6.60/month (USD)
+              </span>
+            )}
+            {isVip && (
+              <span style={{ color: "#4ade80", fontWeight: 600 }}>
+                Dev / Pro Active
+              </span>
+            )}
           </div>
+
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <Link href="/" style={{ opacity: 0.8 }}>
               Home
             </Link>
-            <a
-              href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                padding: "4px 10px",
-                borderRadius: 999,
-                background: "#38bdf8",
-                color: "#020617",
-                fontWeight: 600,
-                fontSize: 12,
-              }}
-            >
-              Upgrade to Pro
-            </a>
+
+            {/* BUTTON LOGIC: 
+                - VIP/Dev/Me -> Blue Button -> Open Pro Plan (/pro)
+                - Regular User -> Cyan Button -> Upgrade (Stripe) 
+            */}
+            {isVip ? (
+              <Link
+                href="/pro"
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 999,
+                  background: "#2563eb", // Royal Blue for Pro Access
+                  color: "white",
+                  fontWeight: 600,
+                  fontSize: 12,
+                  textDecoration: "none",
+                }}
+              >
+                Open Pro Plan
+              </Link>
+            ) : (
+              <a
+                href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 999,
+                  background: "#38bdf8", // Sky Blue for Upgrade
+                  color: "#020617",
+                  fontWeight: 600,
+                  fontSize: 12,
+                  textDecoration: "none",
+                }}
+              >
+                Upgrade to Pro
+              </a>
+            )}
           </div>
         </header>
 
         {/* Basic sticky note */}
         <BasicNote />
 
-        {/* Upgrade message */}
+        {/* Upgrade message / Footer */}
         <section
           style={{
             maxWidth: 1120,
@@ -82,28 +125,44 @@ export default function BasicPage() {
             justifyContent: "space-between",
             gap: 12,
             flexWrap: "wrap",
+            alignItems: "center",
           }}
         >
-          <div>
-            <strong>Need more power?</strong> Pro gives you AI drawing,
-            handwriting to text, AI layout cleanup, object detection, whiteboard
-            mode and exports.
-          </div>
-          <a
-            href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              padding: "4px 10px",
-              borderRadius: 999,
-              border: "1px solid rgba(148,163,184,0.9)",
-              fontWeight: 600,
-              fontSize: 12,
-              color: "white",
-            }}
-          >
-            Upgrade to Pro – $19.80/month
-          </a>
+          {isVip ? (
+            <div style={{ width: "100%", textAlign: "center" }}>
+              <strong>Pro Access Active:</strong> You have full access to the AI Thoughtboard.{" "}
+              <Link
+                href="/pro"
+                style={{ color: "#60a5fa", textDecoration: "underline" }}
+              >
+                Switch to Pro View →
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div>
+                <strong>Need more power?</strong> Pro gives you AI drawing,
+                handwriting to text, AI layout cleanup, object detection,
+                whiteboard mode and exports.
+              </div>
+              <a
+                href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(148,163,184,0.9)",
+                  fontWeight: 600,
+                  fontSize: 12,
+                  color: "white",
+                  textDecoration: "none",
+                }}
+              >
+                Upgrade to Pro – $19.80/month
+              </a>
+            </>
+          )}
         </section>
       </main>
     </>
