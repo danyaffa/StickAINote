@@ -20,13 +20,15 @@ const COLORS = ["#fef3c7", "#e0f2fe", "#fce7f3", "#dcfce7", "#f1f5f9"];
 
 export default function BasicNote() {
   const [note, setNote] = useState<NoteData>({
-    text: "", title: "My Basic Note", color: COLORS[0],
+    text: "",
+    title: "My Basic Note",
+    color: COLORS[0],
     x: 50, y: 100, width: 600, height: 500,
   });
   const [aiBusy, setAiBusy] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState("English");
 
-  // Dragging & Resizing State
+  // Drag & Resize State
   const [dragging, setDragging] = useState({ active: false, offsetX: 0, offsetY: 0 });
   const [resizing, setResizing] = useState({ active: false, startW: 0, startH: 0, startX: 0, startY: 0 });
 
@@ -36,9 +38,10 @@ export default function BasicNote() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          const cleanText = parsed.text?.includes("My name is Deb") ? "" : (parsed.text || "");
           setNote({
-              text: cleanText, title: parsed.title || "My Basic Note", color: parsed.color || COLORS[0],
+              text: parsed.text || "",
+              title: parsed.title || "My Basic Note",
+              color: parsed.color || COLORS[0],
               x: parsed.x ?? 50, y: parsed.y ?? 100,
               width: parsed.width ?? 600, height: parsed.height ?? 500
           });
@@ -53,7 +56,7 @@ export default function BasicNote() {
     }
   }, [note]);
 
-  // Handlers
+  // Handle Dragging & Resizing
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onMove = (e: any) => {
@@ -61,11 +64,19 @@ export default function BasicNote() {
             setNote(prev => ({ ...prev, x: e.clientX - dragging.offsetX, y: e.clientY - dragging.offsetY }));
         }
         if (resizing.active) {
-            setNote(prev => ({ ...prev, width: Math.max(300, resizing.startW + (e.clientX - resizing.startX)), height: Math.max(250, resizing.startH + (e.clientY - resizing.startY)) }));
+            setNote(prev => ({ 
+                ...prev, 
+                width: Math.max(300, resizing.startW + (e.clientX - resizing.startX)), 
+                height: Math.max(300, resizing.startH + (e.clientY - resizing.startY)) 
+            }));
         }
     };
     const onUp = () => { setDragging({ ...dragging, active: false }); setResizing({ ...resizing, active: false }); };
-    if (dragging.active || resizing.active) { window.addEventListener("mousemove", onMove); window.addEventListener("mouseup", onUp); }
+    
+    if (dragging.active || resizing.active) {
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+    }
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
   }, [dragging, resizing]);
 
@@ -74,10 +85,13 @@ export default function BasicNote() {
   const update = (patch: Partial<NoteData>) => setNote(prev => ({ ...prev, ...patch }));
 
   async function runAi(action: AiAction) {
-    if (!note.text.trim()) { alert("Please write text."); return; }
+    if (!note.text.trim()) { alert("Please write some text first."); return; }
     setAiBusy(true);
     try {
-      const res = await fetch("/api/ai-note", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, text: note.text, targetLanguage }) });
+      const res = await fetch("/api/ai-note", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, text: note.text, targetLanguage }),
+      });
       const data = await res.json();
       if (data.text) update({ text: data.text });
     } catch { alert("AI Error"); } finally { setAiBusy(false); }
@@ -89,32 +103,51 @@ export default function BasicNote() {
       background: note.color, borderRadius: 18, padding: 20,
       boxShadow: "0 10px 40px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", boxSizing: "border-box", zIndex: 10
     }}>
+      {/* DRAGGABLE HEADER */}
       <div onMouseDown={startDrag} style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, cursor: "grab", paddingBottom: 5 }}>
-        <input value={note.title} onChange={(e) => update({ title: e.target.value })} style={{ background: "transparent", border: "none", fontWeight: "bold", fontSize: 18, outline: "none", width: "70%", cursor: "text" }} onMouseDown={e => e.stopPropagation()} />
+        <input
+          value={note.title}
+          onChange={(e) => update({ title: e.target.value })}
+          style={{ background: "transparent", border: "none", fontWeight: "bold", fontSize: 18, outline: "none", width: "70%", cursor: "text" }}
+          onMouseDown={e => e.stopPropagation()}
+        />
         <div style={{ display: "flex", gap: 5 }} onMouseDown={e => e.stopPropagation()}>
-          {COLORS.map(c => <button key={c} onClick={() => update({ color: c })} style={{ width: 18, height: 18, borderRadius: "50%", background: c, border: note.color === c ? "2px solid #000" : "1px solid #999", cursor: "pointer" }} />)}
+          {COLORS.map(c => (
+            <button key={c} onClick={() => update({ color: c })} style={{ width: 18, height: 18, borderRadius: "50%", background: c, border: note.color === c ? "2px solid #000" : "1px solid #999", cursor: "pointer" }} title="Change Color" />
+          ))}
         </div>
       </div>
 
-      <textarea value={note.text} onChange={(e) => update({ text: e.target.value })} placeholder="Type your note here..." style={{ flex: 1, width: "100%", background: "rgba(255,255,255,0.3)", border: "none", borderRadius: 8, padding: 12, fontSize: 16, resize: "none", outline: "none", lineHeight: 1.5, fontFamily: "sans-serif" }} onMouseDown={e => e.stopPropagation()} />
+      <textarea
+        value={note.text}
+        onChange={(e) => update({ text: e.target.value })}
+        placeholder="Type your note here..."
+        style={{ flex: 1, width: "100%", background: "rgba(255,255,255,0.3)", border: "none", borderRadius: 8, padding: 12, fontSize: 16, resize: "none", outline: "none", lineHeight: 1.5, fontFamily: "sans-serif" }}
+        onMouseDown={e => e.stopPropagation()}
+      />
 
+      {/* TOOLS WITH HOVER INFO */}
       <div style={{ marginTop: 15, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <span style={{ fontSize: 11, fontWeight: "bold", opacity: 0.6, textTransform: "uppercase" }}>Basic AI:</span>
-        <button disabled={aiBusy} onClick={() => runAi("fix")} title="Fix Grammar">Fix</button>
-        <button disabled={aiBusy} onClick={() => runAi("summarise")} title="Summarise text">Summarise</button>
-        <button disabled={aiBusy} onClick={() => runAi("improve")} title="Improve wording">Improve</button>
+        <button disabled={aiBusy} onClick={() => runAi("fix")} title="Correct spelling and grammar">Fix</button>
+        <button disabled={aiBusy} onClick={() => runAi("summarise")} title="Create a short summary">Summarise</button>
+        <button disabled={aiBusy} onClick={() => runAi("improve")} title="Improve writing tone">Improve</button>
+        
         <div style={{width: 1, height: 20, background: "#ccc", margin: "0 4px"}}></div>
-        <select value={targetLanguage} onChange={e => setTargetLanguage(e.target.value)} style={{ background: "rgba(255,255,255,0.5)", border: "1px solid #aaa", borderRadius: 4, fontSize: 12, padding: "2px 4px" }} title="Select Language">
+
+        <select value={targetLanguage} onChange={e => setTargetLanguage(e.target.value)} style={{ background: "rgba(255,255,255,0.5)", border: "1px solid #aaa", borderRadius: 4, fontSize: 12, padding: "2px 4px" }} title="Select translation language">
             <option>English</option><option>Arabic</option><option>Chinese</option><option>French</option><option>German</option><option>Hebrew</option><option>Indonesian</option><option>Japanese</option><option>Spanish</option>
         </select>
         <button disabled={aiBusy} onClick={() => runAi("translate")} title="Translate text">Translate</button>
       </div>
 
-      <div style={{ marginTop: 14, textAlign: "center", fontSize: 14, fontWeight: "600", color: "black", opacity: 0.9 }}>
+      {/* UPSELL MESSAGE - BLACK AND BOLD */}
+      <div style={{ marginTop: 14, textAlign: "center", fontSize: 16, fontWeight: "800", color: "black", opacity: 1 }}>
         Want to draw, use handwriting or generate images? <a href="/pro" style={{ color: "#2563eb", textDecoration: "underline", marginLeft: 4 }}>Get Pro</a>
       </div>
 
-      <div onMouseDown={startResize} style={{ position: "absolute", bottom: 0, right: 0, width: 20, height: 20, cursor: "se-resize", background: "linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.1) 50%)", borderRadius: "0 0 18px 0" }} title="Resize Note" />
+      {/* RESIZE HANDLE */}
+      <div onMouseDown={startResize} style={{ position: "absolute", bottom: 0, right: 0, width: 25, height: 25, cursor: "se-resize", background: "linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.1) 50%)", borderRadius: "0 0 18px 0" }} title="Resize Note" />
     </div>
   );
 }
