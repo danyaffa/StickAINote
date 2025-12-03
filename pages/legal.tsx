@@ -48,18 +48,18 @@ export default function LegalPage() {
           <p style={{ fontSize: 14, lineHeight: 1.6 }}>
             For the full rules that apply to your use of the service, please
             read the{" "}
-            <Link href="/terms" style={{ textDecoration: "underline" }}>
+            <Link href="/terms" style={{ textDecoration: "underline", color: "white" }}>
               Terms of Use
             </Link>{" "}
             and{" "}
-            <Link href="/privacy" style={{ textDecoration: "underline" }}>
+            <Link href="/privacy" style={{ textDecoration: "underline", color: "white" }}>
               Privacy Policy
             </Link>
             .
           </p>
 
           <p style={{ marginTop: 24, fontSize: 13 }}>
-            <Link href="/" style={{ textDecoration: "underline" }}>
+            <Link href="/" style={{ textDecoration: "underline", color: "white" }}>
               ← Back to home
             </Link>
           </p>
