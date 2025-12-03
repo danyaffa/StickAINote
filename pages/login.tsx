@@ -1,4 +1,4 @@
-// FILE: /pages/login.tsx
+// FILE: pages/login.tsx
 import Head from "next/head";
 import Link from "next/link";
 import React, { useState } from "react";
@@ -20,7 +20,18 @@ export default function LoginPage() {
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
 
-    // Promo code – free access
+    // 1. Developer Access (leffleryd@gmail.com)
+    // Grants full access immediately regardless of password for now
+    if (email.trim().toLowerCase() === "leffleryd@gmail.com") {
+      if (typeof window !== "undefined") {
+        // Set the promo flag to ensure access to features is unlocked
+        window.localStorage.setItem("stickainote-promo", "1");
+      }
+      router.push("/app");
+      return;
+    }
+
+    // 2. Promo code – free access
     if (promoCode.trim() && promoCode.trim() === FAMILY_PROMO_CODE) {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("stickainote-promo", "1");
@@ -29,12 +40,13 @@ export default function LoginPage() {
       return;
     }
 
-    // TEMP: normal login placeholder
+    // 3. TEMP: normal login placeholder
     if (!email.trim()) {
       alert("Please enter your email.");
       return;
     }
 
+    // For standard users (placeholder logic)
     router.push("/app");
   }
 
