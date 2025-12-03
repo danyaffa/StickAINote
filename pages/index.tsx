@@ -18,24 +18,36 @@ export default function HomePage() {
         <meta name="robots" content="index,follow" />
       </Head>
 
+      {/* GLOBAL: kill white margins + set dark background everywhere */}
+      <style jsx global>{`
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+          background: #020617;
+        }
+        body {
+          min-height: 100vh;
+        }
+      `}</style>
+
       <main
         style={{
           minHeight: "100vh",
           background: "linear-gradient(to bottom right, #0f172a, #020617)",
           color: "white",
-          padding: "32px 16px",
+          padding: "24px 12px 24px 12px",
           boxSizing: "border-box",
-          display: "flex",
-          justifyContent: "center",
         }}
       >
         <div
           style={{
             width: "100%",
             maxWidth: 1120,
+            margin: "0 auto",
             display: "flex",
             flexDirection: "column",
-            gap: 32,
+            gap: 28,
           }}
         >
           {/* HEADER */}
@@ -44,7 +56,7 @@ export default function HomePage() {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 16,
+              gap: 12,
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -117,7 +129,7 @@ export default function HomePage() {
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: 28,
+              gap: 24,
               alignItems: "flex-start",
             }}
           >
@@ -129,7 +141,7 @@ export default function HomePage() {
                   textTransform: "uppercase",
                   letterSpacing: 2,
                   opacity: 0.9,
-                  marginBottom: 12,
+                  marginBottom: 10,
                 }}
               >
                 Next-Generation Sticky Notes
@@ -140,7 +152,7 @@ export default function HomePage() {
                   fontSize: 38,
                   lineHeight: 1.25,
                   margin: 0,
-                  marginBottom: 16,
+                  marginBottom: 14,
                   fontWeight: 800,
                 }}
               >
@@ -168,8 +180,8 @@ export default function HomePage() {
                   display: "flex",
                   flexWrap: "wrap",
                   gap: 12,
-                  marginTop: 22,
-                  marginBottom: 10,
+                  marginTop: 20,
+                  marginBottom: 8,
                 }}
               >
                 <Link
@@ -248,15 +260,15 @@ export default function HomePage() {
           {/* PLANS – STACKED CARDS FOR MOBILE */}
           <section
             style={{
-              marginTop: 8,
-              marginBottom: 12,
-              padding: 20,
+              marginTop: 4,
+              marginBottom: 10,
+              padding: 18,
               borderRadius: 18,
               background: "rgba(15,23,42,0.9)",
               border: "1px solid rgba(148,163,184,0.5)",
               display: "flex",
               flexDirection: "column",
-              gap: 18,
+              gap: 16,
             }}
           >
             {/* BASIC CARD */}
@@ -402,7 +414,7 @@ export default function HomePage() {
               fontSize: 13,
               opacity: 0.9,
               marginTop: 4,
-              paddingTop: 10,
+              paddingTop: 8,
               borderTop: "1px solid rgba(148,163,184,0.4)",
             }}
           >
