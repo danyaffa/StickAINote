@@ -335,10 +335,9 @@ export default function HomePage() {
                   </li>
                 </ul>
 
-                <a
-                  href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                {/* UPDATED LINK AND TEXT */}
+                <Link
+                  href="/register"
                   style={{
                     marginTop: "auto", 
                     display: "block",
@@ -352,8 +351,8 @@ export default function HomePage() {
                     boxShadow: "0 4px 12px rgba(37, 99, 235, 0.4)",
                   }}
                 >
-                  Upgrade to Pro Power
-                </a>
+                  Start with Pro Power
+                </Link>
               </div>
             </div>
           </section>
