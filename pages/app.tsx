@@ -4,16 +4,25 @@ import Head from "next/head";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
-// Load NoteBoard only on client
+// We use NoteBoard (which you uploaded) because your screenshot shows the "Draw" button
 const NoteBoard = dynamic(() => import("../components/NoteBoard"), {
   ssr: false,
 });
 
 export default function AppPage() {
   const [ready, setReady] = useState(false);
+  const [isVip, setIsVip] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    // 1. Check for Developer / VIP Access
+    // This flag is set in /pages/login.tsx when you login as 'leffleryd@gmail.com' 
+    const promo = window.localStorage.getItem("stickainote-promo");
+    if (promo === "1") {
+      setIsVip(true);
+    }
+
     setReady(true);
   }, []);
 
@@ -21,7 +30,7 @@ export default function AppPage() {
     return (
       <>
         <Head>
-          <title>StickAINote – Loading your sticky note…</title>
+          <title>StickAINote – Loading...</title>
         </Head>
         <div
           style={{
@@ -33,9 +42,7 @@ export default function AppPage() {
             color: "white",
           }}
         >
-          <p style={{ fontSize: 16, opacity: 0.9 }}>
-            Loading your sticky note…
-          </p>
+          <p style={{ fontSize: 16, opacity: 0.9 }}>Loading...</p>
         </div>
       </>
     );
@@ -47,7 +54,7 @@ export default function AppPage() {
         <title>StickAINote – Basic AI Sticky Note</title>
         <meta
           name="description"
-          content="Use the Basic StickAINote to write and save one AI-assisted sticky note with optional drawing, dictation and translation."
+          content="Use the Basic StickAINote to write and save one AI-assisted sticky note."
         />
         <link rel="canonical" href="https://stickainote.com/app" />
       </Head>
@@ -95,9 +102,19 @@ export default function AppPage() {
               <span style={{ fontSize: 18, fontWeight: 700 }}>
                 StickAINote — Basic
               </span>
-              <span style={{ fontSize: 13, opacity: 0.9 }}>
-                1st month free · then <strong>$6.60/month (USD)</strong>
-              </span>
+              
+              {/* Show price only if NOT VIP */}
+              {!isVip && (
+                <span style={{ fontSize: 13, opacity: 0.9 }}>
+                  1st month free · then <strong>$6.60/month (USD)</strong>
+                </span>
+              )}
+              {/* Show Developer Status if VIP */}
+              {isVip && (
+                <span style={{ fontSize: 13, color: "#4ade80", fontWeight: 600 }}>
+                  Developer Access Active
+                </span>
+              )}
             </div>
 
             <nav
@@ -111,7 +128,7 @@ export default function AppPage() {
               <Link
                 href="/"
                 style={{
-                  color: "#f9fafb", // Home in white
+                  color: "#f9fafb",
                   textDecoration: "underline",
                   textUnderlineOffset: 3,
                   fontWeight: 500,
@@ -119,21 +136,44 @@ export default function AppPage() {
               >
                 Home
               </Link>
-              <a
-                href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: 999,
-                  background: "#38bdf8",
-                  color: "#020617",
-                  fontWeight: 700,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Upgrade to Pro
-              </a>
+
+              {/* BUTTON LOGIC:
+                  - If VIP/Developer: Show Blue "Open Pro Plan" button.
+                  - If Regular User: Show Cyan "Upgrade to Pro" button.
+              */}
+              {isVip ? (
+                <Link
+                  href="/pro"
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: 999,
+                    background: "#2563eb", // Blue
+                    color: "white",
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                    textDecoration: "none",
+                  }}
+                >
+                  Open Pro Plan
+                </Link>
+              ) : (
+                <a
+                  href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: 999,
+                    background: "#38bdf8", // Cyan
+                    color: "#020617",
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                    textDecoration: "none",
+                  }}
+                >
+                  Upgrade to Pro
+                </a>
+              )}
             </nav>
           </header>
 
@@ -150,6 +190,7 @@ export default function AppPage() {
             <NoteBoard />
           </section>
 
+          {/* FOOTER INFO */}
           <section
             style={{
               marginTop: 4,
@@ -158,24 +199,43 @@ export default function AppPage() {
               opacity: 0.85,
             }}
           >
-            <p style={{ margin: 0 }}>
-              Need more power? Pro gives you AI drawing, handwriting to text,
-              AI layout cleanup, object detection, whiteboard mode and exports.
-            </p>
-            <a
-              href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "inline-block",
-                marginTop: 6,
-                color: "#e0f2fe",
-                textDecoration: "underline",
-                textUnderlineOffset: 3,
-              }}
-            >
-              Upgrade to Pro – $19.80/month
-            </a>
+            {isVip ? (
+              <p style={{ margin: 0 }}>
+                You have full developer access.{" "}
+                <Link
+                  href="/pro"
+                  style={{
+                    color: "#60a5fa",
+                    textDecoration: "underline",
+                    textUnderlineOffset: 3,
+                  }}
+                >
+                  Switch to Pro View →
+                </Link>
+              </p>
+            ) : (
+              <>
+                <p style={{ margin: 0 }}>
+                  Need more power? Pro gives you AI drawing, handwriting to text,
+                  AI layout cleanup, object detection, whiteboard mode and
+                  exports.
+                </p>
+                <a
+                  href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "inline-block",
+                    marginTop: 6,
+                    color: "#e0f2fe",
+                    textDecoration: "underline",
+                    textUnderlineOffset: 3,
+                  }}
+                >
+                  Upgrade to Pro – $19.80/month
+                </a>
+              </>
+            )}
           </section>
         </div>
       </main>
