@@ -21,38 +21,15 @@ export default function AppPage() {
   return (
     <>
       <Head><title>StickAINote – Basic</title></Head>
-      <main style={{ 
-          minHeight: "100vh", 
-          background: "#0f172a", 
-          color: "white", 
-          display: "flex", 
-          flexDirection: "column" 
-      }}>
-        {/* HEADER */}
-        <header style={{ 
-            padding: "12px 20px", 
-            borderBottom: "1px solid rgba(255,255,255,0.1)", 
-            display: "flex", 
-            justifyContent: "space-between", 
-            alignItems: "center" 
-        }}>
-            <div>
-                <span style={{ fontWeight: "bold", fontSize: 16 }}>StickAINote Basic</span>
-            </div>
+      <main style={{ minHeight: "100vh", background: "#0f172a", color: "white", position: "relative", overflow: "hidden" }}>
+        <header style={{ padding: "12px 20px", background: "rgba(15, 23, 42, 0.9)", borderBottom: "1px solid rgba(255,255,255,0.1)", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 100, position: "relative" }}>
+            <div><span style={{ fontWeight: "bold", fontSize: 16 }}>StickAINote Basic</span></div>
             <div style={{ display: "flex", gap: 15, fontSize: 14 }}>
                 <Link href="/" style={{ color: "#cbd5e1" }}>Home</Link>
-                {isVip ? (
-                    <Link href="/pro" style={{ color: "#60a5fa", fontWeight: "bold" }}>Open Pro Plan →</Link>
-                ) : (
-                    <a href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i" target="_blank" style={{ color: "#38bdf8" }}>Upgrade</a>
-                )}
+                {isVip ? ( <Link href="/pro" style={{ color: "#60a5fa", fontWeight: "bold" }}>Open Pro Plan →</Link> ) : ( <a href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i" target="_blank" style={{ color: "#38bdf8" }}>Upgrade</a> )}
             </div>
         </header>
-
-        {/* CONTENT */}
-        <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", padding: 20 }}>
-            <BasicNote />
-        </div>
+        <BasicNote />
       </main>
     </>
   );
