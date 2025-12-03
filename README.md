@@ -1,4 +1,3 @@
-README.md
 
 # StickAINote – AI Sticky Notes & Thoughtboard
 
