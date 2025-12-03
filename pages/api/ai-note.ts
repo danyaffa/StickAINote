@@ -1,107 +1,88 @@
-// FILE: /pages/api/ai-note.ts
+// FILE: pages/api/ai-note.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 
 type Body = {
-  action?: "fix" | "summarise" | "translate" | "improve";
+  action?: "fix" | "summarise" | "translate" | "improve" | "structure"; // Added "structure"
   text?: string;
   targetLanguage?: string;
 };
 
-type AiResponse =
-  | { text: string }
-  | { error: string };
+type AiResponse = { text: string } | { error: string };
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<AiResponse>
 ) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const body = req.body as Body;
-  const action = body.action;
-  const text = (body.text || "").trim();
-  const targetLanguage = body.targetLanguage || "Hebrew";
+  const { action, text, targetLanguage } = req.body as Body;
 
-  if (!action || !text) {
-    return res
-      .status(400)
-      .json({ error: "Missing 'action' or 'text' in request body." });
+  if (!text?.trim()) {
+    return res.status(400).json({ error: "Text is empty." });
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.OPENAI_MODEL || "gpt-4o";
+  if (!apiKey) return res.status(500).json({ error: "Server missing API Key" });
 
-  if (!apiKey) {
-    return res
-      .status(500)
-      .json({ error: "OPENAI_API_KEY is not configured on the server." });
-  }
+  let systemPrompt = "You are an expert editor.";
+  let userPrompt = text;
 
-  let instruction: string;
-
+  // BEEFED UP PROMPT LOGIC
   switch (action) {
     case "fix":
-      instruction =
-        "You are a careful editor. Fix spelling and grammar. Keep the tone and meaning the same. Return only the corrected text.";
+      systemPrompt = "Fix grammar and spelling. Keep the exact meaning.";
       break;
     case "summarise":
-      instruction =
-        "Summarise the following note into a short, clear summary (2–4 bullet points).";
+      systemPrompt = "Summarise this into a concise list of key points.";
       break;
     case "translate":
-      instruction = `Translate the following note into ${targetLanguage}. Keep meaning and tone. Return only the translated text.`;
+      systemPrompt = `Translate this text into ${targetLanguage || "English"}.`;
       break;
     case "improve":
-      instruction =
-        "Improve clarity and tone. Make the text sound professional but natural. Keep the same meaning.";
+      systemPrompt = "Rewrite this to sound professional, confident, and clear. Improve vocabulary.";
+      break;
+    // 🌟 NEW HIGH-VALUE FEATURE
+    case "structure":
+      systemPrompt = `
+        You are a high-end business consultant. 
+        Take the user's messy notes and restructure them into a beautiful, organized document.
+        1. Add a clear Title.
+        2. Use Headers for sections.
+        3. Use Bullet points for lists.
+        4. Fix all grammar and clarity issues.
+        5. Add a short 'Action Items' section at the bottom if applicable.
+        Output clean, spaced-out text.
+      `;
       break;
     default:
-      instruction =
-        "Improve this text slightly while keeping the same meaning and style.";
+      systemPrompt = "Assist with this text.";
   }
 
   try {
-    const response = await fetch(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are an assistant helping a user manage sticky notes on their desktop. Be concise and only output the final text, no explanations."
-            },
-            {
-              role: "user",
-              content: `${instruction}\n\n---\n\n${text}`
-            }
-          ]
-        })
-      }
-    );
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o", // Use the smartest model for Pro features
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.7,
+      }),
+    });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("OpenAI error:", errText);
-      return res.status(500).json({ error: "AI request failed." });
-    }
+    const json = await response.json();
+    const result = json.choices?.[0]?.message?.content || "";
+    
+    if (!result) throw new Error("No AI response");
 
-    const data = await response.json();
-    const choice = data.choices?.[0]?.message?.content ?? text;
-
-    return res.status(200).json({ text: choice.trim() });
-  } catch (err) {
+    res.status(200).json({ text: result });
+  } catch (err: any) {
     console.error(err);
-    return res
-      .status(500)
-      .json({ error: "AI request failed. Please try again." });
+    res.status(500).json({ error: "AI processing failed." });
   }
 }
