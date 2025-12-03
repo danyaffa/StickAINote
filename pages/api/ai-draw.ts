@@ -1,98 +1,95 @@
-// FILE: pages/api/ai-note.ts
+// FILE: pages/api/ai-draw.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 
-type Body = {
-  action?: "fix" | "summarise" | "translate" | "improve" | "structure";
-  text?: string;
-  targetLanguage?: string;
-};
-
-type AiResponse = { text: string } | { error: string };
+type Data = { imageData: string; usedPrompt: string } | { error: string };
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<AiResponse>
+  res: NextApiResponse<Data>
 ) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { action, text, targetLanguage } = req.body as Body;
+  const { prompt, previousPrompt } = req.body as { prompt: string; previousPrompt?: string };
 
-  if (!text?.trim()) {
-    return res.status(400).json({ error: "Text is empty." });
+  if (!prompt || !prompt.trim()) {
+    return res.status(400).json({ error: "Missing prompt" });
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: "OPENAI_API_KEY is not configured on the server." });
-  }
-
-  let instruction: string;
-
-  switch (action) {
-    case "fix":
-      instruction = "You are a careful editor. Fix spelling and grammar. Keep the tone and meaning the same. Return only the corrected text.";
-      break;
-    case "summarise":
-      instruction = "Summarise the following note into a short, clear summary (2–4 bullet points).";
-      break;
-    case "translate":
-      instruction = `Translate the following note into ${targetLanguage || "English"}. Keep meaning and tone. Return only the translated text.`;
-      break;
-    case "improve":
-      instruction = "Improve clarity and tone. Make the text sound professional but natural. Keep the same meaning.";
-      break;
-    
-    // ✅ NEW PRO FEATURE: STRUCTURE
-    case "structure":
-      instruction = `
-        You are a high-end business consultant. 
-        Reorganize this text into a professional document with a clear Title, 
-        Section Headers, Bullet points, and an Action Items list. 
-        Fix all grammar.
-      `;
-      break;
-
-    default:
-      instruction = "Improve this text slightly while keeping the same meaning and style.";
+    return res.status(500).json({ error: "OPENAI_API_KEY is not set" });
   }
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    let finalPrompt = prompt;
+
+    // Conversational Logic: Refine prompt if previous context exists
+    if (previousPrompt) {
+      const refineRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: "You are an AI prompt engineer. Merge the OLD prompt and NEW instruction into a single, detailed DALL-E prompt. Output ONLY the raw prompt text."
+            },
+            {
+              role: "user",
+              content: `OLD PROMPT: ${previousPrompt}\nNEW INSTRUCTION: ${prompt}`
+            }
+          ]
+        })
+      });
+
+      const refineJson = await refineRes.json();
+      const refinedText = refineJson.choices?.[0]?.message?.content;
+      if (refinedText) {
+        finalPrompt = refinedText;
+      }
+    }
+
+    // Generate Image
+    const imgRes = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o", // Use high-quality model
-        messages: [
-          {
-            role: "system",
-            content: "You are an assistant helping a user manage sticky notes. Be concise. Output only the final text."
-          },
-          {
-            role: "user",
-            content: `${instruction}\n\n---\n\n${text}`
-          }
-        ],
-        temperature: 0.7,
+        model: "dall-e-3",
+        prompt: finalPrompt,
+        size: "1024x1024",
+        n: 1,
+        response_format: "b64_json", 
       }),
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("OpenAI error:", errText);
-      return res.status(500).json({ error: "AI request failed." });
+    const imgJson = await imgRes.json();
+
+    if (!imgRes.ok) {
+      console.error("OpenAI Image Error:", imgJson);
+      return res.status(500).json({ error: imgJson.error?.message || "Image generation failed" });
     }
 
-    const json = await response.json();
-    const result = json.choices?.[0]?.message?.content || "";
+    const b64 = imgJson.data?.[0]?.b64_json;
+    if (!b64) {
+      return res.status(500).json({ error: "No image data returned" });
+    }
 
-    return res.status(200).json({ text: result.trim() });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "AI request failed. Please try again." });
+    res.status(200).json({ 
+      imageData: `data:image/png;base64,${b64}`,
+      usedPrompt: finalPrompt 
+    });
+
+  } catch (err: any) {
+    console.error("Server Error:", err);
+    res.status(500).json({ error: err.message || "Internal server error" });
   }
 }
