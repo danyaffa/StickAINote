@@ -18,7 +18,6 @@ export default function HomePage() {
         <meta name="robots" content="index,follow" />
       </Head>
 
-      {/* Kill white margins and give the whole page a dark background */}
       <style jsx global>{`
         html,
         body {
@@ -28,6 +27,12 @@ export default function HomePage() {
         }
         body {
           min-height: 100vh;
+        }
+        /* Gradient Animation for Pro Card */
+        @keyframes borderRotate {
+          100% {
+            background-position: 0% 50%;
+          }
         }
       `}</style>
 
@@ -60,8 +65,9 @@ export default function HomePage() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {/* Ensure this image exists in public/ folder */}
               <Image
-                src="/StickAINote-Logo.png"
+                src="/StickAINote-Logo.png" 
                 alt="StickAINote logo"
                 width={50}
                 height={50}
@@ -83,7 +89,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* NAV – WHITE LOGIN + BLUE REGISTER */}
             <nav
               style={{
                 display: "flex",
@@ -101,6 +106,7 @@ export default function HomePage() {
                   color: "#f9fafb",
                   fontWeight: 600,
                   whiteSpace: "nowrap",
+                  textDecoration: "none",
                 }}
               >
                 Login
@@ -114,6 +120,7 @@ export default function HomePage() {
                   color: "#020617",
                   fontWeight: 700,
                   whiteSpace: "nowrap",
+                  textDecoration: "none",
                 }}
               >
                 Register
@@ -138,6 +145,7 @@ export default function HomePage() {
                   letterSpacing: 2,
                   opacity: 0.9,
                   marginBottom: 10,
+                  color: "#38bdf8",
                 }}
               >
                 Next-Generation Sticky Notes
@@ -154,7 +162,7 @@ export default function HomePage() {
               >
                 One AI sticky note for everyone.
                 <br />
-                One AI Thoughtboard for professionals.
+                One <span style={{color: "#4ade80"}}>Super Brain</span> for pros.
               </h1>
 
               <p
@@ -169,35 +177,23 @@ export default function HomePage() {
                 or unlock the full Pro AI Thoughtboard for drawing, diagrams,
                 handwriting recognition and advanced business thinking.
               </p>
-
-              {/* Prices text only – the two big buttons are REMOVED */}
-              <p style={{ fontSize: 14, opacity: 0.85, marginTop: 16 }}>
-                Basic plan: 1st month free, then{" "}
-                <strong>$6.60 / month (USD)</strong>. Pro AI Thoughtboard:{" "}
-                <strong>$19.80 / month (USD)</strong>.
-              </p>
             </div>
-
-            {/* App image under the text */}
-            <div
+            
+             {/* App Preview Image */}
+             <div
               style={{
                 position: "relative",
                 width: "100%",
-                maxWidth: 420,
+                maxWidth: 600,
                 alignSelf: "center",
+                borderRadius: 24,
+                overflow: "hidden",
+                boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+                border: "1px solid #334155",
               }}
             >
-              <div
-                style={{
-                  position: "relative",
-                  borderRadius: 24,
-                  overflow: "hidden",
-                  boxShadow:
-                    "0 18px 45px rgba(15,23,42,0.9), 0 0 0 1px rgba(148,163,184,0.4)",
-                  background: "rgba(15,23,42,0.9)",
-                }}
-              >
-                <Image
+               {/* Replace with your actual App Screenshot if available, or keep using App.png */}
+               <Image
                   src="/App.png"
                   alt="StickAINote app preview"
                   width={900}
@@ -209,178 +205,238 @@ export default function HomePage() {
                     objectFit: "cover",
                   }}
                 />
-              </div>
             </div>
           </section>
 
-          {/* PLANS */}
+          {/* PLANS SECTION */}
           <section
             style={{
-              marginTop: 4,
-              marginBottom: 10,
-              padding: 18,
-              borderRadius: 18,
-              background: "rgba(15,23,42,0.9)",
-              border: "1px solid rgba(148,163,184,0.5)",
+              marginTop: 20,
               display: "flex",
               flexDirection: "column",
-              gap: 16,
+              gap: 24,
             }}
           >
-            {/* BASIC */}
-            <div
-              style={{
-                background: "rgba(15,23,42,0.9)",
-                borderRadius: 16,
-                padding: 18,
-                border: "1px solid rgba(74,222,128,0.7)",
-              }}
-            >
-              <h2
+            <h2 style={{ textAlign: "center", fontSize: 28, marginBottom: 0 }}>
+              Choose your brain power
+            </h2>
+
+            <div style={{ 
+                display: "grid", 
+                gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", 
+                gap: 24,
+                alignItems: "start" 
+            }}>
+                
+                {/* BASIC PLAN */}
+                <div
                 style={{
-                  fontSize: 20,
-                  margin: 0,
-                  marginBottom: 6,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
+                    background: "#0f172a",
+                    borderRadius: 24,
+                    padding: 24,
+                    border: "1px solid #334155",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 16,
                 }}
-              >
-                🟨 Basic Sticky Note
-              </h2>
-              <p style={{ fontSize: 15, marginTop: 0, opacity: 0.9 }}>
-                Simple AI-assisted sticky note for everyday use.
-              </p>
+                >
+                <div>
+                    <h3 style={{ fontSize: 22, margin: 0, color: "#fcd34d" }}>Basic Note</h3>
+                    <p style={{ fontSize: 14, opacity: 0.7, marginTop: 4 }}>For casual daily lists.</p>
+                </div>
 
-              <p style={{ fontSize: 26, margin: "8px 0" }}>
-                $6.60 <span style={{ fontSize: 15 }}>/ month</span>
-              </p>
-              <p
+                <div style={{ fontSize: 32, fontWeight: 800 }}>
+                    $6.60 <span style={{ fontSize: 16, fontWeight: 400, opacity: 0.7 }}>/mo</span>
+                </div>
+                
+                <div style={{ fontSize: 14, color: "#4ade80", fontWeight: 600 }}>
+                    First month free
+                </div>
+
+                <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+                    <li style={{display:"flex", gap: 8}}><span>✔️</span> Simple text sticky note</li>
+                    <li style={{display:"flex", gap: 8}}><span>✔️</span> Basic AI Grammar Fixes</li>
+                    <li style={{display:"flex", gap: 8}}><span>✔️</span> Simple Translation</li>
+                    <li style={{display:"flex", gap: 8}}><span>✔️</span> Browser Storage</li>
+                </ul>
+
+                <Link
+                    href="/register"
+                    style={{
+                    textAlign: "center",
+                    padding: "12px",
+                    borderRadius: 12,
+                    background: "rgba(255,255,255,0.1)",
+                    color: "white",
+                    fontWeight: 600,
+                    textDecoration: "none",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    marginTop: "auto"
+                    }}
+                >
+                    Start Basic Trial
+                </Link>
+                </div>
+
+                {/* PRO PLAN - EMPHASIZED */}
+                <div
                 style={{
-                  fontSize: 14,
-                  margin: "0 0 10px 0",
-                  color: "#bbf7d0",
+                    position: "relative",
+                    background: "linear-gradient(145deg, #1e293b, #0f172a)",
+                    borderRadius: 24,
+                    padding: 28,
+                    // Gold/Blue gradient border effect
+                    border: "2px solid transparent",
+                    backgroundImage: "linear-gradient(#0f172a, #0f172a), linear-gradient(to right, #3b82f6, #a855f7, #ec4899)",
+                    backgroundOrigin: "border-box",
+                    backgroundClip: "content-box, border-box",
+                    boxShadow: "0 0 40px rgba(59, 130, 246, 0.15)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 16,
+                    transform: "scale(1.02)", // Slightly larger
                 }}
-              >
-                First month completely free.
-              </p>
+                >
+                <div style={{
+                    position: "absolute",
+                    top: -12,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: "linear-gradient(to right, #3b82f6, #ec4899)",
+                    padding: "4px 12px",
+                    borderRadius: 999,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    letterSpacing: 1,
+                    boxShadow: "0 4px 10px rgba(0,0,0,0.3)"
+                }}>
+                    MOST POPULAR
+                </div>
 
-              <ul
-                style={{
-                  fontSize: 14,
-                  margin: 0,
-                  paddingLeft: 22,
-                  lineHeight: 1.7,
-                }}
-              >
-                <li>Type, move and resize your sticky note</li>
-                <li>AI Fix / Summarise / Translate / Improve</li>
-                <li>Voice dictation included</li>
-                <li>Save & load from your browser</li>
-                <li>One simple sticky note</li>
-              </ul>
+                <div>
+                    <h3 style={{ fontSize: 22, margin: 0, color: "#38bdf8", display:"flex", alignItems:"center", gap: 8 }}>
+                        Pro Thoughtboard <span style={{fontSize: 12, background:"rgba(56,189,248,0.2)", padding:"2px 6px", borderRadius:4}}>AI POWERED</span>
+                    </h3>
+                    <p style={{ fontSize: 14, opacity: 0.7, marginTop: 4 }}>For professionals, creators & businesses.</p>
+                </div>
 
-              <Link
-                href="/register"
-                style={{
-                  marginTop: 14,
-                  display: "inline-block",
-                  padding: "10px 18px",
-                  borderRadius: 999,
-                  background: "#22c55e",
-                  color: "black",
-                  fontSize: 15,
-                  fontWeight: 600,
-                }}
-              >
-                Start Basic (Free for 1 Month)
-              </Link>
-            </div>
+                <div style={{ fontSize: 32, fontWeight: 800 }}>
+                    $19.80 <span style={{ fontSize: 16, fontWeight: 400, opacity: 0.7 }}>/mo</span>
+                </div>
 
-            {/* PRO */}
-            <div
-              style={{
-                background: "rgba(15,23,42,0.9)",
-                borderRadius: 16,
-                padding: 18,
-                border: "1px solid rgba(56,189,248,0.8)",
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: 20,
-                  margin: 0,
-                  marginBottom: 6,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                🟦 Pro AI Business Note
-              </h2>
+                <div style={{ fontSize: 14, color: "#cbd5e1" }}>
+                    Everything in Basic, plus:
+                </div>
 
-              <p style={{ fontSize: 15, marginTop: 0, opacity: 0.9 }}>
-                Full AI Thoughtboard for drawing, business planning and smart AI
-                assistance.
-              </p>
+                <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+                    <li style={{display:"flex", gap: 8, alignItems:"flex-start"}}>
+                        <span style={{color: "#38bdf8"}}>★</span> 
+                        <span><strong>Infinite Canvas:</strong> Draw, sketch, and diagram without limits.</span>
+                    </li>
+                    <li style={{display:"flex", gap: 8, alignItems:"flex-start"}}>
+                        <span style={{color: "#38bdf8"}}>★</span> 
+                        <span><strong>AI Handwriting Recognition:</strong> Instantly convert messy scribbles to professional typed text.</span>
+                    </li>
+                    <li style={{display:"flex", gap: 8, alignItems:"flex-start"}}>
+                        <span style={{color: "#38bdf8"}}>★</span> 
+                        <span><strong>AI Object Detection:</strong> The AI "sees" your drawings and helps organize them.</span>
+                    </li>
+                    <li style={{display:"flex", gap: 8, alignItems:"flex-start"}}>
+                        <span style={{color: "#38bdf8"}}>★</span> 
+                        <span><strong>Smart Layout Clean:</strong> One click to turn chaotic notes into a structured board.</span>
+                    </li>
+                    <li style={{display:"flex", gap: 8, alignItems:"flex-start"}}>
+                        <span style={{color: "#38bdf8"}}>★</span> 
+                        <span><strong>Pro Exports:</strong> PDF, PNG, SVG for business presentations.</span>
+                    </li>
+                </ul>
 
-              <p style={{ fontSize: 26, margin: "8px 0" }}>
-                $19.80 <span style={{ fontSize: 15 }}>/ month</span>
-              </p>
-
-              <ul
-                style={{
-                  fontSize: 14,
-                  margin: 0,
-                  paddingLeft: 22,
-                  lineHeight: 1.7,
-                }}
-              >
-                <li>Full SVG drawing engine with undo/redo</li>
-                <li>AI handwriting → clean professional text</li>
-                <li>AI drawings: logos, icons & diagrams</li>
-                <li>AI layout cleanup & object detection</li>
-                <li>Whiteboard mode: infinite canvas + zoom</li>
-                <li>Export to PDF, PNG or SVG</li>
-              </ul>
-
-              <a
-                href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  marginTop: 14,
-                  display: "inline-block",
-                  padding: "10px 18px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(148,163,184,0.9)",
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: "white",
-                }}
-              >
-                Upgrade to Pro – $19.80/month
-              </a>
+                <a
+                    href="https://buy.stripe.com/bJe7sL6cC9mgdDt11a4F20i"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                    textAlign: "center",
+                    padding: "14px",
+                    borderRadius: 12,
+                    background: "linear-gradient(to right, #2563eb, #4f46e5)",
+                    color: "white",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.4)",
+                    marginTop: "auto"
+                    }}
+                >
+                    Upgrade to Pro Power
+                </a>
+                </div>
             </div>
           </section>
 
           {/* FOOTER */}
           <footer
             style={{
-              fontSize: 13,
-              opacity: 0.9,
-              marginTop: 4,
-              paddingTop: 8,
-              borderTop: "1px solid rgba(148,163,184,0.4)",
+              marginTop: 40,
+              paddingTop: 20,
+              borderTop: "1px solid rgba(148,163,184,0.2)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 20,
+              alignItems: "center"
             }}
           >
+            {/* APP STORE LINKS PLACEHOLDERS */}
+            <div style={{display: "flex", flexDirection: "column", alignItems: "center", gap: 10}}>
+                <p style={{fontSize: 14, opacity: 0.6, margin: 0}}>Coming soon to devices near you</p>
+                <div style={{display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center"}}>
+                    <div style={{
+                        background: "#1e293b", 
+                        padding: "8px 16px", 
+                        borderRadius: 8, 
+                        border: "1px solid #334155",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        cursor: "not-allowed",
+                        opacity: 0.7
+                    }}>
+                        <span style={{fontSize: 20}}></span>
+                        <div style={{display: "flex", flexDirection: "column", lineHeight: 1}}>
+                            <span style={{fontSize: 10}}>Download on the</span>
+                            <span style={{fontSize: 14, fontWeight: 600}}>App Store</span>
+                        </div>
+                    </div>
+                    
+                    <div style={{
+                        background: "#1e293b", 
+                        padding: "8px 16px", 
+                        borderRadius: 8, 
+                        border: "1px solid #334155",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        cursor: "not-allowed",
+                        opacity: 0.7
+                    }}>
+                        <span style={{fontSize: 20}}>▶</span>
+                        <div style={{display: "flex", flexDirection: "column", lineHeight: 1}}>
+                            <span style={{fontSize: 10}}>GET IT ON</span>
+                            <span style={{fontSize: 14, fontWeight: 600}}>Google Play</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div
               style={{
+                width: "100%",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 gap: 12,
                 flexWrap: "wrap",
+                fontSize: 13,
+                opacity: 0.6,
               }}
             >
               <span>
@@ -393,36 +449,11 @@ export default function HomePage() {
                   flexWrap: "wrap",
                 }}
               >
-                <Link
-                  href="/about"
-                  style={{ color: "#f9fafb", textDecoration: "none" }}
-                >
-                  About
-                </Link>
-                <Link
-                  href="/disclaimer"
-                  style={{ color: "#f9fafb", textDecoration: "none" }}
-                >
-                  Disclaimer
-                </Link>
-                <Link
-                  href="/legal"
-                  style={{ color: "#f9fafb", textDecoration: "none" }}
-                >
-                  Legal
-                </Link>
-                <Link
-                  href="/privacy"
-                  style={{ color: "#f9fafb", textDecoration: "none" }}
-                >
-                  Privacy
-                </Link>
-                <Link
-                  href="/terms"
-                  style={{ color: "#f9fafb", textDecoration: "none" }}
-                >
-                  Terms of Use
-                </Link>
+                <Link href="/about" style={{ color: "#f9fafb", textDecoration: "none" }}>About</Link>
+                <Link href="/disclaimer" style={{ color: "#f9fafb", textDecoration: "none" }}>Disclaimer</Link>
+                <Link href="/legal" style={{ color: "#f9fafb", textDecoration: "none" }}>Legal</Link>
+                <Link href="/privacy" style={{ color: "#f9fafb", textDecoration: "none" }}>Privacy</Link>
+                <Link href="/terms" style={{ color: "#f9fafb", textDecoration: "none" }}>Terms</Link>
               </div>
             </div>
           </footer>
