@@ -13,10 +13,26 @@ export default function ReviewWidget() {
 
   const handleSubmit = async () => {
     if (!comment.trim()) return;
+
     setLoading(true);
     try {
-      // Use "guest" if not logged in
+      // 1) Save review to Firestore (same as before)
       await addReview("guest", rating, comment);
+
+      // 2) ALSO send email via API route (fire-and-forget)
+      try {
+        await fetch("/api/review-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rating,
+            comment,
+          }),
+        });
+      } catch (err) {
+        console.error("Review email send failed", err);
+      }
+
       setSubmitted(true);
       setTimeout(() => {
         setIsOpen(false);
@@ -74,21 +90,59 @@ export default function ReviewWidget() {
         border: "1px solid #334155",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: 10,
+        }}
+      >
         <h3 style={{ margin: 0, fontSize: 16 }}>Rate StickAINote</h3>
-        <button onClick={() => setIsOpen(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 16 }}>✕</button>
+        <button
+          onClick={() => setIsOpen(false)}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "#94a3b8",
+            cursor: "pointer",
+            fontSize: 16,
+          }}
+        >
+          ✕
+        </button>
       </div>
 
       {submitted ? (
-        <div style={{ color: "#4ade80", textAlign: "center", padding: "20px 0" }}>Thanks for your feedback!</div>
+        <div
+          style={{
+            color: "#4ade80",
+            textAlign: "center",
+            padding: "20px 0",
+          }}
+        >
+          Thanks for your feedback!
+        </div>
       ) : (
         <>
-          <div style={{ display: "flex", gap: 8, marginBottom: 12, justifyContent: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              marginBottom: 12,
+              justifyContent: "center",
+            }}
+          >
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
                 onClick={() => setRating(star)}
-                style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: star <= rating ? "#eab308" : "#475569" }}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  fontSize: 24,
+                  cursor: "pointer",
+                  color: star <= rating ? "#eab308" : "#475569",
+                }}
               >
                 ★
               </button>
@@ -99,13 +153,33 @@ export default function ReviewWidget() {
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder="Tell us what you think..."
-            style={{ width: "100%", height: 80, background: "#0f172a", border: "1px solid #334155", borderRadius: 8, padding: 8, color: "white", marginBottom: 12, resize: "none" }}
+            style={{
+              width: "100%",
+              height: 80,
+              background: "#0f172a",
+              border: "1px solid #334155",
+              borderRadius: 8,
+              padding: 8,
+              color: "white",
+              marginBottom: 12,
+              resize: "none",
+            }}
           />
 
           <button
             onClick={handleSubmit}
             disabled={loading}
-            style={{ width: "100%", padding: "10px", borderRadius: 8, background: "#38bdf8", color: "#0f172a", fontWeight: "bold", border: "none", cursor: loading ? "default" : "pointer", opacity: loading ? 0.7 : 1 }}
+            style={{
+              width: "100%",
+              padding: "10px",
+              borderRadius: 8,
+              background: "#38bdf8",
+              color: "#0f172a",
+              fontWeight: "bold",
+              border: "none",
+              cursor: loading ? "default" : "pointer",
+              opacity: loading ? 0.7 : 1,
+            }}
           >
             {loading ? "Sending..." : "Submit Review"}
           </button>
