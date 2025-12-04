@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { Resend } from "resend";
 
+// Uses your RESEND_API_KEY from Vercel
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export default async function handler(
@@ -16,7 +17,7 @@ export default async function handler(
   try {
     const { rating, text, comment, email, appName } = req.body;
 
-    // Handle both "text" and "comment" from the client
+    // Accept both "text" and "comment"
     const bodyText: string = (text ?? comment ?? "").toString();
 
     if (!bodyText.trim()) {
@@ -27,9 +28,9 @@ export default async function handler(
     const createdAt = new Date().toISOString();
     let docId: string | null = null;
 
-    // ✅ Save to Firestore (if Firebase admin is available)
+    // ✅ Save to Firestore (if adminDb exists)
     if (!adminDb) {
-      console.warn("⚠ Firebase admin not initialised – skipping Firestore write.");
+      console.warn("⚠ Firebase admin not initialized – skipping Firestore write.");
     } else {
       const docRef = await adminDb.collection("reviews").add({
         rating: rating ?? null,
@@ -44,8 +45,9 @@ export default async function handler(
     // ✅ Send email via Resend if env vars are set
     if (process.env.RESEND_API_KEY && process.env.REVIEW_RECEIVER_EMAIL) {
       try {
-        await resend.emails.send({
-          from: "StickAINote Reviews <reviews@stickainote.com>",
+        const result = await resend.emails.send({
+          // safest "from" that always works even if your domain isn’t verified
+          from: "StickAINote Reviews <onboarding@resend.dev>",
           to: process.env.REVIEW_RECEIVER_EMAIL,
           subject: `New ${appLabel} review – ${rating ?? "no"}★`,
           text: [
@@ -61,9 +63,11 @@ export default async function handler(
             .filter(Boolean)
             .join("\n"),
         });
+
+        console.log("Resend email result:", result);
       } catch (err) {
         console.error("Resend email send error:", err);
-        // don't fail the whole request just because email failed
+        // We still return success so the widget thanks the user
       }
     } else {
       console.warn(
