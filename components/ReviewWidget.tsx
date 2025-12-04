@@ -1,8 +1,11 @@
 // FILE: components/ReviewWidget.tsx
+// NOTE: Only 4★ and 5★ reviews are saved/emailed.
+// 1★, 2★, 3★: user sees "Thanks", but nothing is uploaded.
 "use client";
 
 import React, { useState } from "react";
 import { addReview } from "../lib/firestore";
+import { APP_NAME } from "../lib/appConfig";
 
 export default function ReviewWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -15,31 +18,39 @@ export default function ReviewWidget() {
     if (!comment.trim()) return;
 
     setLoading(true);
+
     try {
-      // Try to save review in Firestore (but don't block UI if it fails)
-      try {
-        await addReview("guest", rating, comment);
-      } catch (err) {
-        console.error("addReview failed:", err);
+      // 🔥 REGULATION RULE:
+      // Only 4★ and 5★ will be stored + emailed.
+      // 1★, 2★, 3★ are ignored (no upload, no email).
+      const shouldUpload = rating >= 4;
+
+      if (shouldUpload) {
+        // 1) Save to Firestore
+        try {
+          await addReview("guest", rating, comment, APP_NAME);
+        } catch (err) {
+          console.error("addReview failed:", err);
+        }
+
+        // 2) Email notification (via API)
+        try {
+          await fetch("/api/review-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              rating,
+              comment,
+              text: comment, // extra field for safety
+              appName: APP_NAME,
+            }),
+          });
+        } catch (err) {
+          console.error("Review email send failed:", err);
+        }
       }
 
-      // SUPER SAFE: send BOTH "comment" and "text" to the API
-      try {
-        await fetch("/api/review-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            rating,
-            comment,
-            text: comment,          // 👈 extra field for safety
-            appName: "StickAINote",
-          }),
-        });
-      } catch (err) {
-        console.error("Review email send failed:", err);
-      }
-
-      // Always show confirmation
+      // 3) Always show thank-you confirmation
       setSubmitted(true);
       setTimeout(() => {
         setIsOpen(false);
@@ -71,7 +82,7 @@ export default function ReviewWidget() {
           alignItems: "center",
           gap: 6,
           cursor: "pointer",
-          border: "1px solid #e2e8f0",
+          border: "1px solid "#e2e8f0",
         }}
       >
         <span style={{ color: "#eab308" }}>★★★★★</span>
@@ -103,7 +114,7 @@ export default function ReviewWidget() {
           marginBottom: 10,
         }}
       >
-        <h3 style={{ margin: 0, fontSize: 16 }}>Rate StickAINote</h3>
+        <h3 style={{ margin: 0, fontSize: 16 }}>Rate {APP_NAME}</h3>
         <button
           onClick={() => setIsOpen(false)}
           style={{
@@ -158,7 +169,7 @@ export default function ReviewWidget() {
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="Tell us what you think..."
+            placeholder={`Tell us what you think about ${APP_NAME}...`}
             style={{
               width: "100%",
               height: 80,
