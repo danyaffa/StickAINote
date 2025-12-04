@@ -3,6 +3,8 @@ import React from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Image from "next/image";
+// IMPORT THE REVIEW WIDGET
+import ReviewWidget from "../components/ReviewWidget";
 
 export default function HomePage() {
   const siteTitle = "StickAINote – AI Sticky Notes & Pro Thoughtboard";
@@ -41,7 +43,7 @@ export default function HomePage() {
           position: "relative"
         }}
       >
-        {/* FLOATING REVIEWS BUTTON */}
+        {/* 1. FLOATING REVIEWS BADGE */}
         <div style={{
             position: "fixed",
             bottom: 24,
@@ -71,10 +73,10 @@ export default function HomePage() {
             margin: "0 auto",
             display: "flex",
             flexDirection: "column",
-            gap: 60, // Increased gap for better spacing
+            gap: 60, // Spacing between sections
           }}
         >
-          {/* --- HEADER --- */}
+          {/* 2. HEADER */}
           <header
             style={{
               display: "flex",
@@ -132,7 +134,7 @@ export default function HomePage() {
             </nav>
           </header>
 
-          {/* --- HERO SECTION --- */}
+          {/* 3. HERO SECTION */}
           <section style={{ textAlign: "center", maxWidth: 800, margin: "0 auto" }}>
             <h1
               style={{
@@ -154,7 +156,7 @@ export default function HomePage() {
             </p>
           </section>
 
-          {/* --- APP PREVIEW IMAGES (RESTORED) --- */}
+          {/* 4. APP PREVIEW IMAGES */}
           <section
             style={{
               display: "flex",
@@ -181,7 +183,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* --- PRICING SECTION --- */}
+          {/* 5. PRICING SECTION */}
           <section>
             <h2 style={{ textAlign: "center", fontSize: 28, marginBottom: 32, fontWeight: 700 }}>
               Choose your power level
@@ -331,7 +333,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* --- FOOTER --- */}
+          {/* 6. FOOTER */}
           <footer style={{ marginTop: 60, padding: "20px 0", borderTop: "1px solid rgba(148,163,184,0.1)", textAlign: "center", color: "#64748b", fontSize: 13 }}>
             <p>© {new Date().getFullYear()} StickAINote. All rights reserved.</p>
             <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 10, flexWrap: "wrap" }}>
@@ -344,6 +346,9 @@ export default function HomePage() {
             </div>
           </footer>
         </div>
+
+        {/* 7. REVIEW WIDGET (ACTUAL COMPONENT) */}
+        <ReviewWidget />
       </main>
     </>
   );
