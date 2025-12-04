@@ -1,84 +1,30 @@
 // FILE: components/ReviewWidget.tsx
-"use client";
-
 import React, { useState } from "react";
 
-type ReviewWidgetProps = {
-  appName: string;
-  appStoreUrl?: string;
-  feedbackEndpoint?: string;
-};
-
-export const ReviewWidget: React.FC<ReviewWidgetProps> = ({
-  appName,
-  appStoreUrl,
-  feedbackEndpoint = "/api/feedback",
-}) => {
+export default function ReviewWidget() {
   const [open, setOpen] = useState(false);
-  const [rating, setRating] = useState<number | null>(null);
-  const [hover, setHover] = useState<number | null>(null);
-  const [text, setText] = useState("");
-  const [email, setEmail] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async () => {
-    if (!rating && !text.trim()) return;
-
-    setSending(true);
-    setError(null);
-
-    try {
-      await fetch(feedbackEndpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          appName,
-          rating,
-          text,
-          email,
-          createdAt: new Date().toISOString(),
-        }),
-      });
-
-      setSent(true);
-      setText("");
-      setEmail("");
-      setRating(null);
-    } catch (e) {
-      setError("Could not send feedback. Please try again later.");
-    } finally {
-      setSending(false);
-    }
-  };
 
   return (
     <>
-      {/* Floating button */}
+      {/* Floating Button */}
       <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(!open)}
         style={{
           position: "fixed",
-          bottom: 20,
-          right: 20,
-          zIndex: 50,
-          background: "#2563eb",
-          color: "#ffffff",
-          borderRadius: 999,
+          bottom: 24,
+          right: 24,
+          zIndex: 9999,
+          background: "#fff",
+          color: "#000",
           padding: "10px 18px",
-          border: "none",
-          cursor: "pointer",
-          boxShadow: "0 10px 25px rgba(15,23,42,0.45)",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          fontSize: 14,
-          fontWeight: 600,
+          borderRadius: 999,
+          fontWeight: 700,
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
+          cursor: "pointer"
         }}
       >
-        ⭐ Rate {appName}
+        ⭐ Rate StickAINote
       </button>
 
       {/* Panel */}
@@ -86,148 +32,56 @@ export const ReviewWidget: React.FC<ReviewWidgetProps> = ({
         <div
           style={{
             position: "fixed",
-            bottom: 80,
-            right: 20,
+            bottom: 90,
+            right: 24,
             width: 320,
-            maxWidth: "90vw",
-            background: "#ffffff",
+            background: "white",
+            color: "black",
             borderRadius: 16,
-            boxShadow: "0 20px 40px rgba(15,23,42,0.35)",
-            padding: 16,
-            zIndex: 50,
-            border: "1px solid #e2e8f0",
+            padding: 20,
+            zIndex: 9999,
+            boxShadow: "0 15px 40px rgba(0,0,0,0.35)"
           }}
         >
-          <div
-            style={{
-              fontWeight: 700,
-              fontSize: 16,
-              marginBottom: 8,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <span>Rate {appName}</span>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              style={{
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                fontSize: 16,
-              }}
-            >
-              ✕
-            </button>
-          </div>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+            Rate StickAINote
+          </h3>
+
+          <p style={{ fontSize: 14, marginTop: 6 }}>Your feedback helps us improve.</p>
 
           {/* Stars */}
-          <div style={{ marginBottom: 12 }}>
-            {[1, 2, 3, 4, 5].map((star) => {
-              const active = hover ? star <= hover : star <= (rating || 0);
-              return (
-                <span
-                  key={star}
-                  onMouseEnter={() => setHover(star)}
-                  onMouseLeave={() => setHover(null)}
-                  onClick={() => setRating(star)}
-                  style={{
-                    cursor: "pointer",
-                    fontSize: 22,
-                    color: active ? "#facc15" : "#e5e7eb",
-                    marginRight: 4,
-                  }}
-                >
-                  ★
-                </span>
-              );
-            })}
-          </div>
+          <div style={{ fontSize: 22, margin: "8px 0" }}>⭐⭐⭐⭐⭐</div>
 
-          {/* Feedback text */}
           <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Your thoughts about StickAINote…"
-            rows={3}
+            placeholder="Your thoughts..."
             style={{
               width: "100%",
-              padding: 8,
-              fontSize: 13,
+              height: 80,
+              padding: 10,
               borderRadius: 8,
-              border: "1px solid #e2e8f0",
-              resize: "vertical",
-              marginBottom: 8,
+              border: "1px solid #ccc",
+              resize: "none",
+              fontSize: 14
             }}
           />
-
-          {/* Email */}
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email (optional)"
-            style={{
-              width: "100%",
-              padding: 8,
-              fontSize: 13,
-              borderRadius: 8,
-              border: "1px solid #e2e8f0",
-              marginBottom: 8,
-            }}
-          />
-
-          {error && (
-            <p style={{ color: "#b91c1c", fontSize: 12, marginBottom: 8 }}>
-              {error}
-            </p>
-          )}
-          {sent && (
-            <p style={{ color: "#16a34a", fontSize: 12, marginBottom: 8 }}>
-              Thank you – your feedback has been received.
-            </p>
-          )}
 
           <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={sending}
             style={{
+              marginTop: 10,
               width: "100%",
-              padding: "10px 0",
-              borderRadius: 999,
+              padding: 10,
+              background: "#0ea5e9",
+              color: "white",
+              borderRadius: 8,
               border: "none",
-              background: sending ? "#93c5fd" : "#2563eb",
-              color: "#ffffff",
-              fontWeight: 600,
-              cursor: sending ? "default" : "pointer",
-              marginBottom: 8,
+              fontWeight: 700,
+              cursor: "pointer"
             }}
           >
-            {sending ? "Sending…" : "Send feedback"}
+            Send Feedback
           </button>
-
-          {appStoreUrl && (
-            <a
-              href={appStoreUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                display: "block",
-                textAlign: "center",
-                fontSize: 12,
-                color: "#6b7280",
-                textDecoration: "none",
-                marginTop: 2,
-              }}
-            >
-              ⭐ When StickAINote is live, guests can also rate in the store.
-            </a>
-          )}
         </div>
       )}
     </>
   );
-};
+}
