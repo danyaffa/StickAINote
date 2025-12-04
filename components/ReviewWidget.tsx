@@ -1,11 +1,16 @@
 // FILE: components/ReviewWidget.tsx
-// NOTE: Only 4★ and 5★ reviews are saved/emailed.
-// 1★, 2★, 3★: user sees "Thanks", but nothing is uploaded.
+// NOTE:
+// - Only 4★ and 5★ reviews are saved/emailed.
+// - 1★, 2★, 3★: user sees "Thanks", but nothing is uploaded.
+// - Change APP_NAME below if you reuse this in another app.
+
 "use client";
 
 import React, { useState } from "react";
 import { addReview } from "../lib/firestore";
-import { APP_NAME } from "../lib/appConfig";
+
+// ✅ Simple: no external appConfig file, just change this string per project.
+const APP_NAME = "StickAINote";
 
 export default function ReviewWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -82,7 +87,7 @@ export default function ReviewWidget() {
           alignItems: "center",
           gap: 6,
           cursor: "pointer",
-          border: "1px solid #e2e8f0", // ✅ FIXED
+          border: "1px solid #e2e8f0",
         }}
       >
         <span style={{ color: "#eab308" }}>★★★★★</span>
