@@ -82,7 +82,7 @@ export default function ReviewWidget() {
           alignItems: "center",
           gap: 6,
           cursor: "pointer",
-          border: "1px solid "#e2e8f0",
+          border: "1px solid #e2e8f0", // ✅ FIXED
         }}
       >
         <span style={{ color: "#eab308" }}>★★★★★</span>
