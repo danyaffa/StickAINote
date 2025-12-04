@@ -1,9 +1,13 @@
 // FILE: pages/api/review-email.ts
+// NOTE:
+// - Uses Resend + Firestore.
+// - APP_NAME is defined here directly; change per project if needed.
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { Resend } from "resend";
 
-// Uses your RESEND_API_KEY from Vercel
+const APP_NAME = "StickAINote";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export default async function handler(
@@ -24,13 +28,13 @@ export default async function handler(
       return res.status(400).json({ error: "Missing review text" });
     }
 
-    const appLabel = appName || "StickAINote";
+    const appLabel = appName || APP_NAME;
     const createdAt = new Date().toISOString();
     let docId: string | null = null;
 
-    // ✅ Save to Firestore (if adminDb exists)
+    // Save to Firestore (if adminDb is ready)
     if (!adminDb) {
-      console.warn("⚠ Firebase admin not initialized – skipping Firestore write.");
+      console.warn("⚠ Firebase admin not initialised – skipping Firestore write.");
     } else {
       const docRef = await adminDb.collection("reviews").add({
         rating: rating ?? null,
@@ -42,12 +46,11 @@ export default async function handler(
       docId = docRef.id;
     }
 
-    // ✅ Send email via Resend if env vars are set
+    // Send email via Resend
     if (process.env.RESEND_API_KEY && process.env.REVIEW_RECEIVER_EMAIL) {
       try {
         const result = await resend.emails.send({
-          // safest "from" that always works even if your domain isn’t verified
-          from: "StickAINote Reviews <onboarding@resend.dev>",
+          from: "Reviews <onboarding@resend.dev>",
           to: process.env.REVIEW_RECEIVER_EMAIL,
           subject: `New ${appLabel} review – ${rating ?? "no"}★`,
           text: [
@@ -67,7 +70,7 @@ export default async function handler(
         console.log("Resend email result:", result);
       } catch (err) {
         console.error("Resend email send error:", err);
-        // We still return success so the widget thanks the user
+        // Still return success so the user sees "Thanks for your feedback"
       }
     } else {
       console.warn(
