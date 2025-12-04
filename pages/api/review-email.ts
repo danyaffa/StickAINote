@@ -14,9 +14,9 @@ export default async function handler(
   }
 
   try {
-    const { rating, comment, text, email, appName } = req.body;
+    const { rating, text, comment, email, appName } = req.body;
 
-    // Handle both "comment" and "text"
+    // Handle both "text" and "comment" from the client
     const bodyText: string = (text ?? comment ?? "").toString();
 
     if (!bodyText.trim()) {
@@ -25,10 +25,9 @@ export default async function handler(
 
     const appLabel = appName || "StickAINote";
     const createdAt = new Date().toISOString();
-
     let docId: string | null = null;
 
-    // Save to Firestore (if adminDb is available)
+    // ✅ Save to Firestore (if Firebase admin is available)
     if (!adminDb) {
       console.warn("⚠ Firebase admin not initialised – skipping Firestore write.");
     } else {
@@ -42,7 +41,7 @@ export default async function handler(
       docId = docRef.id;
     }
 
-    // Send email via Resend if env vars exist
+    // ✅ Send email via Resend if env vars are set
     if (process.env.RESEND_API_KEY && process.env.REVIEW_RECEIVER_EMAIL) {
       try {
         await resend.emails.send({
@@ -64,7 +63,7 @@ export default async function handler(
         });
       } catch (err) {
         console.error("Resend email send error:", err);
-        // Don't fail the whole request just because email failed
+        // don't fail the whole request just because email failed
       }
     } else {
       console.warn(
