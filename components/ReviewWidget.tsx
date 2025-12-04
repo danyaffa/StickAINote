@@ -1,4 +1,4 @@
-// FILE: /components/ReviewWidgets.tsx
+// FILE: /components/ReviewWidget.tsx
 
 "use client";
 
@@ -81,7 +81,7 @@ type ReviewStats = {
   average: number | null;
 };
 
-const ReviewWidgets: React.FC<ReviewWidgetProps> = ({ appStoreUrl }) => {
+const ReviewWidget: React.FC<ReviewWidgetProps> = ({ appStoreUrl }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
@@ -397,8 +397,7 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = ({ appStoreUrl }) => {
   );
 };
 
-export default ReviewWidgets;
+export default ReviewWidget;
 
-// Keep named export so `import { ReviewWidget } from "../components/ReviewWidgets"`
-// in /pages/index.tsx still works.
-export const ReviewWidget = ReviewWidgets;
+// Named export (if you still import { ReviewWidget } somewhere)
+export { ReviewWidget };
