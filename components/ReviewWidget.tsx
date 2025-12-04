@@ -25,6 +25,7 @@ export const ReviewWidget: React.FC<ReviewWidgetProps> = ({
 
   const handleSubmit = async () => {
     if (!rating && !text.trim()) return;
+
     setSending(true);
     setError(null);
 
@@ -40,6 +41,7 @@ export const ReviewWidget: React.FC<ReviewWidgetProps> = ({
           createdAt: new Date().toISOString(),
         }),
       });
+
       setSent(true);
       setText("");
       setEmail("");
@@ -63,7 +65,7 @@ export const ReviewWidget: React.FC<ReviewWidgetProps> = ({
           right: 20,
           zIndex: 50,
           background: "#2563eb",
-          color: "white",
+          color: "#ffffff",
           borderRadius: 999,
           padding: "10px 18px",
           border: "none",
@@ -88,7 +90,7 @@ export const ReviewWidget: React.FC<ReviewWidgetProps> = ({
             right: 20,
             width: 320,
             maxWidth: "90vw",
-            background: "white",
+            background: "#ffffff",
             borderRadius: 16,
             boxShadow: "0 20px 40px rgba(15,23,42,0.35)",
             padding: 16,
@@ -144,11 +146,11 @@ export const ReviewWidget: React.FC<ReviewWidgetProps> = ({
             })}
           </div>
 
-          {/* Text input */}
+          {/* Feedback text */}
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Your thoughts (this goes privately to the developer)…"
+            placeholder="Your thoughts about StickAINote…"
             rows={3}
             style={{
               width: "100%",
@@ -190,15 +192,15 @@ export const ReviewWidget: React.FC<ReviewWidgetProps> = ({
 
           <button
             type="button"
-            disabled={sending}
             onClick={handleSubmit}
+            disabled={sending}
             style={{
               width: "100%",
               padding: "10px 0",
               borderRadius: 999,
               border: "none",
               background: sending ? "#93c5fd" : "#2563eb",
-              color: "white",
+              color: "#ffffff",
               fontWeight: 600,
               cursor: sending ? "default" : "pointer",
               marginBottom: 8,
@@ -221,7 +223,7 @@ export const ReviewWidget: React.FC<ReviewWidgetProps> = ({
                 marginTop: 2,
               }}
             >
-              ⭐ When live, you’ll also be able to rate on the App Store.
+              ⭐ When StickAINote is live, guests can also rate in the store.
             </a>
           )}
         </div>
