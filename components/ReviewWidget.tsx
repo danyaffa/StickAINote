@@ -16,14 +16,14 @@ export default function ReviewWidget() {
 
     setLoading(true);
     try {
-      // 1) Try to save review to Firestore – but don't block the UI if it fails
+      // Try to save review in Firestore (but don't block UI if it fails)
       try {
         await addReview("guest", rating, comment);
       } catch (err) {
         console.error("addReview failed:", err);
       }
 
-      // 2) ALSO send email via API route (fire-and-forget)
+      // SUPER SAFE: send BOTH "comment" and "text" to the API
       try {
         await fetch("/api/review-email", {
           method: "POST",
@@ -31,14 +31,15 @@ export default function ReviewWidget() {
           body: JSON.stringify({
             rating,
             comment,
+            text: comment,          // 👈 extra field for safety
             appName: "StickAINote",
           }),
         });
       } catch (err) {
-        console.error("Review email send failed", err);
+        console.error("Review email send failed:", err);
       }
 
-      // 3) Always show the confirmation message once we've tried
+      // Always show confirmation
       setSubmitted(true);
       setTimeout(() => {
         setIsOpen(false);
