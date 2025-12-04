@@ -1,40 +1,31 @@
 // FILE: pages/api/review-email.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-
-const RESEND_API_KEY = process.env.RESEND_API_KEY!;
-const REVIEW_RECEIVER_EMAIL = process.env.REVIEW_RECEIVER_EMAIL!;
+import { adminDb } from "../../utils/firebaseAdmin";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
-
-  const { rating, comment } = req.body;
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
   try {
-    const send = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "StickAINote Reviews <reviews@stickainote.com>",
-        to: REVIEW_RECEIVER_EMAIL,
-        subject: `New StickAINote Review (${rating}★)`,
-        html: `
-          <h3>New Review Submitted</h3>
-          <p><strong>Rating:</strong> ${rating} ★</p>
-          <p><strong>Comment:</strong></p>
-          <p>${comment}</p>
-        `,
-      }),
+    const { rating, text, email, appName } = req.body;
+
+    if (!adminDb) {
+      return res.status(500).json({ error: "Firebase admin not initialized" });
+    }
+
+    // Save review to Firestore
+    await adminDb.collection("reviews").add({
+      rating: rating || null,
+      text: text || "",
+      email: email || "",
+      appName: appName || "StickAINote",
+      createdAt: new Date().toISOString(),
     });
 
-    if (!send.ok) throw new Error("Email API rejected the request");
-
     return res.status(200).json({ success: true });
-
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Email sending failed" });
+    console.error("Review error:", err);
+    return res.status(500).json({ error: "Failed to submit review" });
   }
 }
