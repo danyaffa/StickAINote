@@ -1,7 +1,9 @@
-// FILE: /next.config.mjs
+// next.config.mjs
 const nextConfig = {
   reactStrictMode: false,
-  images: { unoptimized: true },
+  images: {
+    unoptimized: true
+  }
 };
 
 export default nextConfig;
