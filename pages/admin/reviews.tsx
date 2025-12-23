@@ -1,10 +1,8 @@
-// FILE: pages/admin/reviews.tsx
+// FILE: /pages/admin/reviews.tsx
 
-import type { GetServerSideProps, NextPage } from "next";
+import type { NextPage } from "next";
 import Head from "next/head";
-
-// ⬇️ If your admin helper is in a different folder, just adjust this path
-import { adminDb } from "../../utils/firebaseAdmin";
+import { useEffect, useMemo, useState } from "react";
 
 type Review = {
   id: string;
@@ -14,52 +12,59 @@ type Review = {
   createdAt?: string | null;
 };
 
-type ReviewsPageProps = {
-  reviews: Review[];
-};
+type ApiResponse =
+  | { ok: true; reviews: Review[] }
+  | { ok: false; error: string };
 
-export const getServerSideProps: GetServerSideProps<ReviewsPageProps> = async () => {
-  let reviews: Review[] = [];
+const ReviewsAdminPage: NextPage = () => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [refreshTick, setRefreshTick] = useState(0);
 
-  try {
-    const snapshot = await adminDb
-      .collection("reviews") // 🔴 use the SAME collection name that addReview() writes to
-      .orderBy("createdAt", "desc")
-      .limit(200)
-      .get();
+  const total = useMemo(() => reviews.length, [reviews]);
 
-    reviews = snapshot.docs.map((doc) => {
-      const data = doc.data() as any;
+  async function loadReviews() {
+    setLoading(true);
+    setError(null);
 
-      let createdAt: string | null = null;
-      if (data.createdAt) {
-        if (typeof data.createdAt.toDate === "function") {
-          createdAt = data.createdAt.toDate().toISOString();
-        } else {
-          createdAt = String(data.createdAt);
-        }
+    try {
+      // ✅ Static-export safe:
+      // We fetch from an API route that uses firebase-admin server-side.
+      // If the API route doesn't exist yet, you'll get a clear error.
+      const res = await fetch("/api/admin/reviews", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      });
+
+      const data: ApiResponse = await res.json().catch(() => {
+        return { ok: false, error: "Invalid JSON response from /api/admin/reviews" };
+      });
+
+      if (!res.ok || !data || (data as any).ok !== true) {
+        const msg =
+          (data as any)?.error ||
+          `Failed to load reviews (HTTP ${res.status}). Ensure /pages/api/admin/reviews.ts exists and returns { ok: true, reviews }.`;
+        setError(msg);
+        setReviews([]);
+        return;
       }
 
-      return {
-        id: doc.id,
-        rating: data.rating ?? null,
-        text: data.text ?? data.comment ?? "",
-        email: data.email ?? "",
-        createdAt,
-      };
-    });
-  } catch (err) {
-    console.error("Error loading reviews from Firestore:", err);
+      setReviews((data as any).reviews || []);
+    } catch (e: any) {
+      setError(e?.message ? String(e.message) : "Unknown error loading reviews");
+      setReviews([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  return {
-    props: {
-      reviews,
-    },
-  };
-};
+  useEffect(() => {
+    loadReviews();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTick]);
 
-const ReviewsAdminPage: NextPage<ReviewsPageProps> = ({ reviews }) => {
   return (
     <>
       <Head>
@@ -94,26 +99,65 @@ const ReviewsAdminPage: NextPage<ReviewsPageProps> = ({ reviews }) => {
               justifyContent: "space-between",
               alignItems: "baseline",
               marginBottom: 16,
+              gap: 12,
+              flexWrap: "wrap",
             }}
           >
-            <h1
-              style={{
-                fontSize: 24,
-                fontWeight: 700,
-                margin: 0,
-              }}
-            >
-              StickAINote – Reviews
-            </h1>
-            <span style={{ fontSize: 13, color: "#6b7280" }}>
-              Total: {reviews.length}
-            </span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+              <h1
+                style={{
+                  fontSize: 24,
+                  fontWeight: 700,
+                  margin: 0,
+                }}
+              >
+                StickAINote – Reviews
+              </h1>
+              <span style={{ fontSize: 13, color: "#6b7280" }}>Total: {total}</span>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <button
+                onClick={() => setRefreshTick((n) => n + 1)}
+                style={{
+                  appearance: "none",
+                  border: "1px solid #e5e7eb",
+                  background: "#ffffff",
+                  borderRadius: 10,
+                  padding: "8px 12px",
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+              >
+                Refresh
+              </button>
+            </div>
           </header>
 
-          {reviews.length === 0 ? (
+          {loading ? (
+            <p style={{ fontSize: 14, color: "#6b7280" }}>Loading…</p>
+          ) : error ? (
+            <div
+              style={{
+                padding: 12,
+                borderRadius: 12,
+                border: "1px solid #fecaca",
+                background: "#fff1f2",
+                color: "#9f1239",
+                fontSize: 14,
+              }}
+            >
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Couldn’t load reviews</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{error}</div>
+              <div style={{ marginTop: 10, fontSize: 13, color: "#6b7280" }}>
+                Fix: ensure you have an API route at <code>/pages/api/admin/reviews.ts</code> that
+                reads from Firestore using <code>adminDb</code> and returns{" "}
+                <code>{"{ ok: true, reviews: [...] }"}</code>.
+              </div>
+            </div>
+          ) : reviews.length === 0 ? (
             <p style={{ fontSize: 14, color: "#6b7280" }}>
-              No reviews found yet. Submit a review from the widget and refresh
-              this page.
+              No reviews found yet. Submit a review from the widget and refresh this page.
             </p>
           ) : (
             <div
@@ -198,9 +242,7 @@ const ReviewsAdminPage: NextPage<ReviewsPageProps> = ({ reviews }) => {
                           color: "#4b5563",
                         }}
                       >
-                        {r.createdAt
-                          ? new Date(r.createdAt).toLocaleString()
-                          : "—"}
+                        {r.createdAt ? new Date(r.createdAt).toLocaleString() : "—"}
                       </td>
                       <td
                         style={{
