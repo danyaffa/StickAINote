@@ -1,9 +1,8 @@
-// FILE: /capacitor.config.ts
-const config = {
-  appId: "com.stickainote.app",
-  appName: "StickAINote",
-  webDir: "out",
-  bundledWebRuntime: false,
+// FILE: /next.config.mjs
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
 };
 
-export default config;
+export default nextConfig;
