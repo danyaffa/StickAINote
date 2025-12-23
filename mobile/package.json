@@ -6,7 +6,7 @@
     "sync": "npx cap sync",
     "android": "npx cap add android && npx cap open android",
     "android:open": "npx cap open android",
-    "build:android": "cd .. && npm run build && npx next export && cd mobile && npx cap sync android"
+    "build:android": "cd .. && npm run build && cd mobile && npx cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
