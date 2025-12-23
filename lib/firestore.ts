@@ -1,5 +1,3 @@
-// FILE: /lib/firestore.ts
-
 import {
   collection,
   addDoc,
@@ -11,12 +9,11 @@ import {
   deleteDoc,
   doc,
   serverTimestamp,
-  type DocumentData,
+  type DocumentData
 } from "firebase/firestore";
 
-import { firebaseDb, firebaseAuth } from "../utils/firebaseClient";
+import { firebaseAuth, requireDb } from "../utils/firebaseClient";
 
-// 🔹 1. NOTE TYPE (includes color)
 export type Note = {
   id: string;
   content: string;
@@ -26,29 +23,17 @@ export type Note = {
   userId: string;
 };
 
-// 🔹 Helper to convert Firestore timestamps safely
 function tsToMillis(value: any): number {
   if (!value) return Date.now();
-  if (typeof value?.toMillis === "function") return value.toMillis(); // Firestore Timestamp
-  if (typeof value === "number") return value; // plain millis
+  if (typeof value?.toMillis === "function") return value.toMillis();
+  if (typeof value === "number") return value;
   return Date.now();
 }
 
-function requireDb() {
-  if (!firebaseDb) {
-    throw new Error(
-      "Firestore is not available (likely SSR/build). Use this only in the browser."
-    );
-  }
-  return firebaseDb;
-}
-
-// Optional: useful if you want to enforce logged-in user inside calls
 export function getCurrentUserId(): string | null {
   return firebaseAuth?.currentUser?.uid ?? null;
 }
 
-// 🔹 3. CREATE NOTE (with color)
 export async function createNote(
   userId: string,
   content: string,
@@ -62,7 +47,7 @@ export async function createNote(
     content,
     color,
     createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
   });
 
   const now = Date.now();
@@ -73,11 +58,10 @@ export async function createNote(
     content,
     color,
     createdAt: now,
-    updatedAt: now,
+    updatedAt: now
   };
 }
 
-// 🔹 4. GET NOTES (for a user, newest first)
 export async function getNotes(userId: string): Promise<Note[]> {
   const db = requireDb();
 
@@ -99,14 +83,13 @@ export async function getNotes(userId: string): Promise<Note[]> {
       content: String(data.content ?? ""),
       color: String(data.color ?? "yellow"),
       createdAt: tsToMillis(data.createdAt),
-      updatedAt: tsToMillis(data.updatedAt),
+      updatedAt: tsToMillis(data.updatedAt)
     });
   });
 
   return notes;
 }
 
-// 🔹 5. UPDATE NOTE (content and/or color)
 export async function updateNote(
   noteId: string,
   fields: Partial<Pick<Note, "content" | "color">>
@@ -117,28 +100,22 @@ export async function updateNote(
   await updateDoc(noteRef, {
     ...(fields.content !== undefined ? { content: fields.content } : {}),
     ...(fields.color !== undefined ? { color: fields.color } : {}),
-    updatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
   });
 }
 
-// 🔹 6. DELETE NOTE
 export async function deleteNote(noteId: string): Promise<void> {
   const db = requireDb();
   const noteRef = doc(db, "notes", noteId);
   await deleteDoc(noteRef);
 }
 
-// 🔹 7. ADD REVIEW
-export async function addReview(
-  userId: string,
-  rating: number,
-  comment: string
-) {
+export async function addReview(userId: string, rating: number, comment: string) {
   const db = requireDb();
   await addDoc(collection(db, "reviews"), {
     userId,
     rating,
     comment,
-    createdAt: serverTimestamp(),
+    createdAt: serverTimestamp()
   });
 }
