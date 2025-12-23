@@ -1,11 +1,9 @@
 // FILE: /capacitor.config.ts
-import type { CapacitorConfig } from "@capacitor/core";
-
-const config: CapacitorConfig = {
+const config = {
   appId: "com.stickainote.app",
   appName: "StickAINote",
   webDir: "out",
-  bundledWebRuntime: false
+  bundledWebRuntime: false,
 };
 
 export default config;
