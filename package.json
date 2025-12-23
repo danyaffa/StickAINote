@@ -5,24 +5,27 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "export": "next export -o out"
   },
   "dependencies": {
-    "next": "14.2.12",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "firebase": "^9.23.0",
-    "firebase-admin": "^11.10.1",
-    "stripe": "^14.0.0",
-    "uuid": "^9.0.1",
+    "@google-cloud/vision": "^4.3.1",
+    "@react-pdf/renderer": "^3.4.4",
+    "bcryptjs": "^2.4.3",
+    "canvas": "^3.0.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "firebase": "^10.12.2",
+    "firebase-admin": "^12.2.0",
+    "formidable": "^3.5.1",
+    "framer-motion": "^11.2.10",
+    "jsonwebtoken": "^9.0.2",
+    "jspdf": "^2.5.2",
+    "next": "14.2.35",
+    "nodemailer": "^6.9.14",
     "openai": "^4.0.0",
-    "@google/generative-ai": "^0.3.0",
-    "resend": "^3.2.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.5.0",
-    "@types/node": "^20.0.0",
-    "@types/react": "^18.0.28",
-    "@types/react-dom": "^18.0.11"
+    "react": "^18",
+    "react-dom": "^18",
+    "uuid": "^9.0.1"
   }
 }
