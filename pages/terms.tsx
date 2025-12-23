@@ -6,10 +6,10 @@ export default function TermsPage() {
   return (
     <>
       <Head>
-        <title>Terms of Use | SticAINote</title>
+        <title>Terms of Use | StickAINote</title>
         <meta
           name="description"
-          content="Terms of Use for SticAINote â€“ AI-powered visibility and indexing support for your business."
+          content="Terms of Use for StickAINote – AI-powered visibility and indexing support for your business."
         />
       </Head>
 
@@ -23,6 +23,7 @@ export default function TermsPage() {
               padding: "24px 22px 32px",
               boxShadow: "0 18px 40px rgba(0,0,0,0.55)",
               lineHeight: 1.7,
+              color: "white",
             }}
           >
             <h1 style={{ fontSize: 26, marginBottom: 4 }}>Terms of Use</h1>
@@ -31,14 +32,14 @@ export default function TermsPage() {
             </p>
 
             <p>
-              Welcome to SticAINote ("the Platform", "we", "us", "our"). By
-              accessing or using our services, you agree to these Terms of Use. If
-              you do not agree, you must stop using the Platform immediately.
+              Welcome to StickAINote ("the Platform", "we", "us", "our"). By
+              accessing or using our services, you agree to these Terms of Use.
+              If you do not agree, you must stop using the Platform immediately.
             </p>
 
             <h2 style={{ marginTop: 24 }}>1. Service Description</h2>
             <p>
-              SticAINote provides tools, AI-generated suggestions, visibility
+              StickAINote provides tools, AI-generated suggestions, visibility
               checks, and guidance to help businesses improve how they appear
               across search and AI platforms. We do not operate search engines or
               AI indexes.
@@ -87,56 +88,58 @@ export default function TermsPage() {
 
             <h2 style={{ marginTop: 24 }}>8. Limitation of Liability</h2>
             <p>
-              To the maximum extent permitted by law, SticAINote is not liable
+              To the maximum extent permitted by law, StickAINote is not liable
               for indirect, incidental, or consequential damages.
             </p>
 
             <h2 style={{ marginTop: 24 }}>9. Indemnification</h2>
             <p>
-              You agree to indemnify and hold harmless GetYourBizOnAI from claims
+              You agree to indemnify and hold harmless StickAINote from claims
               arising from your use of the Platform or violation of these Terms.
             </p>
 
             <h2 style={{ marginTop: 24 }}>10. Termination</h2>
 
-            <h3>Termination by Us</h3>
+            <h3 style={{ marginTop: 10 }}>Termination by Us</h3>
             <p>
-              We may terminate these Terms (or any part of them), and may limit,
-              suspend, change, or remove your access to any or all Consumer
-              Services, including any feature or aspect of the Consumer Services,
-              at any time for any reason.
-            </p>
-            <p>
-              If commercially reasonable, we will take reasonable steps to notify
-              you before restricting access. If, in our sole judgment, you fail
-              or are suspected to have failed to comply with any provision of
-              these Terms, we may terminate your access immediately without
-              notice.
+              We may terminate these Terms and suspend or remove access to the
+              Platform at any time if we believe these Terms have been violated.
             </p>
 
-            <h3>Termination by You</h3>
+            <h3 style={{ marginTop: 10 }}>Termination by You</h3>
             <p>
-              Subject to any product-specific terms, you may terminate any
-              Consumer Service at any time by closing or deleting your account.
-              Instructions are available at:
+              You may stop using the Platform at any time. If an account or
+              locally stored data exists, you may request deletion as described
+              below.
+            </p>
+
+            <h2 style={{ marginTop: 24 }}>11. Delete Your Account & Data</h2>
+            <p>
+              StickAINote does not require a permanent server-side account for
+              basic use. Any locally stored data can be removed by uninstalling
+              the app or clearing site/app storage.
+            </p>
+            <p>
+              If you wish to formally request account or data deletion, follow
+              the instructions here:
             </p>
             <p>
               <a
-                href="https://support.link.com/how-to-delete-your-saved-payment-information"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/delete-account"
+                style={{ color: "#38bdf8", textDecoration: "underline" }}
               >
-                https://support.link.com/how-to-delete-your-saved-payment-information
+                https://stickainote.com/delete-account
               </a>
             </p>
             <p>
-              Termination is effective on the date your account is closed.
+              Deletion requests are processed as required by applicable law.
+              Once deletion is completed, access to the Platform is terminated.
             </p>
 
-            <h2 style={{ marginTop: 24 }}>11. Changes to These Terms</h2>
+            <h2 style={{ marginTop: 24 }}>12. Changes to These Terms</h2>
             <p>
-              We may update these Terms at any time. Continued use of the Platform
-              constitutes acceptance of the updated Terms.
+              We may update these Terms at any time. Continued use of the
+              Platform constitutes acceptance of the updated Terms.
             </p>
           </div>
         </div>
