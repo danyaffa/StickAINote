@@ -343,6 +343,7 @@ export default function HomePage() {
               <Link href="/privacy" style={{ color: "#94a3b8", textDecoration: "none" }}>Privacy</Link>
               <Link href="/disclaimer" style={{ color: "#94a3b8", textDecoration: "none" }}>Disclaimer</Link>
               <Link href="/legal" style={{ color: "#94a3b8", textDecoration: "none" }}>Legal</Link>
+              <Link href="/delete-account" style={{ color: "#94a3b8", textDecoration: "none" }}>Delete Account</Link>
             </div>
           </footer>
         </div>
