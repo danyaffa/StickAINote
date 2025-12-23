@@ -36,7 +36,9 @@ function tsToMillis(value: any): number {
 
 function requireDb() {
   if (!firebaseDb) {
-    throw new Error("Firestore is not available (likely SSR/build). Use this only in the browser.");
+    throw new Error(
+      "Firestore is not available (likely SSR/build). Use this only in the browser."
+    );
   }
   return firebaseDb;
 }
@@ -47,7 +49,11 @@ export function getCurrentUserId(): string | null {
 }
 
 // 🔹 3. CREATE NOTE (with color)
-export async function createNote(userId: string, content: string, color: string): Promise<Note> {
+export async function createNote(
+  userId: string,
+  content: string,
+  color: string
+): Promise<Note> {
   const db = requireDb();
   const notesRef = collection(db, "notes");
 
@@ -71,22 +77,27 @@ export async function createNote(userId: string, content: string, color: string)
   };
 }
 
-// 🔹 4. GET ALL NOTES FOR USER (color included)
-export async function getUserNotes(userId: string): Promise<Note[]> {
+// 🔹 4. GET NOTES (for a user, newest first)
+export async function getNotes(userId: string): Promise<Note[]> {
   const db = requireDb();
-  const notesRef = collection(db, "notes");
 
-  const q = query(notesRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
+  const q = query(
+    collection(db, "notes"),
+    where("userId", "==", userId),
+    orderBy("updatedAt", "desc")
+  );
+
   const snap = await getDocs(q);
 
   const notes: Note[] = [];
-  snap.forEach((docSnap) => {
-    const data = docSnap.data() as DocumentData;
+  snap.forEach((d) => {
+    const data = d.data() as DocumentData;
+
     notes.push({
-      id: docSnap.id,
-      userId: data.userId,
-      content: data.content ?? "",
-      color: data.color ?? "#fff8a8",
+      id: d.id,
+      userId: String(data.userId ?? userId),
+      content: String(data.content ?? ""),
+      color: String(data.color ?? "yellow"),
       createdAt: tsToMillis(data.createdAt),
       updatedAt: tsToMillis(data.updatedAt),
     });
@@ -95,7 +106,7 @@ export async function getUserNotes(userId: string): Promise<Note[]> {
   return notes;
 }
 
-// 🔹 5. UPDATE NOTE (including color)
+// 🔹 5. UPDATE NOTE (content and/or color)
 export async function updateNote(
   noteId: string,
   fields: Partial<Pick<Note, "content" | "color">>
@@ -118,7 +129,11 @@ export async function deleteNote(noteId: string): Promise<void> {
 }
 
 // 🔹 7. ADD REVIEW
-export async function addReview(userId: string, rating: number, comment: string) {
+export async function addReview(
+  userId: string,
+  rating: number,
+  comment: string
+) {
   const db = requireDb();
   await addDoc(collection(db, "reviews"), {
     userId,
