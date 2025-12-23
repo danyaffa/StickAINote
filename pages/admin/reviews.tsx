@@ -1,4 +1,4 @@
-// FILE: pages/admin/reviews.tsx
+// FILE: /pages/admin/reviews.tsx
 
 import type { GetServerSideProps, NextPage } from "next";
 import Head from "next/head";
@@ -22,6 +22,19 @@ export const getServerSideProps: GetServerSideProps<ReviewsPageProps> = async ()
   let reviews: Review[] = [];
 
   try {
+    // ✅ FIX: adminDb can be null (per its type). Guard it so TS + build passes.
+    if (!adminDb) {
+      console.error(
+        "adminDb is null. Firebase Admin is not initialized on the server. Check Vercel env vars / firebaseAdmin init."
+      );
+
+      return {
+        props: {
+          reviews: [],
+        },
+      };
+    }
+
     const snapshot = await adminDb
       .collection("reviews") // 🔴 use the SAME collection name that addReview() writes to
       .orderBy("createdAt", "desc")
