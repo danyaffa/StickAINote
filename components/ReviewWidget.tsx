@@ -136,8 +136,7 @@ const ReviewWidget: React.FC<ReviewWidgetProps> = ({ appStoreUrl }) => {
       if (isGoodRating) {
         // 1) Save to Firestore
         try {
-          // ✅ FIX: addReview expects 3 args in your project build
-          await addReview("guest", rating, comment);
+          await addReview("guest", rating, comment, APP_NAME);
         } catch (err) {
           console.error("addReview failed:", err);
         }
