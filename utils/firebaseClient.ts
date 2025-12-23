@@ -1,13 +1,13 @@
-// FILE: utils/firebaseClient.ts
-
+// FILE: /utils/firebaseClient.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
 /**
- * IMPORTANT:
- * Next.js can import modules during build/SSR where `window` is undefined.
- * Firebase Auth is browser-oriented, so we guard exports to avoid build crashes.
+ * Safe, lazy Firebase client.
+ * - Never crashes build/SSR
+ * - Never crashes client if env vars are missing
+ * - Returns null when Firebase isn't configured
  */
 
 const firebaseConfig = {
@@ -23,29 +23,68 @@ function isBrowser() {
   return typeof window !== "undefined";
 }
 
-function getFirebaseApp(): FirebaseApp {
-  // App init is safe as long as env vars exist (build-time and runtime).
-  if (!getApps().length) return initializeApp(firebaseConfig);
-  return getApp();
+function hasClientFirebaseConfig() {
+  return (
+    !!firebaseConfig.apiKey &&
+    !!firebaseConfig.authDomain &&
+    !!firebaseConfig.projectId &&
+    !!firebaseConfig.storageBucket &&
+    !!firebaseConfig.messagingSenderId &&
+    !!firebaseConfig.appId
+  );
 }
 
-/**
- * Export the app always (safe).
- * Export auth/db only in browser.
- */
-export const firebaseApp: FirebaseApp = getFirebaseApp();
+let _app: FirebaseApp | null = null;
+let _auth: Auth | null = null;
+let _db: Firestore | null = null;
 
-// These are intentionally nullable to prevent SSR/build crashes.
-export const firebaseAuth: Auth | null = isBrowser() ? getAuth(firebaseApp) : null;
-export const firebaseDb: Firestore | null = isBrowser() ? getFirestore(firebaseApp) : null;
+export function getFirebaseApp(): FirebaseApp | null {
+  // Only initialize in the browser and only when env vars exist
+  if (!isBrowser()) return null;
+  if (!hasClientFirebaseConfig()) return null;
 
-// Optional helpers if you prefer calling functions instead of nullable exports
+  if (_app) return _app;
+  _app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  return _app;
+}
+
+export function getFirebaseAuth(): Auth | null {
+  const app = getFirebaseApp();
+  if (!app) return null;
+  if (_auth) return _auth;
+  _auth = getAuth(app);
+  return _auth;
+}
+
+export function getFirebaseDb(): Firestore | null {
+  const app = getFirebaseApp();
+  if (!app) return null;
+  if (_db) return _db;
+  _db = getFirestore(app);
+  return _db;
+}
+
+// Convenience helpers (throw only when you explicitly call them)
 export function requireAuth(): Auth {
-  if (!firebaseAuth) throw new Error("Firebase Auth is not available during SSR/build.");
-  return firebaseAuth;
+  const auth = getFirebaseAuth();
+  if (!auth) {
+    throw new Error(
+      "Firebase Auth is not configured. Missing NEXT_PUBLIC_FIREBASE_* env vars."
+    );
+  }
+  return auth;
 }
 
 export function requireDb(): Firestore {
-  if (!firebaseDb) throw new Error("Firestore is not available during SSR/build.");
-  return firebaseDb;
+  const db = getFirebaseDb();
+  if (!db) {
+    throw new Error(
+      "Firestore is not configured. Missing NEXT_PUBLIC_FIREBASE_* env vars."
+    );
+  }
+  return db;
+}
+
+export function isFirebaseClientConfigured(): boolean {
+  return isBrowser() && hasClientFirebaseConfig();
 }
