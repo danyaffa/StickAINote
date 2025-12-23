@@ -1,7 +1,8 @@
-// FILE: components/BasicNote.tsx
+// FILE: /components/BasicNote.tsx
 "use client";
 
 import React, { useEffect, useState, MouseEvent } from "react";
+import { apiUrl } from "@/lib/apiBase";
 
 type AiAction = "fix" | "summarise" | "translate" | "improve";
 
@@ -88,7 +89,7 @@ export default function BasicNote() {
     if (!note.text.trim()) { alert("Please write some text first."); return; }
     setAiBusy(true);
     try {
-      const res = await fetch("/api/ai-note", {
+      const res = await fetch(apiUrl("/api/ai-note"), {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, text: note.text, targetLanguage }),
       });
