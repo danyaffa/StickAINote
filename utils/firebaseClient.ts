@@ -13,14 +13,14 @@ const firebaseConfig = {
 
 const isBrowser = typeof window !== "undefined";
 
-function hasConfig() {
-  return (
-    !!firebaseConfig.apiKey &&
-    !!firebaseConfig.authDomain &&
-    !!firebaseConfig.projectId &&
-    !!firebaseConfig.storageBucket &&
-    !!firebaseConfig.messagingSenderId &&
-    !!firebaseConfig.appId
+function hasConfig(): boolean {
+  return Boolean(
+    firebaseConfig.apiKey &&
+      firebaseConfig.authDomain &&
+      firebaseConfig.projectId &&
+      firebaseConfig.storageBucket &&
+      firebaseConfig.messagingSenderId &&
+      firebaseConfig.appId
   );
 }
 
@@ -28,9 +28,11 @@ let _app: FirebaseApp | null = null;
 let _auth: Auth | null = null;
 let _db: Firestore | null = null;
 
-function initIfPossible() {
-  // ✅ Prevent Next build/SSR from executing firebase auth (your crash)
+function initFirebaseIfPossible() {
+  // ✅ Never initialize Firebase during Next build/SSR
   if (!isBrowser) return;
+
+  // ✅ If env vars are missing locally, do nothing (prevents invalid-api-key crash)
   if (!hasConfig()) return;
 
   if (!_app) {
@@ -40,28 +42,20 @@ function initIfPossible() {
   }
 }
 
-initIfPossible();
+// initialize on client only
+initFirebaseIfPossible();
 
 export const firebaseApp: FirebaseApp | null = _app;
 export const firebaseAuth: Auth | null = _auth;
 export const firebaseDb: Firestore | null = _db;
 
-export function requireAuth(): Auth {
-  initIfPossible();
-  if (!_auth) {
-    throw new Error(
-      "Firebase Auth not available. Ensure NEXT_PUBLIC_FIREBASE_* env vars are set and this code runs in the browser."
-    );
-  }
+// Kept for compatibility with existing imports
+export function requireAuth(): Auth | null {
+  initFirebaseIfPossible();
   return _auth;
 }
 
-export function requireDb(): Firestore {
-  initIfPossible();
-  if (!_db) {
-    throw new Error(
-      "Firestore not available. Ensure NEXT_PUBLIC_FIREBASE_* env vars are set and this code runs in the browser."
-    );
-  }
+export function requireDb(): Firestore | null {
+  initFirebaseIfPossible();
   return _db;
 }
