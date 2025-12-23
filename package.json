@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "export": "next export"
+    "export": "next build"
   },
   "dependencies": {
     "@google-cloud/vision": "^4.3.1",
