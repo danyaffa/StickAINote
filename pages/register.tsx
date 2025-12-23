@@ -3,7 +3,7 @@ import Head from "next/head";
 import React, { useState } from "react";
 import { useRouter } from "next/router";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../lib/firestore"; // uses your existing Firebase setup
+import { requireAuth } from "../utils/firebaseClient"; // ✅ correct Firebase Auth source
 
 const DEVELOPER_EMAIL = "leffleryd@gmail.com";
 
@@ -53,7 +53,10 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      // 1️⃣ Create user in Firebase (same pattern as CalmTinnitus)
+      // ✅ Get Firebase Auth only on the client (submit click)
+      const auth = requireAuth();
+
+      // 1️⃣ Create user in Firebase
       const cred = await createUserWithEmailAndPassword(auth, email, password);
 
       // 2️⃣ Then redirect (dev → app, others → Stripe)
@@ -134,11 +137,13 @@ export default function RegisterPage() {
               }}
             >
               Your <strong>first month is free</strong>. You must enter your
-              credit-card details now to activate the free trial. Going forward fee is only US$6.60 per month.
+              credit-card details now to activate the free trial. Going forward
+              fee is only US$6.60 per month.
               <br />
-              You can <strong>cancel any time before the end of the month</strong>{" "}
-              and you will <strong>not be charged</strong>. You can also remove
-              or change your card later.
+              You can{" "}
+              <strong>cancel any time before the end of the month</strong> and
+              you will <strong>not be charged</strong>. You can also remove or
+              change your card later.
             </p>
 
             {errorMsg && (
