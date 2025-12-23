@@ -1,8 +1,11 @@
-// FILE: /next.config.mjs
+// FILE: /capacitor.config.ts
+import type { CapacitorConfig } from "@capacitor/cli";
 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  reactStrictMode: true,
+const config: CapacitorConfig = {
+  appId: "com.stickainote.app",
+  appName: "StickAINote",
+  webDir: "out",
+  bundledWebRuntime: false,
 };
 
-export default nextConfig;
+export default config;
