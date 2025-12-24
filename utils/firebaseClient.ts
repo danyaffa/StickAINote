@@ -29,10 +29,7 @@ let _auth: Auth | null = null;
 let _db: Firestore | null = null;
 
 function initFirebaseIfPossible() {
-  // ✅ Never initialize Firebase during Next build/SSR
   if (!isBrowser) return;
-
-  // ✅ If env vars are missing locally, do nothing (prevents invalid-api-key crash)
   if (!hasConfig()) return;
 
   if (!_app) {
@@ -42,14 +39,12 @@ function initFirebaseIfPossible() {
   }
 }
 
-// initialize on client only
 initFirebaseIfPossible();
 
 export const firebaseApp: FirebaseApp | null = _app;
 export const firebaseAuth: Auth | null = _auth;
 export const firebaseDb: Firestore | null = _db;
 
-// Kept for compatibility with existing imports
 export function requireAuth(): Auth | null {
   initFirebaseIfPossible();
   return _auth;
