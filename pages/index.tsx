@@ -122,6 +122,8 @@ export default function HomePage() {
               alignItems: "center",
               justifyContent: "space-between",
               paddingBottom: 20,
+              flexWrap: "wrap",
+              gap: 20
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -142,7 +144,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <nav style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <nav style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
               <Link
                 href="/login"
                 style={{
@@ -201,7 +203,7 @@ export default function HomePage() {
           <section style={{ textAlign: "center", maxWidth: 800, margin: "0 auto" }}>
             <h1
               style={{
-                fontSize: 42,
+                fontSize: "clamp(32px, 8vw, 42px)",
                 lineHeight: 1.1,
                 fontWeight: 800,
                 marginBottom: 16,
@@ -213,24 +215,42 @@ export default function HomePage() {
               Your AI-powered notes,<br />
               all in <span style={{ WebkitTextFillColor: "#4ade80" }}>one place</span>.
             </h1>
-            <p style={{ fontSize: 18, color: "#94a3b8", lineHeight: 1.6 }}>
+            <p style={{ fontSize: "clamp(16px, 4vw, 18px)", color: "#94a3b8", lineHeight: 1.6 }}>
               Rich text editing, AI translation, tables, images, version history, and offline support.
               Everything you need in a single powerful note app.
             </p>
           </section>
 
-          {/* 4. APP PREVIEW IMAGE */}
-          <section
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <div style={{ maxWidth: 700, width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid #334155", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
-                    <Image src="/index-image.png" alt="StickAINote Interface" width={700} height={525} style={{ width: "100%", height: "auto", display: "block" }} />
-                </div>
+          {/* 4. DYNAMIC IMAGE BLOCK (MOBILE FRIENDLY) */}
+          <section style={{ 
+              width: "100%", 
+              display: "flex", 
+              justifyContent: "center", 
+              marginTop: "10px",
+              padding: "0 10px" 
+          }}>
+            <div style={{ 
+                width: "100%", 
+                maxWidth: "1100px",
+                position: "relative",
+                borderRadius: "14px",
+                overflow: "hidden",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
+            }}>
+              <Image
+                src="/index-image.png"
+                alt="StickAINote Features"
+                width={1100}
+                height={650}
+                priority
+                sizes="(max-width: 768px) 100vw, 1100px"
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  display: "block",
+                  objectFit: "contain"
+                }}
+              />
             </div>
           </section>
 
@@ -294,14 +314,14 @@ export default function HomePage() {
               style={{
                 maxWidth: 440,
                 margin: "0 auto",
+                width: "100%"
               }}
             >
-              {/* SINGLE PLAN CARD */}
               <div
                 style={{
                   background: "linear-gradient(145deg, #1e293b, #0f172a)",
                   borderRadius: 24,
-                  padding: 36,
+                  padding: "clamp(20px, 5vw, 36px)",
                   border: "2px solid transparent",
                   backgroundImage: "linear-gradient(#0f172a, #0f172a), linear-gradient(to right, #3b82f6, #a855f7)",
                   backgroundOrigin: "border-box",
