@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb"/>
+      <stop offset="100%" style="stop-color:#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="note" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fef3c7"/>
+      <stop offset="100%" style="stop-color:#fde68a"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Sticky note -->
+  <rect x="96" y="80" width="320" height="320" rx="24" fill="url(#note)" transform="rotate(-3 256 240)"/>
+  <!-- Fold corner -->
+  <path d="M346 80 L416 150 L346 150 Z" fill="#f59e0b" opacity="0.6" transform="rotate(-3 256 240)"/>
+  <!-- Text lines -->
+  <rect x="140" y="150" width="180" height="16" rx="8" fill="#92400e" opacity="0.5" transform="rotate(-3 256 240)"/>
+  <rect x="140" y="190" width="240" height="16" rx="8" fill="#92400e" opacity="0.35" transform="rotate(-3 256 240)"/>
+  <rect x="140" y="230" width="200" height="16" rx="8" fill="#92400e" opacity="0.35" transform="rotate(-3 256 240)"/>
+  <rect x="140" y="270" width="160" height="16" rx="8" fill="#92400e" opacity="0.25" transform="rotate(-3 256 240)"/>
+  <!-- AI sparkle -->
+  <g transform="translate(370, 340)">
+    <path d="M0 -28 L8 -8 L28 0 L8 8 L0 28 L-8 8 L-28 0 L-8 -8 Z" fill="#38bdf8"/>
+    <path d="M24 -40 L28 -30 L38 -26 L28 -22 L24 -12 L20 -22 L10 -26 L20 -30 Z" fill="#38bdf8" opacity="0.6"/>
+  </g>
+</svg>

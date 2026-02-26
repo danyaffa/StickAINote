@@ -22,12 +22,15 @@ export interface NoteTableData {
   rows: NoteTableRow[];
 }
 
+export type NotePriority = "none" | "low" | "medium" | "high";
+
 export interface NoteRecord {
   id: string;
   title: string;
   content: string; // HTML from rich editor
   color: string;
   pinned: boolean;
+  priority: NotePriority;
   deleted: boolean;
   deletedAt: number | null;
   createdAt: number;
@@ -49,6 +52,7 @@ export interface AppSettings {
   autoCorrect: boolean;
   trashRetentionDays: number;
   maxVersionsPerNote: number;
+  darkMode: boolean;
 }
 
 // --- CONSTANTS ---
@@ -64,6 +68,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoCorrect: false,
   trashRetentionDays: 30,
   maxVersionsPerNote: 10,
+  darkMode: false,
 };
 
 // --- DB INIT ---
@@ -141,6 +146,7 @@ export async function createNote(
     content: partial?.content || "",
     color: partial?.color || "#fef3c7",
     pinned: partial?.pinned || false,
+    priority: partial?.priority || "none",
     deleted: false,
     deletedAt: null,
     createdAt: now,
