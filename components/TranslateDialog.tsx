@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import { apiUrl } from "../lib/apiBase";
 
 interface TranslateDialogProps {
   selectedText: string;
@@ -40,7 +41,7 @@ export default function TranslateDialog({
     setResult("");
 
     try {
-      const res = await fetch("/api/ai-note", {
+      const res = await fetch(apiUrl("/api/ai-note"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -51,8 +52,8 @@ export default function TranslateDialog({
       });
 
       if (!res.ok) {
-        // If API not available, use placeholder
-        setResult(`[Translation to ${targetLang} placeholder]\n\n${textToTranslate}`);
+        const errData = await res.json().catch(() => null);
+        setError(errData?.error || `Translation failed (status ${res.status}). Please check your API configuration.`);
         return;
       }
 
@@ -60,11 +61,12 @@ export default function TranslateDialog({
       if (data.text) {
         setResult(data.text);
       } else {
-        setError("No translation returned.");
+        setError("No translation returned from the AI.");
       }
-    } catch {
-      // API not available - provide a placeholder result
-      setResult(`[Translation to ${targetLang} - API not configured]\n\n${textToTranslate}`);
+    } catch (err) {
+      setError(
+        "Could not reach the translation API. Make sure the server is running and OPENAI_API_KEY is configured."
+      );
     } finally {
       setTranslating(false);
     }
@@ -206,7 +208,7 @@ export default function TranslateDialog({
         </button>
 
         {error && (
-          <div style={{ color: "#dc2626", fontSize: 13, marginBottom: 12 }}>
+          <div style={{ color: "#dc2626", fontSize: 13, marginBottom: 12, background: "#fef2f2", padding: 10, borderRadius: 6, border: "1px solid #fecaca" }}>
             {error}
           </div>
         )}
@@ -250,6 +252,15 @@ export default function TranslateDialog({
                 type="button"
               >
                 Save as new note
+              </button>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(result).catch(() => {});
+                }}
+                style={resultBtnStyle("#6366f1")}
+                type="button"
+              >
+                Copy
               </button>
             </div>
           </>
