@@ -1,13 +1,52 @@
 // FILE: pages/index.tsx
-import React from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Image from "next/image";
 // IMPORT THE REVIEW WIDGET
 import ReviewWidget from "../components/ReviewWidget";
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
 export default function HomePage() {
   const siteTitle = "StickAINote – AI Sticky Notes & Thoughtboard";
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setIsInstalled(true);
+      return;
+    }
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    const installedHandler = () => {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+    };
+    window.addEventListener("appinstalled", installedHandler);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", installedHandler);
+    };
+  }, []);
+
+  const handleInstall = useCallback(async () => {
+    if (!deferredPrompt) return;
+    await deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") {
+      setIsInstalled(true);
+    }
+    setDeferredPrompt(null);
+  }, [deferredPrompt]);
 
   return (
     <>
@@ -117,6 +156,30 @@ export default function HomePage() {
               >
                 Login
               </Link>
+              {!isInstalled && (
+                <button
+                  onClick={handleInstall}
+                  disabled={!deferredPrompt}
+                  style={{
+                    padding: "8px 20px",
+                    borderRadius: 999,
+                    background: deferredPrompt
+                      ? "linear-gradient(to right, #2563eb, #4f46e5)"
+                      : "rgba(37, 99, 235, 0.4)",
+                    color: "white",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    border: "none",
+                    cursor: deferredPrompt ? "pointer" : "default",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    boxShadow: deferredPrompt ? "0 4px 12px rgba(37, 99, 235, 0.4)" : "none",
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>+</span> Install App
+                </button>
+              )}
               <Link
                 href="/notes"
                 style={{
