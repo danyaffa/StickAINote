@@ -1,4 +1,17 @@
-/* Stick a Note – landing layout */
+/* StickAINote – Global Styles */
+
+/* Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Landing page styles */
 .landing-root {
   min-height: 100vh;
   background: #e5e7eb;
@@ -23,7 +36,6 @@
   align-items: center;
 }
 
-/* Typography */
 .landing-title {
   font-size: 2.3rem;
   line-height: 1.1;
@@ -62,9 +74,7 @@
 }
 
 /* Buttons */
-.btn-primary,
-.btn-dark,
-.btn-ghost {
+.btn-primary, .btn-dark, .btn-ghost {
   padding: 0.65rem 1.3rem;
   border-radius: 999px;
   font-size: 0.95rem;
@@ -154,16 +164,8 @@
   border: 1px solid rgba(15, 23, 42, 0.2);
 }
 
-.landing-ai-row {
-  display: flex;
-  gap: 6px;
-}
-
-.landing-tools-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
+.landing-ai-row { display: flex; gap: 6px; }
+.landing-tools-row { display: flex; align-items: center; gap: 6px; }
 
 /* Footer */
 .landing-footer {
@@ -175,6 +177,41 @@
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+/* Accessibility */
+:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* Selection color */
+::selection {
+  background: #93c5fd;
+  color: #0f172a;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
 }
 
 /* Mobile layout */

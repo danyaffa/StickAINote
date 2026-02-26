@@ -118,7 +118,7 @@ export default function HomePage() {
                 Login
               </Link>
               <Link
-                href="/register"
+                href="/notes"
                 style={{
                   padding: "8px 20px",
                   borderRadius: 999,
@@ -129,7 +129,7 @@ export default function HomePage() {
                   textDecoration: "none",
                 }}
               >
-                Get Started
+                Open Notes
               </Link>
             </nav>
           </header>

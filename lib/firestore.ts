@@ -9,7 +9,8 @@ import {
   deleteDoc,
   doc,
   serverTimestamp,
-  type DocumentData
+  type DocumentData,
+  type Firestore,
 } from "firebase/firestore";
 
 import { firebaseAuth, requireDb } from "../utils/firebaseClient";
@@ -30,6 +31,12 @@ function tsToMillis(value: any): number {
   return Date.now();
 }
 
+function getDb(): Firestore {
+  const db = requireDb();
+  if (!db) throw new Error("Firebase is not configured.");
+  return db;
+}
+
 export function getCurrentUserId(): string | null {
   return firebaseAuth?.currentUser?.uid ?? null;
 }
@@ -39,7 +46,7 @@ export async function createNote(
   content: string,
   color: string
 ): Promise<Note> {
-  const db = requireDb();
+  const db = getDb();
   const notesRef = collection(db, "notes");
 
   const docRef = await addDoc(notesRef, {
@@ -47,7 +54,7 @@ export async function createNote(
     content,
     color,
     createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 
   const now = Date.now();
@@ -58,12 +65,12 @@ export async function createNote(
     content,
     color,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
 }
 
 export async function getNotes(userId: string): Promise<Note[]> {
-  const db = requireDb();
+  const db = getDb();
 
   const q = query(
     collection(db, "notes"),
@@ -83,7 +90,7 @@ export async function getNotes(userId: string): Promise<Note[]> {
       content: String(data.content ?? ""),
       color: String(data.color ?? "yellow"),
       createdAt: tsToMillis(data.createdAt),
-      updatedAt: tsToMillis(data.updatedAt)
+      updatedAt: tsToMillis(data.updatedAt),
     });
   });
 
@@ -94,28 +101,32 @@ export async function updateNote(
   noteId: string,
   fields: Partial<Pick<Note, "content" | "color">>
 ): Promise<void> {
-  const db = requireDb();
+  const db = getDb();
   const noteRef = doc(db, "notes", noteId);
 
   await updateDoc(noteRef, {
     ...(fields.content !== undefined ? { content: fields.content } : {}),
     ...(fields.color !== undefined ? { color: fields.color } : {}),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 }
 
 export async function deleteNote(noteId: string): Promise<void> {
-  const db = requireDb();
+  const db = getDb();
   const noteRef = doc(db, "notes", noteId);
   await deleteDoc(noteRef);
 }
 
-export async function addReview(userId: string, rating: number, comment: string) {
-  const db = requireDb();
+export async function addReview(
+  userId: string,
+  rating: number,
+  comment: string
+) {
+  const db = getDb();
   await addDoc(collection(db, "reviews"), {
     userId,
     rating,
     comment,
-    createdAt: serverTimestamp()
+    createdAt: serverTimestamp(),
   });
 }

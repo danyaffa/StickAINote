@@ -27,7 +27,7 @@ export default function LoginPage() {
         // Set the promo flag to ensure access to features is unlocked
         window.localStorage.setItem("stickainote-promo", "1");
       }
-      router.push("/app");
+      router.push("/notes");
       return;
     }
 
@@ -36,7 +36,7 @@ export default function LoginPage() {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("stickainote-promo", "1");
       }
-      router.push("/app");
+      router.push("/notes");
       return;
     }
 
@@ -47,7 +47,7 @@ export default function LoginPage() {
     }
 
     // For standard users (placeholder logic)
-    router.push("/app");
+    router.push("/notes");
   }
 
   return (

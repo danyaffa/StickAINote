@@ -55,6 +55,7 @@ export default function RegisterPage() {
 
       // ✅ Get Firebase Auth only on the client (submit click)
       const auth = requireAuth();
+      if (!auth) throw new Error("Firebase is not configured.");
 
       // 1️⃣ Create user in Firebase
       const cred = await createUserWithEmailAndPassword(auth, email, password);
