@@ -21,7 +21,9 @@ class MyDocument extends Document {
           <meta name="format-detection" content="telephone=no" />
 
           {/* Favicon */}
-          <link rel="icon" href="/StickAINote-Logo.png" type="image/png" />
+          <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+          <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+          <link rel="icon" href="/StickAINote-Logo.png" type="image/png" sizes="512x512" />
 
           {/* SEO */}
           <meta

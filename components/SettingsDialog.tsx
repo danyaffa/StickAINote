@@ -62,6 +62,22 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Dark mode */}
+          <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14 }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>Dark Mode</div>
+              <div style={{ fontSize: 12, color: "#6b7280" }}>
+                Use dark theme for the notes interface
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={settings.darkMode || false}
+              onChange={(e) => handleChange({ darkMode: e.target.checked })}
+              style={{ width: 18, height: 18, cursor: "pointer" }}
+            />
+          </label>
+
           {/* Spellcheck / auto-correct */}
           <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14 }}>
             <div>

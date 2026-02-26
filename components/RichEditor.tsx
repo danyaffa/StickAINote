@@ -210,6 +210,10 @@ export default function RichEditor({
             style={tbStyle(activeFormats.has("h2"))}>
             H2
           </button>
+          <button type="button" title="Heading 3" onClick={() => execCmd("formatBlock", "h3")}
+            style={tbStyle(activeFormats.has("h3"))}>
+            H3
+          </button>
 
           <span style={dividerStyle} />
 
@@ -349,6 +353,10 @@ export default function RichEditor({
         [contenteditable] h2 {
           font-size: 1.25em;
           margin: 0.5em 0 0.3em;
+        }
+        [contenteditable] h3 {
+          font-size: 1.1em;
+          margin: 0.4em 0 0.2em;
         }
         [contenteditable] ul,
         [contenteditable] ol {
