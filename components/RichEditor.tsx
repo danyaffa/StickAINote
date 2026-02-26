@@ -11,14 +11,6 @@ export interface RichEditorProps {
   readOnly?: boolean;
 }
 
-interface ToolbarButton {
-  label: string;
-  command: string;
-  arg?: string;
-  shortcut?: string;
-  active?: boolean;
-}
-
 export default function RichEditor({
   content,
   onChange,
@@ -67,6 +59,7 @@ export default function RichEditor({
     if (document.queryCommandState("bold")) formats.add("bold");
     if (document.queryCommandState("italic")) formats.add("italic");
     if (document.queryCommandState("underline")) formats.add("underline");
+    if (document.queryCommandState("strikeThrough")) formats.add("strikeThrough");
     if (document.queryCommandState("insertUnorderedList"))
       formats.add("insertUnorderedList");
     if (document.queryCommandState("insertOrderedList"))
@@ -78,7 +71,6 @@ export default function RichEditor({
     setActiveFormats(formats);
   }, []);
 
-  // Handle keyboard shortcuts
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (readOnly) return;
@@ -93,7 +85,7 @@ export default function RichEditor({
       } else if (mod && e.key === "u") {
         e.preventDefault();
         execCmd("underline");
-      } else if (mod && e.shiftKey && e.key === "z") {
+      } else if (mod && e.shiftKey && (e.key === "z" || e.key === "Z")) {
         e.preventDefault();
         execCmd("redo");
       } else if (mod && e.key === "z") {
@@ -104,7 +96,6 @@ export default function RichEditor({
     [execCmd, readOnly]
   );
 
-  // Handle image paste and drag-drop
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
       if (readOnly) return;
@@ -121,7 +112,6 @@ export default function RichEditor({
           const reader = new FileReader();
           reader.onload = () => {
             const dataUrl = reader.result as string;
-            // Resize large images
             resizeImage(dataUrl, 1200).then((resized) => {
               document.execCommand(
                 "insertHTML",
@@ -170,42 +160,8 @@ export default function RichEditor({
     [readOnly, handleInput]
   );
 
-  const insertHeading = useCallback(
-    (level: string) => {
-      execCmd("formatBlock", level);
-    },
-    [execCmd]
-  );
-
-  const insertCodeBlock = useCallback(() => {
-    execCmd("formatBlock", "pre");
-  }, [execCmd]);
-
-  const insertBlockquote = useCallback(() => {
-    execCmd("formatBlock", "blockquote");
-  }, [execCmd]);
-
-  const insertHR = useCallback(() => {
-    execCmd("insertHorizontalRule");
-  }, [execCmd]);
-
-  const toolbarButtons: ToolbarButton[] = [
-    { label: "B", command: "bold", shortcut: "Ctrl+B" },
-    { label: "I", command: "italic", shortcut: "Ctrl+I" },
-    { label: "U", command: "underline", shortcut: "Ctrl+U" },
-    { label: "H1", command: "formatBlock", arg: "h1" },
-    { label: "H2", command: "formatBlock", arg: "h2" },
-  ];
-
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        flex: 1,
-        minHeight: 0,
-      }}
-    >
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       {/* Toolbar */}
       {!readOnly && (
         <div
@@ -222,107 +178,100 @@ export default function RichEditor({
             alignItems: "center",
           }}
         >
-          {toolbarButtons.map((btn) => (
-            <button
-              key={btn.label}
-              type="button"
-              title={`${btn.label}${btn.shortcut ? ` (${btn.shortcut})` : ""}`}
-              aria-label={btn.label}
-              onClick={() => {
-                if (btn.arg) {
-                  if (btn.command === "formatBlock") insertHeading(btn.arg);
-                  else execCmd(btn.command, btn.arg);
-                } else {
-                  execCmd(btn.command);
-                }
-              }}
-              style={{
-                minWidth: 30,
-                height: 28,
-                border: "1px solid rgba(0,0,0,0.15)",
-                borderRadius: 4,
-                background: activeFormats.has(btn.command) || activeFormats.has(btn.arg || "")
-                  ? "rgba(37,99,235,0.15)"
-                  : "white",
-                cursor: "pointer",
-                fontWeight: btn.label === "B" ? "bold" : btn.label === "I" ? undefined : undefined,
-                fontStyle: btn.label === "I" ? "italic" : undefined,
-                textDecoration: btn.label === "U" ? "underline" : undefined,
-                fontSize: 12,
-                padding: "0 6px",
-              }}
-            >
-              {btn.label}
-            </button>
-          ))}
-
-          <span style={{ width: 1, height: 20, background: "rgba(0,0,0,0.15)", margin: "0 4px" }} />
-
-          <button
-            type="button"
-            title="Bullet list"
-            aria-label="Bullet list"
-            onClick={() => execCmd("insertUnorderedList")}
-            style={tbStyle(activeFormats.has("insertUnorderedList"))}
-          >
-            &bull; List
+          {/* Bold */}
+          <button type="button" title="Bold (Ctrl+B)" onClick={() => execCmd("bold")}
+            style={tbStyle(activeFormats.has("bold"))}>
+            <strong>B</strong>
           </button>
-          <button
-            type="button"
-            title="Numbered list"
-            aria-label="Numbered list"
-            onClick={() => execCmd("insertOrderedList")}
-            style={tbStyle(activeFormats.has("insertOrderedList"))}
-          >
-            1. List
+          {/* Italic */}
+          <button type="button" title="Italic (Ctrl+I)" onClick={() => execCmd("italic")}
+            style={tbStyle(activeFormats.has("italic"))}>
+            <em>I</em>
+          </button>
+          {/* Underline */}
+          <button type="button" title="Underline (Ctrl+U)" onClick={() => execCmd("underline")}
+            style={tbStyle(activeFormats.has("underline"))}>
+            <u>U</u>
+          </button>
+          {/* Strikethrough */}
+          <button type="button" title="Strikethrough" onClick={() => execCmd("strikeThrough")}
+            style={tbStyle(activeFormats.has("strikeThrough"))}>
+            <s>S</s>
           </button>
 
-          <button
-            type="button"
-            title="Quote"
-            aria-label="Blockquote"
-            onClick={insertBlockquote}
-            style={tbStyle(activeFormats.has("blockquote"))}
-          >
-            &ldquo; Quote
+          <span style={dividerStyle} />
+
+          {/* Headings */}
+          <button type="button" title="Heading 1" onClick={() => execCmd("formatBlock", "h1")}
+            style={tbStyle(activeFormats.has("h1"))}>
+            H1
           </button>
-          <button
-            type="button"
-            title="Code block"
-            aria-label="Code block"
-            onClick={insertCodeBlock}
-            style={tbStyle(activeFormats.has("pre"))}
-          >
-            {"<>"} Code
+          <button type="button" title="Heading 2" onClick={() => execCmd("formatBlock", "h2")}
+            style={tbStyle(activeFormats.has("h2"))}>
+            H2
           </button>
 
-          <button
-            type="button"
-            title="Horizontal rule"
-            aria-label="Horizontal rule"
-            onClick={insertHR}
-            style={tbStyle(false)}
-          >
+          <span style={dividerStyle} />
+
+          {/* Bullet list - SVG icon like Word */}
+          <button type="button" title="Bullet list" onClick={() => execCmd("insertUnorderedList")}
+            style={tbStyle(activeFormats.has("insertUnorderedList"))}>
+            <svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor">
+              <circle cx="2" cy="3" r="1.5"/>
+              <rect x="5" y="2" width="10" height="2" rx="0.5"/>
+              <circle cx="2" cy="7" r="1.5"/>
+              <rect x="5" y="6" width="10" height="2" rx="0.5"/>
+              <circle cx="2" cy="11" r="1.5"/>
+              <rect x="5" y="10" width="10" height="2" rx="0.5"/>
+            </svg>
+          </button>
+          {/* Numbered list - SVG icon like Word */}
+          <button type="button" title="Numbered list" onClick={() => execCmd("insertOrderedList")}
+            style={tbStyle(activeFormats.has("insertOrderedList"))}>
+            <svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor" style={{fontSize:8}}>
+              <text x="0" y="5" fontSize="5" fontWeight="bold">1.</text>
+              <rect x="5" y="2" width="10" height="2" rx="0.5"/>
+              <text x="0" y="9" fontSize="5" fontWeight="bold">2.</text>
+              <rect x="5" y="6" width="10" height="2" rx="0.5"/>
+              <text x="0" y="13" fontSize="5" fontWeight="bold">3.</text>
+              <rect x="5" y="10" width="10" height="2" rx="0.5"/>
+            </svg>
+          </button>
+
+          <span style={dividerStyle} />
+
+          {/* Quote */}
+          <button type="button" title="Quote" onClick={() => execCmd("formatBlock", "blockquote")}
+            style={tbStyle(activeFormats.has("blockquote"))}>
+            <svg width="14" height="12" viewBox="0 0 14 12" fill="currentColor">
+              <path d="M0 7.5C0 4.5 1.5 2 4 0.5L5 2C3 3.5 2.5 5 2.5 6H5V12H0V7.5ZM8 7.5C8 4.5 9.5 2 12 0.5L13 2C11 3.5 10.5 5 10.5 6H13V12H8V7.5Z"/>
+            </svg>
+          </button>
+          {/* Code */}
+          <button type="button" title="Code block" onClick={() => execCmd("formatBlock", "pre")}
+            style={tbStyle(activeFormats.has("pre"))}>
+            {"</>"}
+          </button>
+          {/* HR */}
+          <button type="button" title="Horizontal rule" onClick={() => execCmd("insertHorizontalRule")}
+            style={tbStyle(false)}>
             &#8212;
           </button>
 
-          <button
-            type="button"
-            title="Undo (Ctrl+Z)"
-            aria-label="Undo"
-            onClick={() => execCmd("undo")}
-            style={tbStyle(false)}
-          >
-            Undo
+          <span style={dividerStyle} />
+
+          {/* Undo/Redo */}
+          <button type="button" title="Undo (Ctrl+Z)" onClick={() => execCmd("undo")}
+            style={tbStyle(false)}>
+            <svg width="14" height="12" viewBox="0 0 14 12" fill="currentColor">
+              <path d="M4 4L0 7L4 10V8H9C10.7 8 12 6.7 12 5C12 3.3 10.7 2 9 2H6V0H9C11.8 0 14 2.2 14 5C14 7.8 11.8 10 9 10H4V4Z"/>
+            </svg>
           </button>
-          <button
-            type="button"
-            title="Redo (Ctrl+Shift+Z)"
-            aria-label="Redo"
-            onClick={() => execCmd("redo")}
-            style={tbStyle(false)}
-          >
-            Redo
+          <button type="button" title="Redo (Ctrl+Shift+Z)" onClick={() => execCmd("redo")}
+            style={tbStyle(false)}>
+            <svg width="14" height="12" viewBox="0 0 14 12" fill="currentColor">
+              <path d="M10 4L14 7L10 10V8H5C3.3 8 2 6.7 2 5C2 3.3 3.3 2 5 2H8V0H5C2.2 0 0 2.2 0 5C0 7.8 2.2 10 5 10H10V4Z"/>
+            </svg>
           </button>
         </div>
       )}
@@ -419,18 +368,28 @@ export default function RichEditor({
 function tbStyle(active: boolean): React.CSSProperties {
   return {
     minWidth: 30,
-    height: 28,
-    border: "1px solid rgba(0,0,0,0.15)",
+    height: 30,
+    border: "1px solid rgba(0,0,0,0.12)",
     borderRadius: 4,
     background: active ? "rgba(37,99,235,0.15)" : "white",
     cursor: "pointer",
-    fontSize: 11,
+    fontSize: 12,
     padding: "0 6px",
     whiteSpace: "nowrap",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: active ? "#2563eb" : "#333",
   };
 }
 
-/** Resize an image data URL to max dimension, returns data URL. */
+const dividerStyle: React.CSSProperties = {
+  width: 1,
+  height: 20,
+  background: "rgba(0,0,0,0.12)",
+  margin: "0 3px",
+};
+
 function resizeImage(dataUrl: string, maxDim: number): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
