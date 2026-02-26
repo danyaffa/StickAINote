@@ -229,7 +229,7 @@ export default function HomePage() {
           >
             <div style={{ maxWidth: 700, width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid #334155", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
-                    <Image src="/Pro.png" alt="StickAINote Interface" width={700} height={525} style={{ width: "100%", height: "auto", display: "block" }} />
+                    <Image src="/index-image.png" alt="StickAINote Interface" width={700} height={525} style={{ width: "100%", height: "auto", display: "block" }} />
                 </div>
             </div>
           </section>
