@@ -1,20 +1,31 @@
 {
-  "name": "StickAINote",
-  "short_name": "Notes",
-  "start_url": "/",
+  "name": "StickAINote - AI-Powered Notes",
+  "short_name": "StickAINote",
+  "description": "AI-powered notes with rich editing, tables, images, and offline support.",
+  "start_url": "/notes",
   "display": "standalone",
-  "background_color": "#020617",
-  "theme_color": "#020617",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f172a",
+  "orientation": "any",
+  "categories": ["productivity", "utilities"],
   "icons": [
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/StickAINote-Logo.png",
+      "sizes": "any",
       "type": "image/png"
     }
-  ]
+  ],
+  "prefer_related_applications": false
 }

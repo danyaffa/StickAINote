@@ -1,21 +1,12 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ESNext"
-    ],
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "preserve",
     "strict": true,
-    "types": [
-      "vite/client",
-      "@capacitor/android",
-      "@capacitor/ios"
-    ],
     "allowJs": true,
     "noEmit": true,
     "incremental": true,
@@ -24,9 +15,12 @@
     "isolatedModules": true
   },
   "include": [
-    "src"
+    "pages",
+    "components",
+    "context",
+    "lib",
+    "utils",
+    "next-env.d.ts"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules", "out", ".next"]
 }
