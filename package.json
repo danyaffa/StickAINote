@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:mobile": "STATIC_EXPORT=true next build",
     "start": "next start"
   },
   "dependencies": {
@@ -20,9 +21,9 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/react": "^18.0.28",
+    "@types/node": "20.19.35",
+    "@types/react": "18.3.28",
     "@types/react-dom": "^18.0.11",
-    "typescript": "^5.5.0"
+    "typescript": "5.9.3"
   }
 }

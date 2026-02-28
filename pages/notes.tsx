@@ -83,6 +83,7 @@ export default function NotesPage() {
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const versionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editorDivRef = useRef<HTMLDivElement | null>(null);
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
   const lastVersionContent = useRef("");
   const notesTabsRef = useRef<HTMLDivElement | null>(null);
 
@@ -828,24 +829,6 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
 
                 <span style={{ width: 1, height: 20, background: darkMode ? "#475569" : "#e2e8f0" }} />
 
-                {/* Title */}
-                <input
-                  value={editTitle}
-                  onChange={(e) => handleTitleChange(e.target.value)}
-                  style={{
-                    flex: 1,
-                    border: "none",
-                    fontSize: 16,
-                    fontWeight: 700,
-                    outline: "none",
-                    minWidth: 120,
-                    background: "transparent",
-                    color: darkMode ? "#e2e8f0" : undefined,
-                  }}
-                  placeholder="Note title..."
-                  aria-label="Note title"
-                />
-
                 {/* Color picker */}
                 <div style={{ display: "flex", gap: 2 }}>
                   {COLORS.map((c) => (
@@ -1092,8 +1075,33 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                       const el = editorDivRef.current?.querySelector("[contenteditable]");
                       if (el) setEditContent((el as HTMLElement).innerHTML);
                     }}
+                    titleInputEl={titleInputRef.current}
+                    onTitleChange={(title) => {
+                      setEditTitle(title);
+                      scheduleAutoSave();
+                    }}
                   />
                 )}
+
+                {/* Note title */}
+                <input
+                  ref={titleInputRef}
+                  value={editTitle}
+                  onChange={(e) => handleTitleChange(e.target.value)}
+                  style={{
+                    padding: "16px 16px 8px",
+                    border: "none",
+                    fontSize: 22,
+                    fontWeight: 700,
+                    outline: "none",
+                    background: "transparent",
+                    width: "100%",
+                    color: darkMode ? "#e2e8f0" : "#1e293b",
+                    letterSpacing: "-0.01em",
+                  }}
+                  placeholder="Note title..."
+                  aria-label="Note title"
+                />
 
                 <RichEditor
                   content={editContent}

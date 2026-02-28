@@ -6,14 +6,17 @@ interface FindReplaceProps {
   onClose: () => void;
   editorEl: HTMLDivElement | null;
   onContentChange: () => void;
+  titleInputEl?: HTMLInputElement | null;
+  onTitleChange?: (title: string) => void;
 }
 
-export default function FindReplace({ onClose, editorEl, onContentChange }: FindReplaceProps) {
+export default function FindReplace({ onClose, editorEl, onContentChange, titleInputEl, onTitleChange }: FindReplaceProps) {
   const [findText, setFindText] = useState("");
   const [replaceText, setReplaceText] = useState("");
   const [matchCount, setMatchCount] = useState(0);
   const [currentMatch, setCurrentMatch] = useState(0);
   const [caseSensitive, setCaseSensitive] = useState(false);
+  const [titleMatches, setTitleMatches] = useState<{ start: number; end: number }[]>([]);
   const findInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -51,13 +54,18 @@ export default function FindReplace({ onClose, editorEl, onContentChange }: Find
         parent.normalize();
       }
     });
-  }, [editorEl]);
+    // Clear title highlight
+    if (titleInputEl) {
+      titleInputEl.style.removeProperty("box-shadow");
+    }
+  }, [editorEl, titleInputEl]);
 
   const highlightMatches = useCallback(() => {
     clearHighlights();
-    if (!editorEl || !findText) {
+    if (!findText) {
       setMatchCount(0);
       setCurrentMatch(0);
+      setTitleMatches([]);
       return;
     }
 
@@ -65,16 +73,34 @@ export default function FindReplace({ onClose, editorEl, onContentChange }: Find
     const escaped = findText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(escaped, flags);
 
-    // Walk through text nodes and highlight matches
+    // 1. Search title matches first
+    const newTitleMatches: { start: number; end: number }[] = [];
+    if (titleInputEl) {
+      const titleText = titleInputEl.value;
+      regex.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = regex.exec(titleText)) !== null) {
+        newTitleMatches.push({ start: m.index, end: m.index + m[0].length });
+      }
+    }
+    setTitleMatches(newTitleMatches);
+    const titleCount = newTitleMatches.length;
+
+    // 2. Search editor text nodes
+    if (!editorEl) {
+      setMatchCount(titleCount);
+      setCurrentMatch(titleCount > 0 ? 1 : 0);
+      return;
+    }
+
     const textNodes = getTextNodes();
-    let count = 0;
+    let editorCount = 0;
 
     for (const textNode of textNodes) {
       const nodeText = textNode.textContent || "";
       const matches: { start: number; end: number }[] = [];
       let m: RegExpExecArray | null;
 
-      // Reset regex lastIndex
       regex.lastIndex = 0;
       while ((m = regex.exec(nodeText)) !== null) {
         matches.push({ start: m.index, end: m.index + m[0].length });
@@ -82,7 +108,6 @@ export default function FindReplace({ onClose, editorEl, onContentChange }: Find
 
       if (matches.length === 0) continue;
 
-      // Build fragment with highlighted matches
       const parent = textNode.parentNode;
       if (!parent) continue;
 
@@ -90,15 +115,14 @@ export default function FindReplace({ onClose, editorEl, onContentChange }: Find
       let lastIdx = 0;
 
       for (const match of matches) {
-        count++;
-        // Add text before match
+        editorCount++;
+        const globalIdx = titleCount + editorCount;
         if (match.start > lastIdx) {
           frag.appendChild(document.createTextNode(nodeText.slice(lastIdx, match.start)));
         }
-        // Add highlighted match
         const mark = document.createElement("mark");
-        mark.setAttribute("data-find", String(count));
-        mark.style.background = count === 1 ? "#f97316" : "#fde68a";
+        mark.setAttribute("data-find", String(globalIdx));
+        mark.style.background = globalIdx === 1 ? "#f97316" : "#fde68a";
         mark.style.padding = "0 1px";
         mark.style.borderRadius = "2px";
         mark.textContent = nodeText.slice(match.start, match.end);
@@ -106,7 +130,6 @@ export default function FindReplace({ onClose, editorEl, onContentChange }: Find
         lastIdx = match.end;
       }
 
-      // Add remaining text
       if (lastIdx < nodeText.length) {
         frag.appendChild(document.createTextNode(nodeText.slice(lastIdx)));
       }
@@ -114,32 +137,60 @@ export default function FindReplace({ onClose, editorEl, onContentChange }: Find
       parent.replaceChild(frag, textNode);
     }
 
-    setMatchCount(count);
-    setCurrentMatch(count > 0 ? 1 : 0);
+    const total = titleCount + editorCount;
+    setMatchCount(total);
+    setCurrentMatch(total > 0 ? 1 : 0);
 
-    // Scroll first match into view
-    if (count > 0) {
-      const firstMark = editorEl.querySelector('mark[data-find="1"]');
-      firstMark?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Highlight first match
+    if (total > 0) {
+      if (titleCount > 0) {
+        // First match is in title
+        if (titleInputEl) {
+          titleInputEl.focus();
+          titleInputEl.setSelectionRange(newTitleMatches[0].start, newTitleMatches[0].end);
+          titleInputEl.style.boxShadow = "inset 0 -3px 0 #f97316";
+        }
+      } else {
+        const firstMark = editorEl.querySelector('mark[data-find="1"]');
+        firstMark?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
     }
-  }, [editorEl, findText, caseSensitive, clearHighlights, getTextNodes]);
+  }, [editorEl, findText, caseSensitive, clearHighlights, getTextNodes, titleInputEl]);
 
   const goToMatch = useCallback((idx: number) => {
-    if (!editorEl || matchCount === 0) return;
-    // Reset all highlights to yellow
-    const marks = editorEl.querySelectorAll("mark[data-find]");
-    marks.forEach((m) => {
-      (m as HTMLElement).style.background = "#fde68a";
-    });
+    if (matchCount === 0) return;
+    const titleCount = titleMatches.length;
 
-    // Highlight current match in orange
-    const target = editorEl.querySelector(`mark[data-find="${idx}"]`);
-    if (target) {
-      (target as HTMLElement).style.background = "#f97316";
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Reset all editor highlights to yellow
+    if (editorEl) {
+      const marks = editorEl.querySelectorAll("mark[data-find]");
+      marks.forEach((m) => {
+        (m as HTMLElement).style.background = "#fde68a";
+      });
+    }
+    // Reset title highlight
+    if (titleInputEl) {
+      titleInputEl.style.removeProperty("box-shadow");
+    }
+
+    if (idx <= titleCount) {
+      // Title match
+      const tm = titleMatches[idx - 1];
+      if (titleInputEl && tm) {
+        titleInputEl.focus();
+        titleInputEl.setSelectionRange(tm.start, tm.end);
+        titleInputEl.style.boxShadow = "inset 0 -3px 0 #f97316";
+      }
+    } else {
+      // Editor match
+      const target = editorEl?.querySelector(`mark[data-find="${idx}"]`);
+      if (target) {
+        (target as HTMLElement).style.background = "#f97316";
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
     }
     setCurrentMatch(idx);
-  }, [editorEl, matchCount]);
+  }, [editorEl, matchCount, titleMatches, titleInputEl]);
 
   const nextMatch = useCallback(() => {
     if (matchCount === 0) return;
@@ -154,48 +205,75 @@ export default function FindReplace({ onClose, editorEl, onContentChange }: Find
   }, [currentMatch, matchCount, goToMatch]);
 
   const replaceNext = useCallback(() => {
-    if (!editorEl || !findText || matchCount === 0) return;
-    const mark = editorEl.querySelector(`mark[data-find="${currentMatch}"]`);
-    if (mark) {
-      mark.replaceWith(document.createTextNode(replaceText));
-      editorEl.normalize();
-      onContentChange();
-      // Re-highlight remaining matches
-      highlightMatches();
+    if (!findText || matchCount === 0) return;
+    const titleCount = titleMatches.length;
+
+    if (currentMatch <= titleCount) {
+      // Replace in title
+      if (titleInputEl && onTitleChange) {
+        const tm = titleMatches[currentMatch - 1];
+        if (tm) {
+          const titleText = titleInputEl.value;
+          const newTitle = titleText.slice(0, tm.start) + replaceText + titleText.slice(tm.end);
+          onTitleChange(newTitle);
+        }
+      }
+      // Re-highlight
+      // Need a small delay to let the title state update
+      setTimeout(() => highlightMatches(), 50);
+    } else {
+      // Replace in editor
+      if (!editorEl) return;
+      const mark = editorEl.querySelector(`mark[data-find="${currentMatch}"]`);
+      if (mark) {
+        mark.replaceWith(document.createTextNode(replaceText));
+        editorEl.normalize();
+        onContentChange();
+        highlightMatches();
+      }
     }
-  }, [editorEl, findText, replaceText, currentMatch, matchCount, highlightMatches, onContentChange]);
+  }, [editorEl, findText, replaceText, currentMatch, matchCount, titleMatches, titleInputEl, onTitleChange, highlightMatches, onContentChange]);
 
   const replaceAll = useCallback(() => {
-    if (!editorEl || !findText) return;
+    if (!findText) return;
     clearHighlights();
-
-    const walker = document.createTreeWalker(editorEl, NodeFilter.SHOW_TEXT);
-    const nodes: Text[] = [];
-    let node: Node | null;
-    while ((node = walker.nextNode())) {
-      nodes.push(node as Text);
-    }
 
     const flags = caseSensitive ? "g" : "gi";
     const escaped = findText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(escaped, flags);
-    let count = 0;
 
-    for (const textNode of nodes) {
-      const original = textNode.textContent || "";
-      const replaced = original.replace(regex, () => {
-        count++;
-        return replaceText;
-      });
-      if (replaced !== original) {
-        textNode.textContent = replaced;
+    // Replace in title
+    if (titleInputEl && onTitleChange) {
+      const titleText = titleInputEl.value;
+      const newTitle = titleText.replace(regex, replaceText);
+      if (newTitle !== titleText) {
+        onTitleChange(newTitle);
       }
+    }
+
+    // Replace in editor
+    if (editorEl) {
+      const walker = document.createTreeWalker(editorEl, NodeFilter.SHOW_TEXT);
+      const nodes: Text[] = [];
+      let node: Node | null;
+      while ((node = walker.nextNode())) {
+        nodes.push(node as Text);
+      }
+
+      for (const textNode of nodes) {
+        const original = textNode.textContent || "";
+        const replaced = original.replace(regex, replaceText);
+        if (replaced !== original) {
+          textNode.textContent = replaced;
+        }
+      }
+      onContentChange();
     }
 
     setMatchCount(0);
     setCurrentMatch(0);
-    onContentChange();
-  }, [editorEl, findText, replaceText, caseSensitive, clearHighlights, onContentChange]);
+    setTitleMatches([]);
+  }, [editorEl, findText, replaceText, caseSensitive, clearHighlights, onContentChange, titleInputEl, onTitleChange]);
 
   const handleClose = useCallback(() => {
     clearHighlights();
