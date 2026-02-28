@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Head from "next/head";
 import Link from "next/link";
+import { getFirebaseAuth } from "../utils/firebaseClient";
 
 export default function AccountSettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -9,6 +10,9 @@ export default function AccountSettingsPage() {
   const [passwordMsg, setPasswordMsg] = useState("");
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [email, setEmail] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState<"idle" | "deleting" | "done" | "error">("idle");
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -205,26 +209,121 @@ export default function AccountSettingsPage() {
             <h2 style={{ fontSize: 18, marginTop: 0, marginBottom: 8, color: "#fca5a5" }}>
               Delete Account
             </h2>
-            <p style={{ fontSize: 14, color: "#94a3b8", lineHeight: 1.6, marginBottom: 16 }}>
-              Permanently delete your account and all associated data. This
-              action cannot be reversed. Cancel your subscription first if you
-              have one.
-            </p>
-            <Link
-              href="/delete-account"
-              style={{
-                display: "inline-block",
-                padding: "10px 20px",
-                borderRadius: 8,
-                background: "#dc2626",
-                color: "white",
-                textDecoration: "none",
-                fontWeight: 600,
-                fontSize: 14,
-              }}
-            >
-              Go to Delete Account
-            </Link>
+
+            {deleteStatus === "done" ? (
+              <div style={{ textAlign: "center", padding: "16px 0" }}>
+                <p style={{ fontSize: 14, color: "#4ade80", marginBottom: 12 }}>
+                  Your account has been permanently deleted.
+                </p>
+                <Link
+                  href="/"
+                  style={{
+                    display: "inline-block",
+                    padding: "10px 20px",
+                    borderRadius: 8,
+                    background: "#2563eb",
+                    color: "white",
+                    textDecoration: "none",
+                    fontWeight: 600,
+                    fontSize: 14,
+                  }}
+                >
+                  Return to Home
+                </Link>
+              </div>
+            ) : (
+              <>
+                <p style={{ fontSize: 14, color: "#94a3b8", lineHeight: 1.6, marginBottom: 16 }}>
+                  Permanently delete your account and all associated data. This
+                  action cannot be reversed. Cancel your subscription first if you
+                  have one.
+                </p>
+
+                {deleteError && (
+                  <p style={{ fontSize: 13, color: "#f87171", margin: "0 0 12px" }}>
+                    {deleteError}
+                  </p>
+                )}
+
+                {!showDeleteConfirm ? (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={deleteStatus === "deleting"}
+                    style={btnDanger}
+                    type="button"
+                  >
+                    Delete My Account
+                  </button>
+                ) : (
+                  <div
+                    style={{
+                      background: "rgba(220, 38, 38, 0.1)",
+                      border: "1px solid #dc2626",
+                      borderRadius: 10,
+                      padding: 16,
+                    }}
+                  >
+                    <p style={{ fontSize: 14, color: "#fca5a5", margin: "0 0 12px", lineHeight: 1.5 }}>
+                      <strong>This is permanent.</strong> Your account will be
+                      deleted from Firebase and cannot be recovered. Are you sure?
+                    </p>
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <button
+                        onClick={() => { setShowDeleteConfirm(false); setDeleteError(""); }}
+                        style={{ ...btnPrimary, background: "#475569" }}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setDeleteStatus("deleting");
+                          setDeleteError("");
+                          try {
+                            const auth = getFirebaseAuth();
+                            const user = auth?.currentUser;
+                            if (!user) {
+                              setDeleteError("You are not signed in. Please log in first.");
+                              setDeleteStatus("error");
+                              return;
+                            }
+                            const idToken = await user.getIdToken(true);
+                            const res = await fetch("/api/delete-account", {
+                              method: "POST",
+                              headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${idToken}`,
+                              },
+                            });
+                            const data = await res.json();
+                            if (!res.ok || !data.success) {
+                              setDeleteError(data.error || "Failed to delete account.");
+                              setDeleteStatus("error");
+                              return;
+                            }
+                            try { await auth?.signOut(); } catch { /* ignore */ }
+                            if (typeof window !== "undefined") {
+                              window.localStorage.removeItem("stickainote-promo");
+                              window.localStorage.removeItem("stickainote-paid");
+                              window.localStorage.removeItem("stickainote-email");
+                            }
+                            setDeleteStatus("done");
+                          } catch (err: any) {
+                            setDeleteError(err?.message || "An error occurred.");
+                            setDeleteStatus("error");
+                          }
+                        }}
+                        disabled={deleteStatus === "deleting"}
+                        style={btnDanger}
+                        type="button"
+                      >
+                        {deleteStatus === "deleting" ? "Deleting..." : "Yes, Delete My Account"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </section>
 
           {/* Footer */}
