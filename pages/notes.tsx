@@ -693,6 +693,20 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
     return sel?.toString() || "";
   }, []);
 
+  // Ctrl+S / Cmd+S keyboard shortcut to save note
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        if (latestActiveId.current) {
+          handleManualSave();
+        }
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [handleManualSave]);
+
   // Close dropdown menus when clicking elsewhere
   useEffect(() => {
     const anyOpen = showExportMenu || showPriorityMenu || showAiMenu || showQuickActions || showMoveToFolder;
