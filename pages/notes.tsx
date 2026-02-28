@@ -899,13 +899,8 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                 </div>
               )}
             </div>
-          ) : !activeNote ? (
-            /* activeId is set but note not found - show loading instead of flashing to All Notes */
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ color: "#94a3b8", fontSize: 14 }}>Loading note...</div>
-            </div>
           ) : (
-            /* Editor view */
+            /* Editor view - always mounted when activeId is set to prevent unmount/remount */
             <>
               {/* Note action bar */}
               <div
@@ -967,17 +962,17 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                     display: "flex",
                     alignItems: "center",
                     gap: 4,
-                    background: activeNote.pinned ? "#fef2f2" : "white",
-                    borderColor: activeNote.pinned ? "#fca5a5" : "#e2e8f0",
-                    color: activeNote.pinned ? "#dc2626" : undefined,
+                    background: activeNote?.pinned ? "#fef2f2" : "white",
+                    borderColor: activeNote?.pinned ? "#fca5a5" : "#e2e8f0",
+                    color: activeNote?.pinned ? "#dc2626" : undefined,
                   }}
                   type="button"
-                  title={activeNote.pinned ? "Unpin note" : "Pin note to top"}
+                  title={activeNote?.pinned ? "Unpin note" : "Pin note to top"}
                 >
-                  <svg width="11" height="11" viewBox="0 0 10 10" fill={activeNote.pinned ? "#ef4444" : "none"} stroke={activeNote.pinned ? "#ef4444" : "currentColor"} strokeWidth="1">
+                  <svg width="11" height="11" viewBox="0 0 10 10" fill={activeNote?.pinned ? "#ef4444" : "none"} stroke={activeNote?.pinned ? "#ef4444" : "currentColor"} strokeWidth="1">
                     <path d="M5 0L6.5 3.5L10 4L7.5 6.5L8 10L5 8L2 10L2.5 6.5L0 4L3.5 3.5Z" />
                   </svg>
-                  {activeNote.pinned ? "Pinned" : "Pin"}
+                  {activeNote?.pinned ? "Pinned" : "Pin"}
                 </button>
 
                 <button onClick={() => handleDuplicate(activeId!)} style={darkMode ? actionBtnDark : actionBtnStyle} type="button" title="Duplicate note">
@@ -1004,7 +999,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                     title="Set priority"
                   >
                     {(() => {
-                      const pri = PRIORITIES.find((p) => p.value === (activeNote.priority || "none"));
+                      const pri = PRIORITIES.find((p) => p.value === (activeNote?.priority || "none"));
                       return pri && pri.value !== "none" ? (
                         <><span style={{ color: pri.color }}>{pri.icon}</span> {pri.label}</>
                       ) : "Priority";
@@ -1037,7 +1032,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                             alignItems: "center",
                             gap: 8,
                             color: darkMode ? "#e2e8f0" : undefined,
-                            background: (activeNote.priority || "none") === p.value ? (darkMode ? "#334155" : "#f1f5f9") : "transparent",
+                            background: (activeNote?.priority || "none") === p.value ? (darkMode ? "#334155" : "#f1f5f9") : "transparent",
                           }}
                           type="button"
                         >
@@ -1253,7 +1248,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   {saveStatus === "saving" && "Saving..."}
                   {saveStatus === "saved" && "Saved"}
                 </span>
-                <span>Modified {formatDate(activeNote.updatedAt)}</span>
+                <span>Modified {formatDate(activeNote?.updatedAt ?? Date.now())}</span>
               </div>
             </>
           )}
