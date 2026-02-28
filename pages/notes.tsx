@@ -103,6 +103,8 @@ const TEMPLATES = [
   },
 ];
 
+const FREE_TRIAL_LIMIT = 5;
+
 export default function NotesPage() {
   const [notes, setNotes] = useState<NoteRecord[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -123,6 +125,22 @@ export default function NotesPage() {
   const [showAiMenu, setShowAiMenu] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [showUpgradePopup, setShowUpgradePopup] = useState(false);
+
+  // Folders
+  const [folders, setFolders] = useState<string[]>([]);
+  const [noteFolder, setNoteFolder] = useState<Record<string, string>>({}); // noteId -> folder name
+  const [activeFolder, setActiveFolder] = useState<string | null>(null);
+  const [showFolderDialog, setShowFolderDialog] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [showMoveToFolder, setShowMoveToFolder] = useState(false);
+
+  // Free trial check
+  const isPaidUser = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("stickainote-promo") === "1" ||
+           window.localStorage.getItem("stickainote-paid") === "1";
+  }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Editor state
   const [editContent, setEditContent] = useState("");
@@ -170,6 +188,13 @@ export default function NotesPage() {
       await purgeOldTrash(settings.trashRetentionDays);
       const loaded = await getAllNotes();
       setNotes(loaded);
+      // Load folders from localStorage
+      try {
+        const storedFolders = window.localStorage.getItem("stickanote-folders");
+        if (storedFolders) setFolders(JSON.parse(storedFolders));
+        const storedNoteFolder = window.localStorage.getItem("stickanote-note-folders");
+        if (storedNoteFolder) setNoteFolder(JSON.parse(storedNoteFolder));
+      } catch { /* ignore */ }
       setLoaded(true);
     })();
   }, []);
@@ -306,10 +331,15 @@ export default function NotesPage() {
   }, [scheduleAutoSave]);
 
   const handleNewNote = useCallback(async () => {
+    // Free trial limit check
+    if (!isPaidUser && notes.length >= FREE_TRIAL_LIMIT) {
+      setShowUpgradePopup(true);
+      return;
+    }
     const note = await createNote();
     setNotes((prev) => [note, ...prev]);
     setActiveId(note.id);
-  }, []);
+  }, [isPaidUser, notes.length]);
 
   const handleNewNoteWithContent = useCallback(
     async (title: string, content: string) => {
@@ -393,6 +423,11 @@ export default function NotesPage() {
 
   const handleCreateFromTemplate = useCallback(
     async (template: (typeof TEMPLATES)[number]) => {
+      if (!isPaidUser && notes.length >= FREE_TRIAL_LIMIT) {
+        setShowTemplates(false);
+        setShowUpgradePopup(true);
+        return;
+      }
       const note = await createNote({
         title: template.title,
         content: template.content,
@@ -401,7 +436,7 @@ export default function NotesPage() {
       setActiveId(note.id);
       setShowTemplates(false);
     },
-    []
+    [isPaidUser, notes.length]
   );
 
   const handleAiAction = useCallback(
@@ -470,6 +505,74 @@ export default function NotesPage() {
     setNotes(loaded);
   }, []);
 
+  // Save folders to localStorage whenever they change
+  const saveFolders = useCallback((f: string[], nf: Record<string, string>) => {
+    try {
+      window.localStorage.setItem("stickanote-folders", JSON.stringify(f));
+      window.localStorage.setItem("stickanote-note-folders", JSON.stringify(nf));
+    } catch { /* ignore */ }
+  }, []);
+
+  const handleCreateFolder = useCallback(() => {
+    const name = newFolderName.trim();
+    if (!name || folders.includes(name)) return;
+    const updated = [...folders, name];
+    setFolders(updated);
+    saveFolders(updated, noteFolder);
+    setNewFolderName("");
+    setShowFolderDialog(false);
+  }, [newFolderName, folders, noteFolder, saveFolders]);
+
+  const handleMoveToFolder = useCallback((folderName: string | null) => {
+    if (!activeId) return;
+    const updated = { ...noteFolder };
+    if (folderName) {
+      updated[activeId] = folderName;
+    } else {
+      delete updated[activeId];
+    }
+    setNoteFolder(updated);
+    saveFolders(folders, updated);
+    setShowMoveToFolder(false);
+  }, [activeId, noteFolder, folders, saveFolders]);
+
+  const handleDeleteFolder = useCallback((folderName: string) => {
+    const updatedFolders = folders.filter((f) => f !== folderName);
+    const updatedMap = { ...noteFolder };
+    // Remove folder assignment from notes in this folder
+    for (const key of Object.keys(updatedMap)) {
+      if (updatedMap[key] === folderName) delete updatedMap[key];
+    }
+    setFolders(updatedFolders);
+    setNoteFolder(updatedMap);
+    saveFolders(updatedFolders, updatedMap);
+    if (activeFolder === folderName) setActiveFolder(null);
+  }, [folders, noteFolder, activeFolder, saveFolders]);
+
+  // Manual save handler
+  const handleManualSave = useCallback(async () => {
+    const id = latestActiveId.current;
+    if (!id) return;
+    setSaveStatus("saving");
+    const sanitized = sanitizeHtml(latestEditContent.current);
+    const title = latestEditTitle.current;
+    const tables = latestEditTables.current;
+    const color = latestEditColor.current;
+    try {
+      await dbUpdateNote(id, { title, content: sanitized, tables, color });
+      setNotes((prev) =>
+        prev.map((n) =>
+          n.id === id
+            ? { ...n, title, content: sanitized, tables, color, updatedAt: Date.now() }
+            : n
+        )
+      );
+      setSaveStatus("saved");
+    } catch {
+      setSaveStatus("idle");
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleRestoreVersion = useCallback(
     async (version: NoteVersion) => {
       if (!activeId) return;
@@ -486,14 +589,22 @@ export default function NotesPage() {
     [activeId, reloadNotes]
   );
 
-  // Filtered notes
-  const filteredNotes = searchQuery
-    ? notes.filter(
+  // Filtered notes (search + folder filter)
+  const filteredNotes = useMemo(() => {
+    let result = notes;
+    if (activeFolder) {
+      result = result.filter((n) => noteFolder[n.id] === activeFolder);
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
         (n) =>
-          n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          stripHtml(n.content).toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : notes;
+          n.title.toLowerCase().includes(q) ||
+          stripHtml(n.content).toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [notes, searchQuery, activeFolder, noteFolder]);
 
   // Export handlers
   const exportAsMarkdown = useCallback(() => {
@@ -533,9 +644,13 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
   }, [activeNote, editTitle, editContent]);
 
   const handleImportJson = useCallback(async () => {
+    if (!isPaidUser && notes.length >= FREE_TRIAL_LIMIT) {
+      setShowUpgradePopup(true);
+      return;
+    }
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".json,.md,.markdown";
+    input.accept = ".json,.md,.markdown,.txt,.html";
     input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return;
@@ -546,20 +661,26 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
           const { importNotes } = await import("../lib/db");
           const count = await importNotes(text);
           await reloadNotes();
-          alert(`Imported ${count} note(s)`);
+          alert(`Successfully imported ${count} note(s) into StickAINote!`);
         } catch {
-          alert("Invalid JSON file");
+          alert("Could not read this JSON file. Please check the format.");
         }
       } else {
-        await createNote({
-          title: file.name.replace(/\.(md|markdown)$/, ""),
-          content: text.replace(/\n/g, "<br>"),
+        // .md, .markdown, .txt, .html - create a new note with file content
+        const baseName = file.name.replace(/\.(md|markdown|txt|html?)$/, "");
+        const isHtml = file.name.endsWith(".html") || file.name.endsWith(".htm");
+        const content = isHtml ? text : text.replace(/\n/g, "<br>");
+        const note = await createNote({
+          title: baseName || "Imported Note",
+          content,
         });
-        await reloadNotes();
+        setNotes((prev) => [note, ...prev]);
+        setActiveId(note.id);
+        alert(`Imported "${baseName}" as a new note!`);
       }
     };
     input.click();
-  }, [reloadNotes]);
+  }, [reloadNotes, isPaidUser, notes.length]);
 
   const handleExportAll = useCallback(async () => {
     const { exportAllNotes } = await import("../lib/db");
@@ -574,17 +695,18 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
 
   // Close dropdown menus when clicking elsewhere
   useEffect(() => {
-    const anyOpen = showExportMenu || showPriorityMenu || showAiMenu || showQuickActions;
+    const anyOpen = showExportMenu || showPriorityMenu || showAiMenu || showQuickActions || showMoveToFolder;
     if (!anyOpen) return;
     const handler = () => {
       setShowExportMenu(false);
       setShowPriorityMenu(false);
       setShowAiMenu(false);
       setShowQuickActions(false);
+      setShowMoveToFolder(false);
     };
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
-  }, [showExportMenu, showPriorityMenu, showAiMenu, showQuickActions]);
+  }, [showExportMenu, showPriorityMenu, showAiMenu, showQuickActions, showMoveToFolder]);
 
   if (!loaded) {
     return (
@@ -657,6 +779,9 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
 
           <button onClick={() => setShowTemplates(true)} style={headerBtn} type="button" title="Create from template">
             Templates
+          </button>
+          <button onClick={() => setShowFolderDialog(true)} style={headerBtn} type="button" title="Manage folders">
+            Folders
           </button>
           <button onClick={handleImportJson} style={headerBtn} type="button" title="Import notes">
             Import
@@ -794,6 +919,61 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
             {notes.length} note{notes.length !== 1 ? "s" : ""}
           </div>
         </div>
+
+        {/* FOLDERS BAR */}
+        {activeId === null && folders.length > 0 && (
+          <div
+            style={{
+              background: darkMode ? "#1e293b" : "#f1f5f9",
+              borderBottom: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
+              padding: "4px 12px",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              flexShrink: 0,
+              overflowX: "auto",
+            }}
+          >
+            <span style={{ fontSize: 11, color: "#94a3b8", flexShrink: 0 }}>Folders:</span>
+            <button
+              onClick={() => setActiveFolder(null)}
+              style={{
+                padding: "3px 10px",
+                borderRadius: 12,
+                border: "none",
+                background: activeFolder === null ? (darkMode ? "#2563eb" : "#2563eb") : "transparent",
+                color: activeFolder === null ? "white" : (darkMode ? "#94a3b8" : "#64748b"),
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: activeFolder === null ? 600 : 400,
+                whiteSpace: "nowrap",
+              }}
+              type="button"
+            >
+              All
+            </button>
+            {folders.map((f) => (
+              <button
+                key={f}
+                onClick={() => setActiveFolder(activeFolder === f ? null : f)}
+                style={{
+                  padding: "3px 10px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: activeFolder === f ? (darkMode ? "#2563eb" : "#2563eb") : "transparent",
+                  color: activeFolder === f ? "white" : (darkMode ? "#94a3b8" : "#64748b"),
+                  cursor: "pointer",
+                  fontSize: 11,
+                  fontWeight: activeFolder === f ? 600 : 400,
+                  whiteSpace: "nowrap",
+                }}
+                type="button"
+              >
+                {f} ({notes.filter((n) => noteFolder[n.id] === f).length})
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* MAIN CONTENT */}
         <main style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -1142,7 +1322,83 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   + Table
                 </button>
 
+                {/* Move to Folder */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowMoveToFolder(!showMoveToFolder); }}
+                    style={{
+                      ...(darkMode ? actionBtnDark : actionBtnStyle),
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                    type="button"
+                    title="Move to folder"
+                  >
+                    {activeId && noteFolder[activeId] ? noteFolder[activeId] : "Folder"}
+                  </button>
+                  {showMoveToFolder && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        marginTop: 4,
+                        background: darkMode ? "#1e293b" : "white",
+                        border: darkMode ? "1px solid #475569" : "1px solid #e2e8f0",
+                        borderRadius: 8,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        zIndex: 50,
+                        minWidth: 160,
+                        padding: 4,
+                      }}
+                    >
+                      <button
+                        onClick={() => handleMoveToFolder(null)}
+                        style={{ ...dropdownBtn, color: darkMode ? "#e2e8f0" : undefined, fontStyle: "italic" }}
+                        type="button"
+                      >
+                        No folder
+                      </button>
+                      {folders.map((f) => (
+                        <button
+                          key={f}
+                          onClick={() => handleMoveToFolder(f)}
+                          style={{
+                            ...dropdownBtn,
+                            color: darkMode ? "#e2e8f0" : undefined,
+                            background: activeId && noteFolder[activeId] === f ? (darkMode ? "#334155" : "#f1f5f9") : "transparent",
+                          }}
+                          type="button"
+                        >
+                          {f}
+                        </button>
+                      ))}
+                      {folders.length === 0 && (
+                        <div style={{ padding: "6px 10px", fontSize: 11, color: "#94a3b8" }}>No folders yet</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <span style={{ width: 1, height: 20, background: darkMode ? "#475569" : "#e2e8f0" }} />
+
+                {/* Save my Note */}
+                <button
+                  onClick={handleManualSave}
+                  style={{
+                    ...(darkMode ? actionBtnDark : actionBtnStyle),
+                    background: darkMode ? "#1e3a5f" : "#eff6ff",
+                    borderColor: darkMode ? "#2563eb" : "#93c5fd",
+                    color: darkMode ? "#93c5fd" : "#2563eb",
+                    fontWeight: 600,
+                  }}
+                  type="button"
+                  title="Save note now"
+                >
+                  Save my Note
+                </button>
 
                 <button
                   onClick={() => setConfirmDeleteId(activeId!)}
@@ -1417,6 +1673,209 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* UPGRADE POPUP */}
+        {showUpgradePopup && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1200,
+              padding: 16,
+            }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowUpgradePopup(false); }}
+          >
+            <div
+              style={{
+                background: darkMode ? "#1e293b" : "white",
+                borderRadius: 16,
+                padding: "32px 28px",
+                maxWidth: 420,
+                width: "100%",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: 48, marginBottom: 16 }}>&#9889;</div>
+              <h2 style={{ margin: "0 0 12px", fontSize: 22, color: darkMode ? "#e2e8f0" : "#1e293b" }}>
+                Free Trial Limit Reached
+              </h2>
+              <p style={{ fontSize: 14, color: "#94a3b8", margin: "0 0 8px", lineHeight: 1.6 }}>
+                You have used all <strong>{FREE_TRIAL_LIMIT}</strong> free notes.
+              </p>
+              <p style={{ fontSize: 14, color: "#94a3b8", margin: "0 0 24px", lineHeight: 1.6 }}>
+                Upgrade to <strong>StickAINote Pro</strong> for unlimited notes, AI features, and more.
+                Only <strong>US$6.60/month</strong> - cancel any time.
+              </p>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                <button
+                  onClick={() => setShowUpgradePopup(false)}
+                  style={{
+                    padding: "12px 24px",
+                    borderRadius: 8,
+                    border: darkMode ? "1px solid #475569" : "1px solid #e2e8f0",
+                    background: darkMode ? "#0f172a" : "#f8fafc",
+                    color: darkMode ? "#e2e8f0" : "#1e293b",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    fontWeight: 600,
+                  }}
+                  type="button"
+                >
+                  Maybe Later
+                </button>
+                <button
+                  onClick={() => {
+                    window.location.href = "/register";
+                  }}
+                  style={{
+                    padding: "12px 28px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: "linear-gradient(135deg, #2563eb, #7c3aed)",
+                    color: "white",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    boxShadow: "0 4px 14px rgba(37,99,235,0.4)",
+                  }}
+                  type="button"
+                >
+                  Upgrade Now
+                </button>
+              </div>
+              <p style={{ marginTop: 16, fontSize: 11, color: "#94a3b8" }}>
+                First month free. Cancel any time before the month ends.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* FOLDER MANAGEMENT DIALOG */}
+        {showFolderDialog && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.4)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1000,
+              padding: 16,
+            }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowFolderDialog(false); }}
+          >
+            <div
+              style={{
+                background: darkMode ? "#1e293b" : "white",
+                borderRadius: 12,
+                padding: 24,
+                maxWidth: 400,
+                width: "100%",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <h3 style={{ margin: 0, fontSize: 18, color: darkMode ? "#e2e8f0" : "#1e293b" }}>Manage Folders</h3>
+                <button
+                  onClick={() => setShowFolderDialog(false)}
+                  style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: darkMode ? "#94a3b8" : undefined }}
+                  type="button"
+                >
+                  x
+                </button>
+              </div>
+
+              {/* Create new folder */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                <input
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleCreateFolder(); }}
+                  placeholder="New folder name..."
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: darkMode ? "1px solid #475569" : "1px solid #e2e8f0",
+                    fontSize: 13,
+                    outline: "none",
+                    background: darkMode ? "#0f172a" : "#f8fafc",
+                    color: darkMode ? "#e2e8f0" : undefined,
+                  }}
+                />
+                <button
+                  onClick={handleCreateFolder}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: "#2563eb",
+                    color: "white",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                  type="button"
+                >
+                  Create
+                </button>
+              </div>
+
+              {/* Existing folders */}
+              {folders.length === 0 ? (
+                <p style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", padding: 16 }}>
+                  No folders yet. Create one above to organise your notes.
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {folders.map((f) => {
+                    const count = notes.filter((n) => noteFolder[n.id] === f).length;
+                    return (
+                      <div
+                        key={f}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          padding: "8px 12px",
+                          borderRadius: 8,
+                          background: darkMode ? "#0f172a" : "#f8fafc",
+                          border: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
+                        }}
+                      >
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: darkMode ? "#e2e8f0" : "#1e293b" }}>
+                          {f}
+                        </span>
+                        <span style={{ fontSize: 11, color: "#94a3b8" }}>{count} note{count !== 1 ? "s" : ""}</span>
+                        <button
+                          onClick={() => handleDeleteFolder(f)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "#dc2626",
+                            cursor: "pointer",
+                            fontSize: 12,
+                            padding: "2px 6px",
+                          }}
+                          type="button"
+                          title={`Delete folder "${f}"`}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}

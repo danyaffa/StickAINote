@@ -296,6 +296,15 @@ export default function RichEditor({
         onPaste={handlePaste}
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
+        onClick={(e) => {
+          // Open links in new tab when clicking on them
+          const target = e.target as HTMLElement;
+          const anchor = target.closest("a");
+          if (anchor && anchor.href) {
+            e.preventDefault();
+            window.open(anchor.href, "_blank", "noopener,noreferrer");
+          }
+        }}
         data-placeholder={placeholder}
         style={{
           flex: 1,
@@ -367,6 +376,14 @@ export default function RichEditor({
           border: none;
           border-top: 1px solid rgba(0, 0, 0, 0.15);
           margin: 12px 0;
+        }
+        [contenteditable] a {
+          color: #2563eb;
+          text-decoration: underline;
+          cursor: pointer;
+        }
+        [contenteditable] a:hover {
+          color: #1d4ed8;
         }
       `}</style>
     </div>
