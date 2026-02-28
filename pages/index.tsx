@@ -11,10 +11,16 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+function getIsIOS() {
+  if (typeof navigator === "undefined") return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
 export default function HomePage() {
   const siteTitle = "StickAINote – AI Sticky Notes & Thoughtboard";
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -39,13 +45,23 @@ export default function HomePage() {
   }, []);
 
   const handleInstall = useCallback(async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") {
-      setIsInstalled(true);
+    // If native PWA prompt is available (Chrome, Edge, Android), use it directly
+    if (deferredPrompt) {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === "accepted") {
+        setIsInstalled(true);
+      }
+      setDeferredPrompt(null);
+      return;
     }
-    setDeferredPrompt(null);
+    // On iOS, show the "Add to Home Screen" guide
+    if (getIsIOS()) {
+      setShowIOSGuide(true);
+      return;
+    }
+    // Fallback for other browsers: show the iOS-style guide (works as generic instructions)
+    setShowIOSGuide(true);
   }, [deferredPrompt]);
 
   return (
@@ -161,22 +177,19 @@ export default function HomePage() {
               {!isInstalled && (
                 <button
                   onClick={handleInstall}
-                  disabled={!deferredPrompt}
                   style={{
                     padding: "8px 20px",
                     borderRadius: 999,
-                    background: deferredPrompt
-                      ? "linear-gradient(to right, #2563eb, #4f46e5)"
-                      : "rgba(37, 99, 235, 0.4)",
+                    background: "linear-gradient(to right, #2563eb, #4f46e5)",
                     color: "white",
                     fontSize: 14,
                     fontWeight: 700,
                     border: "none",
-                    cursor: deferredPrompt ? "pointer" : "default",
+                    cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
                     gap: 6,
-                    boxShadow: deferredPrompt ? "0 4px 12px rgba(37, 99, 235, 0.4)" : "none",
+                    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.4)",
                   }}
                 >
                   <span style={{ fontSize: 16 }}>+</span> Install App
@@ -397,6 +410,96 @@ export default function HomePage() {
 
         {/* 8. REVIEW WIDGET (ACTUAL COMPONENT) */}
         <ReviewWidget />
+
+        {/* iOS / fallback Install Guide Overlay */}
+        {showIOSGuide && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+              padding: 16,
+            }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowIOSGuide(false); }}
+          >
+            <div
+              style={{
+                background: "#1e293b",
+                borderRadius: 20,
+                padding: "32px 28px",
+                maxWidth: 400,
+                width: "100%",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+                textAlign: "center",
+                color: "white",
+              }}
+            >
+              <div style={{ fontSize: 48, marginBottom: 16 }}>
+                {getIsIOS() ? (
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline" }}>
+                    <path d="M12 5v14M5 12l7-7 7 7" />
+                    <rect x="4" y="18" width="16" height="2" rx="1" />
+                  </svg>
+                ) : (
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline" }}>
+                    <path d="M12 5v14M5 12l7-7 7 7" />
+                  </svg>
+                )}
+              </div>
+              <h3 style={{ margin: "0 0 12px", fontSize: 20, fontWeight: 700 }}>
+                Install StickAINote
+              </h3>
+              {getIsIOS() ? (
+                <div style={{ fontSize: 15, color: "#cbd5e1", lineHeight: 1.8, textAlign: "left" }}>
+                  <p style={{ margin: "0 0 16px", textAlign: "center", color: "#94a3b8" }}>
+                    Follow these 2 simple steps:
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, padding: "10px 14px", background: "rgba(56,189,248,0.1)", borderRadius: 12 }}>
+                    <span style={{ fontSize: 24, flexShrink: 0 }}>1.</span>
+                    <span>Tap the <strong style={{ color: "#38bdf8" }}>Share</strong> button
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "middle", margin: "0 4px" }}>
+                        <path d="M12 5v14M5 12l7-7 7 7" />
+                        <rect x="4" y="18" width="16" height="2" rx="1" />
+                      </svg>
+                      at the bottom of Safari
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "rgba(56,189,248,0.1)", borderRadius: 12 }}>
+                    <span style={{ fontSize: 24, flexShrink: 0 }}>2.</span>
+                    <span>Tap <strong style={{ color: "#38bdf8" }}>Add to Home Screen</strong></span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: 15, color: "#cbd5e1", lineHeight: 1.8 }}>
+                  <p style={{ margin: "0 0 12px" }}>
+                    Use your browser menu and select <strong style={{ color: "#38bdf8" }}>Install App</strong> or <strong style={{ color: "#38bdf8" }}>Add to Home Screen</strong>.
+                  </p>
+                </div>
+              )}
+              <button
+                onClick={() => setShowIOSGuide(false)}
+                style={{
+                  marginTop: 24,
+                  padding: "12px 32px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: "linear-gradient(to right, #2563eb, #4f46e5)",
+                  color: "white",
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(37,99,235,0.4)",
+                }}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        )}
       </main>
     </>
   );
