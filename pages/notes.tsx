@@ -183,19 +183,14 @@ export default function NotesPage() {
     setEditColor(activeNote.color);
     lastVersionContent.current = activeNote.content;
     setSaveStatus("saved");
-  }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Recovery: if activeId is set but note not in array, reset after brief delay
-  useEffect(() => {
-    if (activeId !== null && loaded && !notes.find((n) => n.id === activeId)) {
-      const timer = setTimeout(() => {
-        if (!latestNotes.current.find((n) => n.id === activeId)) {
-          setActiveId(null);
-        }
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [activeId, notes, loaded]);
+    // Focus the title input so keystrokes go to the editor, not to action buttons.
+    // Without this, focus can land on the "All Notes" button after the card unmounts,
+    // causing the next keystroke (Space/Enter) to navigate back to All Notes.
+    setTimeout(() => {
+      titleInputRef.current?.focus();
+    }, 50);
+  }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup auto-save and version timers on unmount or activeId change
   useEffect(() => {
@@ -628,7 +623,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
             flexShrink: 0,
           }}
         >
-          <Link href="/" style={{ fontWeight: 800, fontSize: 16, color: "white", textDecoration: "none" }}>
+          <Link href="/" tabIndex={-1} style={{ fontWeight: 800, fontSize: 16, color: "white", textDecoration: "none" }}>
             StickAINote
           </Link>
           <span style={{ opacity: 0.3, fontSize: 12 }}>|</span>
@@ -915,9 +910,10 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   flexShrink: 0,
                 }}
               >
-                {/* Back to cards */}
+                {/* Back to cards - tabIndex -1 prevents accidental keyboard activation */}
                 <button
                   onClick={() => setActiveId(null)}
+                  tabIndex={-1}
                   style={{ ...(darkMode ? actionBtnDark : actionBtnStyle), display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}
                   type="button"
                   title="Back to all notes"
