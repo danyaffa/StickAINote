@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
@@ -22,5 +26,9 @@
     "utils",
     "next-env.d.ts"
   ],
-  "exclude": ["node_modules", "out", ".next"]
+  "exclude": [
+    "node_modules",
+    "out",
+    ".next"
+  ]
 }
