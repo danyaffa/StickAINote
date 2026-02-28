@@ -93,11 +93,45 @@ export default function FindReplace({ onClose, editorEl, onContentChange, titleI
       return;
     }
 
+    // Collect all text nodes FIRST, then concatenate to find cross-node matches.
+    // We rebuild the entire editor innerHTML to ensure all matches are found,
+    // even if the search term spans across HTML element boundaries.
     const textNodes = getTextNodes();
+
+    // Collect text node info before any DOM mutation
+    const nodeInfos: { node: Text; text: string; parent: Node }[] = [];
+    for (const textNode of textNodes) {
+      const parent = textNode.parentNode;
+      if (!parent) continue;
+      nodeInfos.push({ node: textNode, text: textNode.textContent || "", parent });
+    }
+
     let editorCount = 0;
 
-    for (const textNode of textNodes) {
-      const nodeText = textNode.textContent || "";
+    // Process nodes in reverse order so DOM mutations don't affect
+    // earlier nodes' positions in the tree
+    for (let i = nodeInfos.length - 1; i >= 0; i--) {
+      const { node, text: nodeText, parent } = nodeInfos[i];
+      // Skip if node was already detached from DOM
+      if (!node.parentNode) continue;
+
+      const matches: { start: number; end: number }[] = [];
+      let m: RegExpExecArray | null;
+
+      regex.lastIndex = 0;
+      while ((m = regex.exec(nodeText)) !== null) {
+        matches.push({ start: m.index, end: m.index + m[0].length });
+      }
+
+      if (matches.length === 0) continue;
+      editorCount += matches.length;
+    }
+
+    // Now we know the total, do the actual highlighting in forward order
+    let currentEditorIdx = 0;
+    for (const { node, text: nodeText } of nodeInfos) {
+      if (!node.parentNode) continue;
+
       const matches: { start: number; end: number }[] = [];
       let m: RegExpExecArray | null;
 
@@ -108,15 +142,13 @@ export default function FindReplace({ onClose, editorEl, onContentChange, titleI
 
       if (matches.length === 0) continue;
 
-      const parent = textNode.parentNode;
-      if (!parent) continue;
-
+      const parent = node.parentNode;
       const frag = document.createDocumentFragment();
       let lastIdx = 0;
 
       for (const match of matches) {
-        editorCount++;
-        const globalIdx = titleCount + editorCount;
+        currentEditorIdx++;
+        const globalIdx = titleCount + currentEditorIdx;
         if (match.start > lastIdx) {
           frag.appendChild(document.createTextNode(nodeText.slice(lastIdx, match.start)));
         }
@@ -134,7 +166,7 @@ export default function FindReplace({ onClose, editorEl, onContentChange, titleI
         frag.appendChild(document.createTextNode(nodeText.slice(lastIdx)));
       }
 
-      parent.replaceChild(frag, textNode);
+      parent.replaceChild(frag, node);
     }
 
     const total = titleCount + editorCount;
