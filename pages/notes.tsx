@@ -323,6 +323,8 @@ export default function NotesPage() {
     []
   );
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   const handleDelete = useCallback(
     async (id: string) => {
       const note = notes.find((n) => n.id === id);
@@ -332,6 +334,7 @@ export default function NotesPage() {
       if (activeId === id) {
         setActiveId(null);
       }
+      setConfirmDeleteId(null);
     },
     [activeId, notes]
   );
@@ -1142,7 +1145,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                 <span style={{ width: 1, height: 20, background: darkMode ? "#475569" : "#e2e8f0" }} />
 
                 <button
-                  onClick={() => handleDelete(activeId!)}
+                  onClick={() => setConfirmDeleteId(activeId!)}
                   style={{ ...(darkMode ? actionBtnDark : actionBtnStyle), color: "#dc2626", borderColor: "#fca5a5" }}
                   type="button"
                   title="Delete note"
@@ -1249,6 +1252,77 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
             </>
           )}
         </main>
+
+        {/* DELETE CONFIRMATION */}
+        {confirmDeleteId && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1100,
+              padding: 16,
+            }}
+            onClick={(e) => { if (e.target === e.currentTarget) setConfirmDeleteId(null); }}
+          >
+            <div
+              style={{
+                background: darkMode ? "#1e293b" : "white",
+                borderRadius: 14,
+                padding: "28px 24px",
+                maxWidth: 380,
+                width: "100%",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: 36, marginBottom: 12 }}>&#9888;</div>
+              <h3 style={{ margin: "0 0 8px", fontSize: 18, color: darkMode ? "#e2e8f0" : "#1e293b" }}>
+                Delete this note?
+              </h3>
+              <p style={{ fontSize: 13, color: "#94a3b8", margin: "0 0 24px", lineHeight: 1.5 }}>
+                This note will be moved to Trash. You can restore it from Trash within 30 days.
+              </p>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                <button
+                  onClick={() => setConfirmDeleteId(null)}
+                  style={{
+                    padding: "10px 24px",
+                    borderRadius: 8,
+                    border: darkMode ? "1px solid #475569" : "1px solid #e2e8f0",
+                    background: darkMode ? "#0f172a" : "#f8fafc",
+                    color: darkMode ? "#e2e8f0" : "#1e293b",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    fontWeight: 600,
+                  }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDelete(confirmDeleteId)}
+                  style={{
+                    padding: "10px 24px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: "#dc2626",
+                    color: "white",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    fontWeight: 600,
+                  }}
+                  type="button"
+                >
+                  Yes, Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* DIALOGS */}
         {showTrash && (

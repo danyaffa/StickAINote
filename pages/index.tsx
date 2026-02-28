@@ -378,14 +378,18 @@ export default function HomePage() {
           </section>
 
           {/* 7. FOOTER */}
-          <footer style={{ marginTop: 60, padding: "20px 0", borderTop: "1px solid rgba(148,163,184,0.1)", textAlign: "center", color: "#64748b", fontSize: 13 }}>
-            <p>© {new Date().getFullYear()} StickAINote. All rights reserved.</p>
-            <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 10, flexWrap: "wrap" }}>
+          <footer style={{ marginTop: 60, padding: "24px 0", borderTop: "1px solid rgba(148,163,184,0.1)", textAlign: "center", color: "#64748b", fontSize: 13 }}>
+            <p style={{ marginBottom: 4 }}>
+              &copy; {new Date().getFullYear()} StickAINote&trade; &mdash; A product of Leffler International Investments. All rights reserved.
+            </p>
+            <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
               <Link href="/about" style={{ color: "#94a3b8", textDecoration: "none" }}>About</Link>
               <Link href="/terms" style={{ color: "#94a3b8", textDecoration: "none" }}>Terms</Link>
               <Link href="/privacy" style={{ color: "#94a3b8", textDecoration: "none" }}>Privacy</Link>
               <Link href="/disclaimer" style={{ color: "#94a3b8", textDecoration: "none" }}>Disclaimer</Link>
               <Link href="/legal" style={{ color: "#94a3b8", textDecoration: "none" }}>Legal</Link>
+              <Link href="/account-settings" style={{ color: "#94a3b8", textDecoration: "none" }}>Account Settings</Link>
+              <Link href="/support" style={{ color: "#94a3b8", textDecoration: "none" }}>Support</Link>
               <Link href="/delete-account" style={{ color: "#94a3b8", textDecoration: "none" }}>Delete Account</Link>
             </div>
           </footer>
