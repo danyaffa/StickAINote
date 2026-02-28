@@ -45,16 +45,37 @@ export default function DisclaimerPage() {
             appropriate.
           </p>
 
+          <h2 style={{ fontSize: 20, marginTop: 28, marginBottom: 8 }}>No Responsibility</h2>
+          <p style={{ fontSize: 14, lineHeight: 1.6 }}>
+            StickAINote, its owners, operators and affiliates (including
+            Leffler International Investments) accept no responsibility or
+            liability whatsoever for any loss, damage, expense or
+            inconvenience arising from or in connection with your use of the
+            service, the accuracy or completeness of any content, or any
+            decisions you make based on information obtained through the app.
+          </p>
+
+          <h2 style={{ fontSize: 20, marginTop: 28, marginBottom: 8 }}>We Do Not Store Your Data</h2>
+          <p style={{ fontSize: 14, lineHeight: 1.6 }}>
+            Your notes are stored locally on your device using your
+            browser&apos;s built-in storage (IndexedDB). We do not keep, access
+            or back up your notes on our servers. If you clear your browser
+            data, uninstall the app or lose your device, your notes may be
+            permanently lost. You are solely responsible for maintaining your
+            own backups.
+          </p>
+
+          <h2 style={{ fontSize: 20, marginTop: 28, marginBottom: 8 }}>Service &ldquo;As Is&rdquo;</h2>
           <p style={{ fontSize: 14, lineHeight: 1.6 }}>
             By using StickAINote, you agree that the service is provided on an
-            “as is” and “as available” basis and that the owners and operators
+            &ldquo;as is&rdquo; and &ldquo;as available&rdquo; basis and that the owners and operators
             of StickAINote are not liable for any loss, damage or consequences
             arising from your use of the app or any content you create with it.
           </p>
 
           <p style={{ marginTop: 24, fontSize: 13 }}>
             <Link href="/" style={{ textDecoration: "underline", color: "white" }}>
-              ← Back to home
+              &larr; Back to home
             </Link>
           </p>
         </div>
