@@ -382,7 +382,6 @@ export default function HomePage() {
             <p>© {new Date().getFullYear()} StickAINote. All rights reserved.</p>
             <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 10, flexWrap: "wrap" }}>
               <Link href="/about" style={{ color: "#94a3b8", textDecoration: "none" }}>About</Link>
-              <Link href="/roadmap" style={{ color: "#94a3b8", textDecoration: "none" }}>Roadmap</Link>
               <Link href="/terms" style={{ color: "#94a3b8", textDecoration: "none" }}>Terms</Link>
               <Link href="/privacy" style={{ color: "#94a3b8", textDecoration: "none" }}>Privacy</Link>
               <Link href="/disclaimer" style={{ color: "#94a3b8", textDecoration: "none" }}>Disclaimer</Link>
