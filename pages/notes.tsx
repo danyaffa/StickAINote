@@ -46,11 +46,61 @@ const PRIORITIES: { value: NotePriority; label: string; color: string; icon: str
 ];
 
 const TEMPLATES = [
-  { name: "Blank Note", title: "Untitled Note", content: "" },
-  { name: "Meeting Notes", title: "Meeting Notes", content: "<h2>Meeting Notes</h2><p><strong>Date:</strong> </p><p><strong>Attendees:</strong> </p><hr><h3>Agenda</h3><ul><li></li></ul><h3>Discussion</h3><ul><li></li></ul><h3>Action Items</h3><ul><li></li></ul>" },
-  { name: "To-Do List", title: "To-Do List", content: "<h2>To-Do List</h2><ul><li>Task 1</li><li>Task 2</li><li>Task 3</li></ul><hr><h3>Completed</h3><ul><li></li></ul>" },
-  { name: "Daily Journal", title: "Daily Journal", content: "<h2>Daily Journal</h2><p><strong>Date:</strong> </p><hr><h3>What went well</h3><p></p><h3>Challenges</h3><p></p><h3>Tomorrow's goals</h3><ul><li></li></ul>" },
-  { name: "Project Plan", title: "Project Plan", content: "<h2>Project Plan</h2><p><strong>Project:</strong> </p><p><strong>Deadline:</strong> </p><hr><h3>Goals</h3><ul><li></li></ul><h3>Milestones</h3><ul><li></li></ul><h3>Resources</h3><ul><li></li></ul>" },
+  { name: "Blank Note", title: "Untitled Note", content: "", description: "Start with a clean slate" },
+  {
+    name: "Meeting Notes",
+    title: "Meeting Notes",
+    description: "Agenda, discussion, decisions & action items",
+    content: "<h2>Meeting Notes</h2><p><strong>Date:</strong> </p><p><strong>Time:</strong> </p><p><strong>Location / Link:</strong> </p><p><strong>Attendees:</strong> </p><p><strong>Organizer:</strong> </p><hr><h3>Agenda</h3><ol><li></li><li></li><li></li></ol><h3>Discussion Points</h3><ul><li></li></ul><h3>Decisions Made</h3><ul><li></li></ul><h3>Action Items</h3><ul><li><strong>Who:</strong> &mdash; <strong>What:</strong> &mdash; <strong>Due:</strong> </li><li><strong>Who:</strong> &mdash; <strong>What:</strong> &mdash; <strong>Due:</strong> </li></ul><h3>Next Meeting</h3><p><strong>Date:</strong> &mdash; <strong>Topic:</strong> </p>",
+  },
+  {
+    name: "To-Do List",
+    title: "To-Do List",
+    description: "Prioritised tasks with status tracking",
+    content: "<h2>To-Do List</h2><p><strong>Date:</strong> </p><hr><h3>High Priority</h3><ul><li></li></ul><h3>Medium Priority</h3><ul><li></li></ul><h3>Low Priority</h3><ul><li></li></ul><hr><h3>Completed</h3><ul><li></li></ul><h3>Notes</h3><p></p>",
+  },
+  {
+    name: "Daily Journal",
+    title: "Daily Journal",
+    description: "Reflect on your day &mdash; wins, challenges & gratitude",
+    content: "<h2>Daily Journal</h2><p><strong>Date:</strong> </p><p><strong>Mood:</strong> </p><hr><h3>What went well today</h3><ul><li></li></ul><h3>Challenges faced</h3><ul><li></li></ul><h3>What I learned</h3><p></p><h3>Grateful for</h3><ul><li></li></ul><h3>Tomorrow's goals</h3><ul><li></li></ul><h3>Free thoughts</h3><p></p>",
+  },
+  {
+    name: "Project Plan",
+    title: "Project Plan",
+    description: "Goals, milestones, tasks & resource planning",
+    content: "<h2>Project Plan</h2><p><strong>Project Name:</strong> </p><p><strong>Owner:</strong> </p><p><strong>Start Date:</strong> </p><p><strong>Deadline:</strong> </p><p><strong>Status:</strong> Not Started / In Progress / Review / Complete</p><hr><h3>Project Goals</h3><ol><li></li><li></li><li></li></ol><h3>Milestones</h3><ul><li><strong>Milestone 1:</strong> &mdash; Due: </li><li><strong>Milestone 2:</strong> &mdash; Due: </li><li><strong>Milestone 3:</strong> &mdash; Due: </li></ul><h3>Tasks Breakdown</h3><ul><li>Task 1: </li><li>Task 2: </li><li>Task 3: </li></ul><h3>Resources Needed</h3><ul><li>Team: </li><li>Tools: </li><li>Budget: </li></ul><h3>Risks &amp; Mitigation</h3><ul><li></li></ul><h3>Progress Notes</h3><p></p>",
+  },
+  {
+    name: "Build App with Claude Code",
+    title: "Build App with Claude Code",
+    description: "Guidelines & details for building an app with AI",
+    content: "<h2>Build a New App with Claude Code</h2><p><strong>Project Name:</strong> </p><p><strong>Date:</strong> </p><hr><h3>App Overview</h3><p><em>Describe what your app does in 2-3 sentences:</em></p><p></p><h3>Key Requirements</h3><ul><li><strong>Target Platform:</strong> Web / Mobile / Desktop</li><li><strong>Primary Users:</strong> </li><li><strong>Core Feature 1:</strong> </li><li><strong>Core Feature 2:</strong> </li><li><strong>Core Feature 3:</strong> </li></ul><h3>Technical Details</h3><ul><li><strong>Preferred Language / Framework:</strong> </li><li><strong>Database Needs:</strong> </li><li><strong>Authentication:</strong> Yes / No</li><li><strong>API Integrations:</strong> </li></ul><h3>Design Guidelines</h3><ul><li><strong>Style:</strong> Modern / Minimal / Corporate / Playful</li><li><strong>Colour Scheme:</strong> </li><li><strong>Responsive:</strong> Yes / No</li></ul><h3>Getting Started with Claude Code</h3><ol><li>Open your terminal and run: <code>claude</code></li><li>Describe your app idea clearly with the details above</li><li>Review and iterate on the generated code</li><li>Test, refine, and deploy</li></ol><p><strong>Learn more:</strong> <a href=\"https://claude.ai\" target=\"_blank\" rel=\"noopener noreferrer\">claude.ai</a> &mdash; Your AI partner for building software</p>",
+  },
+  {
+    name: "Shopping List",
+    title: "Shopping List",
+    description: "Organised grocery list with categories & budget",
+    content: "<h2>Shopping List</h2><p><strong>Date:</strong> </p><p><strong>Store:</strong> </p><p><strong>Online Order Link:</strong> <em>(paste your supermarket's online ordering URL here)</em></p><hr><h3>Fresh Produce</h3><ul><li>Fruits: </li><li>Vegetables: </li><li>Herbs: </li></ul><h3>Dairy &amp; Eggs</h3><ul><li>Milk: </li><li>Cheese: </li><li>Eggs: </li><li>Yogurt: </li></ul><h3>Meat &amp; Protein</h3><ul><li></li></ul><h3>Bakery &amp; Bread</h3><ul><li></li></ul><h3>Pantry Staples</h3><ul><li></li></ul><h3>Frozen Foods</h3><ul><li></li></ul><h3>Beverages</h3><ul><li></li></ul><h3>Household Items</h3><ul><li></li></ul><hr><p><strong>Estimated Budget:</strong> </p><p><strong>Notes:</strong> </p>",
+  },
+  {
+    name: "Today's Meetings",
+    title: "Today's Meetings",
+    description: "Daily meeting schedule with prep & follow-ups",
+    content: "<h2>Today's Meetings</h2><p><strong>Date:</strong> </p><hr><h3>Morning</h3><ul><li><strong>9:00 AM</strong> &mdash; <em>(meeting title)</em><br>Attendees: <br>Location / Link: <br>Notes: </li><li><strong>10:00 AM</strong> &mdash; </li><li><strong>11:00 AM</strong> &mdash; </li></ul><h3>Afternoon</h3><ul><li><strong>1:00 PM</strong> &mdash; </li><li><strong>2:00 PM</strong> &mdash; </li><li><strong>3:00 PM</strong> &mdash; </li></ul><h3>Late Afternoon</h3><ul><li><strong>4:00 PM</strong> &mdash; </li><li><strong>5:00 PM</strong> &mdash; </li></ul><hr><h3>Key Preparation</h3><ul><li>Documents to prepare: </li><li>Questions to raise: </li><li>Follow-ups from yesterday: </li></ul><p><em>Tip: Connect your calendar or diary app to sync today's schedule automatically</em></p>",
+  },
+  {
+    name: "Call List",
+    title: "People to Call Today",
+    description: "Track calls, contacts & follow-ups for the day",
+    content: "<h2>People to Call Today</h2><p><strong>Date:</strong> </p><hr><h3>Priority Calls</h3><ul><li><strong>Name:</strong> <br>Phone: <br>Reason: <br>Status: Pending</li><li><strong>Name:</strong> <br>Phone: <br>Reason: <br>Status: Pending</li></ul><h3>Follow-Up Calls</h3><ul><li><strong>Name:</strong> <br>Phone: <br>Reason: <br>Status: Pending</li></ul><h3>Optional / If Time Permits</h3><ul><li><strong>Name:</strong> <br>Phone: <br>Reason: </li></ul><hr><h3>Call Notes</h3><p></p><p><em>Tip: Connect your contacts app to quickly find phone numbers and names</em></p>",
+  },
+  {
+    name: "AI Research",
+    title: "AI Research Note",
+    description: "Research any topic with AI-assisted answers",
+    content: "<h2>AI Research Note</h2><p><strong>Topic:</strong> </p><p><strong>Date:</strong> </p><hr><h3>Question / What I Want to Know</h3><p></p><h3>AI-Assisted Research</h3><p><em>Get instant help with your research:</em></p><ul><li><a href=\"https://claude.ai\" target=\"_blank\" rel=\"noopener noreferrer\">Ask Claude AI</a> &mdash; Detailed answers, analysis, and explanations</li></ul><h3>Key Findings</h3><ul><li></li></ul><h3>Sources &amp; References</h3><ul><li></li></ul><h3>My Thoughts &amp; Conclusions</h3><p></p><h3>Next Steps</h3><ul><li></li></ul>",
+  },
 ];
 
 export default function NotesPage() {
@@ -87,6 +137,20 @@ export default function NotesPage() {
   const lastVersionContent = useRef("");
   const notesTabsRef = useRef<HTMLDivElement | null>(null);
 
+  // Refs for stable auto-save (prevents stale closures and re-render cascades)
+  const latestActiveId = useRef(activeId);
+  const latestEditContent = useRef(editContent);
+  const latestEditTitle = useRef(editTitle);
+  const latestEditTables = useRef(editTables);
+  const latestEditColor = useRef(editColor);
+  const latestNotes = useRef(notes);
+  latestActiveId.current = activeId;
+  latestEditContent.current = editContent;
+  latestEditTitle.current = editTitle;
+  latestEditTables.current = editTables;
+  latestEditColor.current = editColor;
+  latestNotes.current = notes;
+
   const activeNote = notes.find((n) => n.id === activeId);
 
   // Word count for active note
@@ -121,46 +185,83 @@ export default function NotesPage() {
     setSaveStatus("saved");
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // --- AUTO-SAVE ---
+  // Recovery: if activeId is set but note not in array, reset after brief delay
+  useEffect(() => {
+    if (activeId !== null && loaded && !notes.find((n) => n.id === activeId)) {
+      const timer = setTimeout(() => {
+        if (!latestNotes.current.find((n) => n.id === activeId)) {
+          setActiveId(null);
+        }
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeId, notes, loaded]);
+
+  // Cleanup auto-save and version timers on unmount or activeId change
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimer.current) {
+        clearTimeout(autoSaveTimer.current);
+        autoSaveTimer.current = null;
+      }
+      if (versionTimer.current) {
+        clearTimeout(versionTimer.current);
+        versionTimer.current = null;
+      }
+    };
+  }, [activeId]);
+
+  // --- AUTO-SAVE (uses refs for stable callback, prevents re-render cascade) ---
   const scheduleAutoSave = useCallback(() => {
     setSaveStatus("saving");
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
-      if (!activeId) return;
-      const sanitized = sanitizeHtml(editContent);
-      await dbUpdateNote(activeId, {
-        title: editTitle,
-        content: sanitized,
-        tables: editTables,
-        color: editColor,
-      });
-      setNotes((prev) =>
-        prev.map((n) =>
-          n.id === activeId
-            ? { ...n, title: editTitle, content: sanitized, tables: editTables, color: editColor, updatedAt: Date.now() }
-            : n
-        )
-      );
-      setSaveStatus("saved");
+      const id = latestActiveId.current;
+      if (!id) return;
+      const sanitized = sanitizeHtml(latestEditContent.current);
+      const title = latestEditTitle.current;
+      const tables = latestEditTables.current;
+      const color = latestEditColor.current;
+      try {
+        await dbUpdateNote(id, { title, content: sanitized, tables, color });
+        setNotes((prev) =>
+          prev.map((n) =>
+            n.id === id
+              ? { ...n, title, content: sanitized, tables, color, updatedAt: Date.now() }
+              : n
+          )
+        );
+        setSaveStatus("saved");
+      } catch {
+        setSaveStatus("idle");
+      }
     }, AUTO_SAVE_MS);
-  }, [activeId, editContent, editTitle, editTables, editColor]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Schedule version save
+  // Schedule version save (uses refs for stable callback)
   const scheduleVersionSave = useCallback(() => {
     if (versionTimer.current) clearTimeout(versionTimer.current);
     versionTimer.current = setTimeout(async () => {
-      if (!activeId || !activeNote) return;
-      if (editContent !== lastVersionContent.current) {
-        await saveVersion({
-          ...activeNote,
-          content: sanitizeHtml(editContent),
-          title: editTitle,
-          tables: editTables,
-        });
-        lastVersionContent.current = editContent;
+      const id = latestActiveId.current;
+      if (!id) return;
+      const note = latestNotes.current.find((n) => n.id === id);
+      if (!note) return;
+      const content = latestEditContent.current;
+      if (content !== lastVersionContent.current) {
+        try {
+          await saveVersion({
+            ...note,
+            content: sanitizeHtml(content),
+            title: latestEditTitle.current,
+            tables: latestEditTables.current,
+          });
+          lastVersionContent.current = content;
+        } catch {
+          // Version save failed silently
+        }
       }
     }, VERSION_SAVE_MS);
-  }, [activeId, activeNote, editContent, editTitle, editTables]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- HANDLERS ---
   const handleContentChange = useCallback(
@@ -698,7 +799,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
 
         {/* MAIN CONTENT */}
         <main style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-          {!activeNote ? (
+          {activeId === null ? (
             /* Empty state - show note cards grid */
             <div style={{ flex: 1, padding: 24, overflowY: "auto" }}>
               {filteredNotes.length === 0 ? (
@@ -797,6 +898,11 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   })}
                 </div>
               )}
+            </div>
+          ) : !activeNote ? (
+            /* activeId is set but note not found - show loading instead of flashing to All Notes */
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ color: "#94a3b8", fontSize: 14 }}>Loading note...</div>
             </div>
           ) : (
             /* Editor view */
@@ -1202,12 +1308,15 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                 background: darkMode ? "#1e293b" : "white",
                 borderRadius: 12,
                 padding: 24,
-                maxWidth: 480,
+                maxWidth: 640,
                 width: "100%",
+                maxHeight: "80vh",
+                display: "flex",
+                flexDirection: "column",
                 boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexShrink: 0 }}>
                 <h3 style={{ margin: 0, fontSize: 18 }}>New from Template</h3>
                 <button
                   onClick={() => setShowTemplates(false)}
@@ -1217,7 +1326,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   x
                 </button>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8, overflowY: "auto", paddingRight: 4 }}>
                 {TEMPLATES.map((t) => (
                   <button
                     key={t.name}
@@ -1232,13 +1341,13 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                       fontSize: 14,
                       fontWeight: 600,
                       color: darkMode ? "#e2e8f0" : "#1e293b",
-                      transition: "background 0.15s",
+                      transition: "background 0.15s, border-color 0.15s",
                     }}
                     type="button"
                   >
                     {t.name}
-                    <div style={{ fontWeight: 400, fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-                      {t.content ? "Pre-filled template" : "Start with a blank note"}
+                    <div style={{ fontWeight: 400, fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+                      {t.description}
                     </div>
                   </button>
                 ))}
