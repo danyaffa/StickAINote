@@ -108,9 +108,18 @@ const FREE_TRIAL_LIMIT = 5;
 export default function NotesPage() {
   const [notes, setNotes] = useState<NoteRecord[]>([]);
   const [activeId, setActiveIdRaw] = useState<string | null>(null);
+  const activeIdSetAt = useRef<number>(0); // Timestamp of last non-null setActiveId call
 
-  // Wrapper: persist activeId to sessionStorage so note stays open on refresh
+  // Wrapper: persist activeId to sessionStorage so note stays open on refresh.
+  // Also guards against accidental rapid null-setting (e.g. focus loss during DOM transition).
   const setActiveId = useCallback((id: string | null) => {
+    if (id !== null) {
+      activeIdSetAt.current = Date.now();
+    } else {
+      // Guard: if a note was just opened (< 600ms ago), ignore null sets.
+      // This prevents DOM focus-loss from triggering "All Notes" accidentally.
+      if (Date.now() - activeIdSetAt.current < 600) return;
+    }
     setActiveIdRaw(id);
     try {
       if (id) {
@@ -1034,9 +1043,8 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
 
         {/* MAIN CONTENT */}
         <main style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-          {activeId === null ? (
-            /* Empty state - show note cards grid */
-            <div style={{ flex: 1, padding: 24, overflowY: "auto" }}>
+          {/* Card grid view - ALWAYS in DOM, hidden when editing (prevents focus-loss on unmount) */}
+          <div style={{ flex: 1, padding: 24, overflowY: "auto", display: activeId === null ? undefined : "none" }}>
               {filteredNotes.length === 0 ? (
                 <div
                   style={{
@@ -1089,6 +1097,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                       <div
                         key={note.id}
                         onClick={() => setActiveId(note.id)}
+                        className="note-card"
                         style={{
                           background: note.color,
                           borderRadius: 14,
@@ -1102,7 +1111,6 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                           gap: 8,
                           minHeight: 140,
                         }}
-                        role="button"
                         tabIndex={0}
                         onKeyDown={(e) => { if (e.key === "Enter") setActiveId(note.id); }}
                       >
@@ -1134,8 +1142,9 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                 </div>
               )}
             </div>
-          ) : (
-            /* Editor view - always mounted when activeId is set to prevent unmount/remount */
+
+          {/* Editor view - ALWAYS in DOM, hidden when no active note (prevents focus-loss on unmount) */}
+          {activeId !== null && (
             <>
               {/* Note action bar */}
               <div
@@ -2041,11 +2050,11 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
         }
 
         /* Card hover */
-        [role="button"]:hover {
+        .note-card:hover {
           transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
         }
-        [role="button"]:focus-visible {
+        .note-card:focus-visible {
           outline: 2px solid #2563eb;
           outline-offset: -2px;
         }
