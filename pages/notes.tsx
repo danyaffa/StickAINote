@@ -1118,6 +1118,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
             <>
               {/* Note action bar */}
               <div
+                onClick={(e) => e.stopPropagation()}
                 style={{
                   padding: "6px 16px",
                   borderBottom: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
@@ -1449,6 +1450,17 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
               {/* Editor area */}
               <div
                 ref={editorDivRef}
+                onClick={(e) => {
+                  // Stop clicks inside the editor from bubbling to parent/document handlers
+                  // which could inadvertently trigger navigation back to All Notes.
+                  e.stopPropagation();
+                  // Close any open dropdown menus (replaces document-level handler for this area)
+                  setShowExportMenu(false);
+                  setShowPriorityMenu(false);
+                  setShowAiMenu(false);
+                  setShowQuickActions(false);
+                  setShowMoveToFolder(false);
+                }}
                 style={{
                   flex: 1,
                   display: "flex",
@@ -1519,6 +1531,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
 
               {/* Status bar */}
               <div
+                onClick={(e) => e.stopPropagation()}
                 style={{
                   padding: "4px 16px",
                   borderTop: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
