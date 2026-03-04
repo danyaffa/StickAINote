@@ -1,68 +1,15 @@
 // FILE: pages/index.tsx
-import React, { useEffect, useState, useCallback } from "react";
+import React from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Image from "next/image";
 // IMPORT THE REVIEW WIDGET
 import ReviewWidget from "../components/ReviewWidget";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-function getIsIOS() {
-  if (typeof navigator === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-}
+import { usePWAInstall } from "../lib/usePWAInstall";
 
 export default function HomePage() {
   const siteTitle = "StickAINote – AI Sticky Notes & Thoughtboard";
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [showIOSGuide, setShowIOSGuide] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setIsInstalled(true);
-      return;
-    }
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    const installedHandler = () => {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-    };
-    window.addEventListener("appinstalled", installedHandler);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handler);
-      window.removeEventListener("appinstalled", installedHandler);
-    };
-  }, []);
-
-  const handleInstall = useCallback(async () => {
-    // If native PWA prompt is available (Chrome, Edge, Android), use it directly
-    if (deferredPrompt) {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted") {
-        setIsInstalled(true);
-      }
-      setDeferredPrompt(null);
-      return;
-    }
-    // On iOS, show the "Add to Home Screen" guide
-    if (getIsIOS()) {
-      setShowIOSGuide(true);
-      return;
-    }
-    // Fallback for other browsers: show the iOS-style guide (works as generic instructions)
-    setShowIOSGuide(true);
-  }, [deferredPrompt]);
+  const pwa = usePWAInstall();
 
   return (
     <>
@@ -174,9 +121,9 @@ export default function HomePage() {
               >
                 Login
               </Link>
-              {!isInstalled && (
+              {!pwa.isInstalled && (
                 <button
-                  onClick={handleInstall}
+                  onClick={pwa.handleInstall}
                   style={{
                     padding: "8px 20px",
                     borderRadius: 999,
@@ -192,7 +139,12 @@ export default function HomePage() {
                     boxShadow: "0 4px 12px rgba(37, 99, 235, 0.4)",
                   }}
                 >
-                  <span style={{ fontSize: 16 }}>+</span> Install App
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Download App
                 </button>
               )}
               <Link
@@ -430,7 +382,7 @@ export default function HomePage() {
         <ReviewWidget />
 
         {/* iOS / fallback Install Guide Overlay */}
-        {showIOSGuide && (
+        {pwa.showIOSGuide && (
           <div
             style={{
               position: "fixed",
@@ -442,7 +394,7 @@ export default function HomePage() {
               zIndex: 9999,
               padding: 16,
             }}
-            onClick={(e) => { if (e.target === e.currentTarget) setShowIOSGuide(false); }}
+            onClick={(e) => { if (e.target === e.currentTarget) pwa.closeIOSGuide(); }}
           >
             <div
               style={{
@@ -457,21 +409,16 @@ export default function HomePage() {
               }}
             >
               <div style={{ fontSize: 48, marginBottom: 16 }}>
-                {getIsIOS() ? (
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline" }}>
-                    <path d="M12 5v14M5 12l7-7 7 7" />
-                    <rect x="4" y="18" width="16" height="2" rx="1" />
-                  </svg>
-                ) : (
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline" }}>
-                    <path d="M12 5v14M5 12l7-7 7 7" />
-                  </svg>
-                )}
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline" }}>
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
               </div>
               <h3 style={{ margin: "0 0 12px", fontSize: 20, fontWeight: 700 }}>
                 Install StickAINote
               </h3>
-              {getIsIOS() ? (
+              {pwa.isIOS ? (
                 <div style={{ fontSize: 15, color: "#cbd5e1", lineHeight: 1.8, textAlign: "left" }}>
                   <p style={{ margin: "0 0 16px", textAlign: "center", color: "#94a3b8" }}>
                     Follow these 2 simple steps:
@@ -499,7 +446,7 @@ export default function HomePage() {
                 </div>
               )}
               <button
-                onClick={() => setShowIOSGuide(false)}
+                onClick={pwa.closeIOSGuide}
                 style={{
                   marginTop: 24,
                   padding: "12px 32px",

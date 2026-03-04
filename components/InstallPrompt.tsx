@@ -1,81 +1,29 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-function getIsIOS() {
-  if (typeof navigator === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-}
+import { usePWAInstall } from "../lib/usePWAInstall";
 
 export default function InstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const pwa = usePWAInstall();
   const [showBanner, setShowBanner] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    // Check if already installed
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setIsInstalled(true);
-      return;
-    }
-
-    // On iOS, show the banner after a delay (since beforeinstallprompt won't fire)
-    if (getIsIOS()) {
-      setTimeout(() => setShowBanner(true), 3000);
-      return;
-    }
-
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      // Show banner after a short delay so it doesn't feel intrusive
-      setTimeout(() => setShowBanner(true), 3000);
-    };
-
-    window.addEventListener("beforeinstallprompt", handler);
-
-    const installedHandler = () => {
-      setIsInstalled(true);
-      setShowBanner(false);
-    };
-    window.addEventListener("appinstalled", installedHandler);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handler);
-      window.removeEventListener("appinstalled", installedHandler);
-    };
-  }, []);
+    if (pwa.isInstalled) return;
+    // Show the banner after a short delay so it doesn't feel intrusive
+    const timer = setTimeout(() => setShowBanner(true), 3000);
+    return () => clearTimeout(timer);
+  }, [pwa.isInstalled]);
 
   const handleInstall = useCallback(async () => {
-    // If native PWA prompt is available (Chrome, Edge, Android), use it directly
-    if (deferredPrompt) {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted") {
-        setIsInstalled(true);
-      }
-      setShowBanner(false);
-      setDeferredPrompt(null);
-      return;
-    }
-    // On iOS or browsers without beforeinstallprompt, show the guide
-    setShowIOSGuide(true);
+    await pwa.handleInstall();
     setShowBanner(false);
-  }, [deferredPrompt]);
+  }, [pwa.handleInstall]);
 
   const handleDismiss = useCallback(() => {
     setShowBanner(false);
   }, []);
 
-  if (isInstalled) return null;
+  if (pwa.isInstalled) return null;
 
   return (
     <>
@@ -146,7 +94,7 @@ export default function InstallPrompt() {
       )}
 
       {/* iOS / fallback Install Guide Overlay */}
-      {showIOSGuide && (
+      {pwa.showIOSGuide && (
         <div
           style={{
             position: "fixed",
@@ -158,7 +106,7 @@ export default function InstallPrompt() {
             zIndex: 10000,
             padding: 16,
           }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowIOSGuide(false); }}
+          onClick={(e) => { if (e.target === e.currentTarget) pwa.closeIOSGuide(); }}
         >
           <div
             style={{
@@ -174,14 +122,15 @@ export default function InstallPrompt() {
           >
             <div style={{ fontSize: 48, marginBottom: 16 }}>
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline" }}>
-                <path d="M12 5v14M5 12l7-7 7 7" />
-                <rect x="4" y="18" width="16" height="2" rx="1" />
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
             </div>
             <h3 style={{ margin: "0 0 12px", fontSize: 20, fontWeight: 700 }}>
               Install StickAINote
             </h3>
-            {getIsIOS() ? (
+            {pwa.isIOS ? (
               <div style={{ fontSize: 15, color: "#cbd5e1", lineHeight: 1.8, textAlign: "left" }}>
                 <p style={{ margin: "0 0 16px", textAlign: "center", color: "#94a3b8" }}>
                   Follow these 2 simple steps:
@@ -209,7 +158,7 @@ export default function InstallPrompt() {
               </div>
             )}
             <button
-              onClick={() => setShowIOSGuide(false)}
+              onClick={pwa.closeIOSGuide}
               style={{
                 marginTop: 24,
                 padding: "12px 32px",
