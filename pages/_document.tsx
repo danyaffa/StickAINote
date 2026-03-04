@@ -30,6 +30,19 @@ class MyDocument extends Document {
             name="description"
             content="StickAINote - AI-powered notes with rich editing, tables, images, and offline support."
           />
+
+          {/* Capture PWA install prompt early, before React hydrates */}
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                window.__deferredInstallPrompt = null;
+                window.addEventListener('beforeinstallprompt', function(e) {
+                  e.preventDefault();
+                  window.__deferredInstallPrompt = e;
+                });
+              `,
+            }}
+          />
         </Head>
         <body>
           <Main />
