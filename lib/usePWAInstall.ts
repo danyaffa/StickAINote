@@ -7,6 +7,12 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+declare global {
+  interface Window {
+    __deferredInstallPrompt: BeforeInstallPromptEvent | null;
+  }
+}
+
 function getIsIOS() {
   if (typeof navigator === "undefined") return false;
   return (
@@ -29,15 +35,24 @@ export function usePWAInstall() {
       return;
     }
 
+    // Pick up the prompt captured early by _document.tsx script
+    if (window.__deferredInstallPrompt) {
+      setDeferredPrompt(window.__deferredInstallPrompt);
+    }
+
+    // Also listen for it in case it fires after hydration
     const handler = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      const prompt = e as BeforeInstallPromptEvent;
+      window.__deferredInstallPrompt = prompt;
+      setDeferredPrompt(prompt);
     };
     window.addEventListener("beforeinstallprompt", handler);
 
     const installedHandler = () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
+      window.__deferredInstallPrompt = null;
     };
     window.addEventListener("appinstalled", installedHandler);
 
@@ -48,19 +63,24 @@ export function usePWAInstall() {
   }, []);
 
   const handleInstall = useCallback(async () => {
-    // If native PWA prompt is available, trigger it directly
-    if (deferredPrompt) {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
+    // Check both state and window in case state hasn't synced yet
+    const prompt = deferredPrompt || window.__deferredInstallPrompt;
+    if (prompt) {
+      await prompt.prompt();
+      const { outcome } = await prompt.userChoice;
       if (outcome === "accepted") {
         setIsInstalled(true);
       }
       setDeferredPrompt(null);
+      window.__deferredInstallPrompt = null;
       return;
     }
-    // No native prompt available — show manual guide for all platforms
-    // (iOS needs Share > Add to Home Screen, others need browser menu > Install)
-    setShowIOSGuide(true);
+    // On iOS there's no native prompt — show manual instructions
+    if (getIsIOS()) {
+      setShowIOSGuide(true);
+      return;
+    }
+    // For other browsers: no prompt available, nothing we can do
   }, [deferredPrompt]);
 
   const closeIOSGuide = useCallback(() => {
@@ -74,9 +94,6 @@ export function usePWAInstall() {
     isIOS,
     showIOSGuide,
     canPrompt: !!deferredPrompt,
-    // Show install UI only when we can actually do something:
-    // either the native prompt is available, or it's iOS (where we show manual steps)
-    canShowInstall: !!deferredPrompt || isIOS,
     handleInstall,
     closeIOSGuide,
   };
