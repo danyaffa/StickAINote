@@ -109,15 +109,21 @@ export default function NotesPage() {
   const [notes, setNotes] = useState<NoteRecord[]>([]);
   const [activeId, setActiveIdRaw] = useState<string | null>(null);
 
+  // Guard: prevent closeNote from firing within 600ms of openNote (kills click-through)
+  const openedAtRef = useRef(0);
+
   // openNote: the ONLY way to open a note. Accepts a non-null noteId.
   const openNote = useCallback((id: string) => {
+    openedAtRef.current = Date.now();
     setActiveIdRaw(id);
     try { window.sessionStorage.setItem("stickanote-active-id", id); } catch { /* ignore */ }
   }, []);
 
   // closeNote: the ONLY way to go back to All Notes. No arguments.
   // This is the SOLE code path that can set activeId to null.
+  // Guarded: ignores accidental calls within 600ms of opening a note.
   const closeNote = useCallback(() => {
+    if (Date.now() - openedAtRef.current < 600) return;
     setActiveIdRaw(null);
     try { window.sessionStorage.removeItem("stickanote-active-id"); } catch { /* ignore */ }
   }, []);
@@ -229,14 +235,9 @@ export default function NotesPage() {
     lastVersionContent.current = activeNote.content;
     setSaveStatus("saved");
 
-    // Focus the title input so keystrokes go to the editor, not to action buttons.
-    // Without this, focus can land on the "All Notes" button after the card unmounts,
-    // causing the next keystroke (Space/Enter) to navigate back to All Notes.
-    // Use multiple attempts to ensure focus sticks even if the DOM is still settling.
-    const focusTitle = () => titleInputRef.current?.focus();
-    focusTitle();
-    setTimeout(focusTitle, 50);
-    setTimeout(focusTitle, 150);
+    // Focus the title input once. The editor is now always in DOM (display toggle),
+    // so there is no unmount/remount race. No setTimeout needed.
+    titleInputRef.current?.focus();
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup auto-save and version timers on unmount or activeId change
@@ -1114,8 +1115,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
             </div>
 
           {/* Editor view - ALWAYS in DOM, hidden when no active note (prevents focus-loss on unmount) */}
-          {activeId !== null && (
-            <>
+          <div style={{ display: activeId !== null ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0 }}>
               {/* Note action bar */}
               <div
                 onClick={(e) => e.stopPropagation()}
@@ -1545,8 +1545,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                 </span>
                 <span>Modified {formatDate(activeNote?.updatedAt ?? Date.now())}</span>
               </div>
-            </>
-          )}
+          </div>
         </main>
 
         {/* DELETE CONFIRMATION */}
