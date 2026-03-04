@@ -159,6 +159,12 @@ export async function createNote(
   return note;
 }
 
+/** Upsert a full NoteRecord (used by cloud sync to write pulled notes) */
+export async function putNote(note: NoteRecord): Promise<void> {
+  const { store } = await tx(STORE_NOTES, "readwrite");
+  await reqToPromise(store.put(note));
+}
+
 export async function getNote(id: string): Promise<NoteRecord | undefined> {
   const { store } = await tx(STORE_NOTES, "readonly");
   return reqToPromise(store.get(id));

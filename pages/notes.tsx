@@ -10,6 +10,7 @@ import {
   createNote,
   updateNote as dbUpdateNote,
   softDeleteNote,
+  putNote,
   saveVersion,
   migrateFromLocalStorage,
   purgeOldTrash,
@@ -23,6 +24,8 @@ import {
 } from "../lib/db";
 import { sanitizeHtml, stripHtml, htmlToMarkdown } from "../lib/sanitize";
 import { usePWAInstall } from "../lib/usePWAInstall";
+import { useAuth } from "../context/AuthContext";
+import { syncNotes, pushNoteToCloud } from "../lib/syncNotes";
 
 const RichEditor = dynamic(() => import("../components/RichEditor"), { ssr: false });
 const NoteTable = dynamic(() => import("../components/NoteTable"), { ssr: false });
@@ -150,6 +153,9 @@ export default function NotesPage() {
   // PWA install
   const pwa = usePWAInstall();
 
+  // Auth for cloud sync
+  const { user } = useAuth();
+
   // Folders
   const [folders, setFolders] = useState<string[]>([]);
   const [noteFolder, setNoteFolder] = useState<Record<string, string>>({}); // noteId -> folder name
@@ -191,6 +197,8 @@ export default function NotesPage() {
   latestEditTables.current = editTables;
   latestEditColor.current = editColor;
   latestNotes.current = notes;
+  const latestUser = useRef(user);
+  latestUser.current = user;
 
   const activeNote = notes.find((n) => n.id === activeId);
 
@@ -228,6 +236,26 @@ export default function NotesPage() {
       setLoaded(true);
     })();
   }, []);
+
+  // --- CLOUD SYNC: pull/push notes when user is logged in ---
+  useEffect(() => {
+    if (!loaded || !user) return;
+    (async () => {
+      try {
+        const { toLocal } = await syncNotes(user.uid);
+        if (toLocal.length > 0) {
+          for (const note of toLocal) {
+            await putNote(note);
+          }
+          // Reload notes from IndexedDB after sync
+          const refreshed = await getAllNotes();
+          setNotes(refreshed);
+        }
+      } catch {
+        // Cloud sync failed silently — offline or Firebase not configured
+      }
+    })();
+  }, [loaded, user]);
 
   // --- SYNC EDIT STATE FROM ACTIVE NOTE ---
   useEffect(() => {
@@ -270,7 +298,7 @@ export default function NotesPage() {
       const tables = latestEditTables.current;
       const color = latestEditColor.current;
       try {
-        await dbUpdateNote(id, { title, content: sanitized, tables, color });
+        const updated = await dbUpdateNote(id, { title, content: sanitized, tables, color });
         setNotes((prev) =>
           prev.map((n) =>
             n.id === id
@@ -279,6 +307,10 @@ export default function NotesPage() {
           )
         );
         setSaveStatus("saved");
+        // Push to cloud if logged in
+        if (latestUser.current && updated) {
+          pushNoteToCloud(latestUser.current.uid, updated).catch(() => {});
+        }
       } catch {
         setSaveStatus("idle");
       }
@@ -366,7 +398,8 @@ export default function NotesPage() {
     const note = await createNote();
     setNotes((prev) => [note, ...prev]);
     openNote(note.id);
-  }, [isPaidUser, notes.length, openNote]);
+    if (user) pushNoteToCloud(user.uid, note).catch(() => {});
+  }, [isPaidUser, notes.length, openNote, user]);
 
   const handleNewNoteWithContent = useCallback(
     async (title: string, content: string) => {
@@ -376,8 +409,9 @@ export default function NotesPage() {
       });
       setNotes((prev) => [note, ...prev]);
       openNote(note.id);
+      if (user) pushNoteToCloud(user.uid, note).catch(() => {});
     },
-    [openNote]
+    [openNote, user]
   );
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -392,8 +426,12 @@ export default function NotesPage() {
         closeNote();
       }
       setConfirmDeleteId(null);
+      // Sync soft-delete to cloud
+      if (user && note) {
+        pushNoteToCloud(user.uid, { ...note, deleted: true, deletedAt: Date.now(), updatedAt: Date.now() }).catch(() => {});
+      }
     },
-    [activeId, notes, closeNote]
+    [activeId, notes, closeNote, user]
   );
 
   const handlePin = useCallback(
@@ -409,9 +447,10 @@ export default function NotesPage() {
             return b.updatedAt - a.updatedAt;
           });
         });
+        if (user) pushNoteToCloud(user.uid, updated).catch(() => {});
       }
     },
-    [notes]
+    [notes, user]
   );
 
   const handleDuplicate = useCallback(
@@ -426,8 +465,9 @@ export default function NotesPage() {
       });
       setNotes((prev) => [dup, ...prev]);
       openNote(dup.id);
+      if (user) pushNoteToCloud(user.uid, dup).catch(() => {});
     },
-    [notes, openNote]
+    [notes, openNote, user]
   );
 
   const handlePriorityChange = useCallback(
@@ -462,8 +502,9 @@ export default function NotesPage() {
       setNotes((prev) => [note, ...prev]);
       openNote(note.id);
       setShowTemplates(false);
+      if (user) pushNoteToCloud(user.uid, note).catch(() => {});
     },
-    [isPaidUser, notes.length, openNote]
+    [isPaidUser, notes.length, openNote, user]
   );
 
   const handleAiAction = useCallback(
@@ -703,6 +744,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
         });
         setNotes((prev) => [note, ...prev]);
         openNote(note.id);
+        if (user) pushNoteToCloud(user.uid, note).catch(() => {});
         alert(`Imported "${baseName}" as a new note!`);
       }
     };
