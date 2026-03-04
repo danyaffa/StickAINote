@@ -8,19 +8,19 @@ export default function InstallPrompt() {
   const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
-    if (pwa.isInstalled || !pwa.canShowInstall) return;
+    if (pwa.isInstalled) return;
     // Show the banner after a short delay so it doesn't feel intrusive
     const timer = setTimeout(() => setShowBanner(true), 3000);
     return () => clearTimeout(timer);
-  }, [pwa.isInstalled, pwa.canShowInstall]);
+  }, [pwa.isInstalled]);
 
   const handleInstall = useCallback(async () => {
     await pwa.handleInstall();
-    // Hide banner after triggering install (native prompt handles the rest)
-    if (!pwa.isIOS) {
+    // If native prompt was used (not iOS/fallback guide), hide banner
+    if (pwa.canPrompt) {
       setShowBanner(false);
     }
-  }, [pwa.handleInstall, pwa.isIOS]);
+  }, [pwa.handleInstall, pwa.canPrompt]);
 
   const handleDismiss = useCallback(() => {
     setShowBanner(false);
@@ -30,8 +30,8 @@ export default function InstallPrompt() {
 
   return (
     <>
-      {/* Install banner — only shown when install is actually possible */}
-      {showBanner && pwa.canShowInstall && (
+      {/* Install banner at bottom of screen */}
+      {showBanner && (
         <div
           style={{
             position: "fixed",
@@ -96,8 +96,8 @@ export default function InstallPrompt() {
         </div>
       )}
 
-      {/* iOS Install Guide — only shown on iOS where manual steps are required */}
-      {pwa.showIOSGuide && pwa.isIOS && (
+      {/* Install Guide Overlay — shown when no native prompt is available */}
+      {pwa.showIOSGuide && (
         <div
           style={{
             position: "fixed",
@@ -133,25 +133,33 @@ export default function InstallPrompt() {
             <h3 style={{ margin: "0 0 12px", fontSize: 20, fontWeight: 700 }}>
               Install StickAINote
             </h3>
-            <div style={{ fontSize: 15, color: "#cbd5e1", lineHeight: 1.8, textAlign: "left" }}>
-              <p style={{ margin: "0 0 16px", textAlign: "center", color: "#94a3b8" }}>
-                Follow these 2 simple steps:
-              </p>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, padding: "10px 14px", background: "rgba(56,189,248,0.1)", borderRadius: 12 }}>
-                <span style={{ fontSize: 24, flexShrink: 0 }}>1.</span>
-                <span>Tap the <strong style={{ color: "#38bdf8" }}>Share</strong> button
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "middle", margin: "0 4px" }}>
-                    <path d="M12 5v14M5 12l7-7 7 7" />
-                    <rect x="4" y="18" width="16" height="2" rx="1" />
-                  </svg>
-                  at the bottom of Safari
-                </span>
+            {pwa.isIOS ? (
+              <div style={{ fontSize: 15, color: "#cbd5e1", lineHeight: 1.8, textAlign: "left" }}>
+                <p style={{ margin: "0 0 16px", textAlign: "center", color: "#94a3b8" }}>
+                  Follow these 2 simple steps:
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, padding: "10px 14px", background: "rgba(56,189,248,0.1)", borderRadius: 12 }}>
+                  <span style={{ fontSize: 24, flexShrink: 0 }}>1.</span>
+                  <span>Tap the <strong style={{ color: "#38bdf8" }}>Share</strong> button
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "middle", margin: "0 4px" }}>
+                      <path d="M12 5v14M5 12l7-7 7 7" />
+                      <rect x="4" y="18" width="16" height="2" rx="1" />
+                    </svg>
+                    at the bottom of Safari
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "rgba(56,189,248,0.1)", borderRadius: 12 }}>
+                  <span style={{ fontSize: 24, flexShrink: 0 }}>2.</span>
+                  <span>Tap <strong style={{ color: "#38bdf8" }}>Add to Home Screen</strong></span>
+                </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "rgba(56,189,248,0.1)", borderRadius: 12 }}>
-                <span style={{ fontSize: 24, flexShrink: 0 }}>2.</span>
-                <span>Tap <strong style={{ color: "#38bdf8" }}>Add to Home Screen</strong></span>
+            ) : (
+              <div style={{ fontSize: 15, color: "#cbd5e1", lineHeight: 1.8 }}>
+                <p style={{ margin: "0 0 12px" }}>
+                  Use your browser menu and select <strong style={{ color: "#38bdf8" }}>Install App</strong> or <strong style={{ color: "#38bdf8" }}>Add to Home Screen</strong>.
+                </p>
               </div>
-            </div>
+            )}
             <button
               onClick={pwa.closeIOSGuide}
               style={{

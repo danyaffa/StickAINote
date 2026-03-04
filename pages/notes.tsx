@@ -839,7 +839,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
           <button onClick={() => setShowSettings(true)} style={headerBtn} type="button" title="Settings">
             Settings
           </button>
-          {!pwa.isInstalled && pwa.canShowInstall && (
+          {!pwa.isInstalled && (
             <button
               onClick={pwa.handleInstall}
               style={{
