@@ -2,87 +2,21 @@
 
 import Head from "next/head";
 import Link from "next/link";
-import React, { useEffect, useState, useCallback } from "react";
+import React from "react";
+import { usePWAInstall } from "../lib/usePWAInstall";
 
 const APP_URL = "https://stickanote.ai";
-
-// TODO: real store URLs
-const PLAY_STORE_URL =
-  "https://play.google.com/store/apps/details?id=com.stickanote";
-const APP_STORE_URL =
-  "https://apps.apple.com/app/stick-a-note-ai/id1234567890";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-function getIsIOS() {
-  if (typeof navigator === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-}
-
-function getIsAndroid() {
-  if (typeof navigator === "undefined") return false;
-  return /Android/i.test(navigator.userAgent);
-}
 
 export default function AppStoreLandingPage() {
   const title = "Install StickAINote";
   const description =
     "Install StickAINote on your device to capture ideas as smart sticky notes, with AI search and offline access.";
 
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [showIOSGuide, setShowIOSGuide] = useState(false);
-  const [platform, setPlatform] = useState<"ios" | "android" | "desktop">("desktop");
+  const pwa = usePWAInstall();
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setIsInstalled(true);
-    }
-
-    if (getIsIOS()) setPlatform("ios");
-    else if (getIsAndroid()) setPlatform("android");
-    else setPlatform("desktop");
-
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-
-    const installedHandler = () => {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-    };
-    window.addEventListener("appinstalled", installedHandler);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handler);
-      window.removeEventListener("appinstalled", installedHandler);
-    };
-  }, []);
-
-  const handleInstall = useCallback(async () => {
-    // If native PWA prompt is available, use it directly
-    if (deferredPrompt) {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted") setIsInstalled(true);
-      setDeferredPrompt(null);
-      return;
-    }
-    // On iOS, show the guide
-    if (getIsIOS()) {
-      setShowIOSGuide(true);
-      return;
-    }
-    // Fallback
-    setShowIOSGuide(true);
-  }, [deferredPrompt]);
+  const platformLabel = pwa.isIOS
+    ? "Install StickAINote on your iPhone or iPad for offline access and a native app experience."
+    : "Install StickAINote on your device for offline access and a native app experience.";
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -91,8 +25,6 @@ export default function AppStoreLandingPage() {
     operatingSystem: "Android, iOS",
     applicationCategory: "ProductivityApplication",
     url: `${APP_URL}/app-store`,
-    downloadUrl: PLAY_STORE_URL,
-    installUrl: PLAY_STORE_URL,
     offers: {
       "@type": "Offer",
       price: "0",
@@ -156,14 +88,10 @@ export default function AppStoreLandingPage() {
             Install StickAINote
           </h1>
           <p style={{ fontSize: 16, color: "#94a3b8", marginBottom: 32, lineHeight: 1.6 }}>
-            {platform === "ios"
-              ? "Install StickAINote on your iPhone or iPad for offline access and a native app experience."
-              : platform === "android"
-              ? "Install StickAINote on your Android device for offline access and a native app experience."
-              : "Install StickAINote on your device for offline access and a native app experience."}
+            {platformLabel}
           </p>
 
-          {isInstalled ? (
+          {pwa.isInstalled ? (
             <div
               style={{
                 padding: "16px 24px",
@@ -178,9 +106,9 @@ export default function AppStoreLandingPage() {
             >
               StickAINote is already installed on this device.
             </div>
-          ) : (
+          ) : pwa.canShowInstall ? (
             <button
-              onClick={handleInstall}
+              onClick={pwa.handleInstall}
               style={{
                 padding: "16px 48px",
                 borderRadius: 14,
@@ -198,6 +126,10 @@ export default function AppStoreLandingPage() {
             >
               Install Now
             </button>
+          ) : (
+            <p style={{ fontSize: 15, color: "#94a3b8", marginBottom: 24 }}>
+              Open this page in <strong style={{ color: "#38bdf8" }}>Chrome</strong> or <strong style={{ color: "#38bdf8" }}>Safari</strong> to install the app.
+            </p>
           )}
 
           <p style={{ fontSize: 14, color: "#64748b", marginTop: 16 }}>
@@ -216,8 +148,8 @@ export default function AppStoreLandingPage() {
         </div>
       </main>
 
-      {/* iOS / fallback Install Guide Overlay */}
-      {showIOSGuide && (
+      {/* iOS Install Guide — only on iOS where manual steps are needed */}
+      {pwa.showIOSGuide && pwa.isIOS && (
         <div
           style={{
             position: "fixed",
@@ -229,7 +161,7 @@ export default function AppStoreLandingPage() {
             zIndex: 9999,
             padding: 16,
           }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowIOSGuide(false); }}
+          onClick={(e) => { if (e.target === e.currentTarget) pwa.closeIOSGuide(); }}
         >
           <div
             style={{
@@ -252,35 +184,27 @@ export default function AppStoreLandingPage() {
             <h3 style={{ margin: "0 0 12px", fontSize: 20, fontWeight: 700 }}>
               Install StickAINote
             </h3>
-            {getIsIOS() ? (
-              <div style={{ fontSize: 15, color: "#cbd5e1", lineHeight: 1.8, textAlign: "left" }}>
-                <p style={{ margin: "0 0 16px", textAlign: "center", color: "#94a3b8" }}>
-                  Follow these 2 simple steps:
-                </p>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, padding: "10px 14px", background: "rgba(56,189,248,0.1)", borderRadius: 12 }}>
-                  <span style={{ fontSize: 24, flexShrink: 0 }}>1.</span>
-                  <span>Tap the <strong style={{ color: "#38bdf8" }}>Share</strong> button
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "middle", margin: "0 4px" }}>
-                      <path d="M12 5v14M5 12l7-7 7 7" />
-                      <rect x="4" y="18" width="16" height="2" rx="1" />
-                    </svg>
-                    at the bottom of Safari
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "rgba(56,189,248,0.1)", borderRadius: 12 }}>
-                  <span style={{ fontSize: 24, flexShrink: 0 }}>2.</span>
-                  <span>Tap <strong style={{ color: "#38bdf8" }}>Add to Home Screen</strong></span>
-                </div>
+            <div style={{ fontSize: 15, color: "#cbd5e1", lineHeight: 1.8, textAlign: "left" }}>
+              <p style={{ margin: "0 0 16px", textAlign: "center", color: "#94a3b8" }}>
+                Follow these 2 simple steps:
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, padding: "10px 14px", background: "rgba(56,189,248,0.1)", borderRadius: 12 }}>
+                <span style={{ fontSize: 24, flexShrink: 0 }}>1.</span>
+                <span>Tap the <strong style={{ color: "#38bdf8" }}>Share</strong> button
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "middle", margin: "0 4px" }}>
+                    <path d="M12 5v14M5 12l7-7 7 7" />
+                    <rect x="4" y="18" width="16" height="2" rx="1" />
+                  </svg>
+                  at the bottom of Safari
+                </span>
               </div>
-            ) : (
-              <div style={{ fontSize: 15, color: "#cbd5e1", lineHeight: 1.8 }}>
-                <p style={{ margin: "0 0 12px" }}>
-                  Use your browser menu and select <strong style={{ color: "#38bdf8" }}>Install App</strong> or <strong style={{ color: "#38bdf8" }}>Add to Home Screen</strong>.
-                </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "rgba(56,189,248,0.1)", borderRadius: 12 }}>
+                <span style={{ fontSize: 24, flexShrink: 0 }}>2.</span>
+                <span>Tap <strong style={{ color: "#38bdf8" }}>Add to Home Screen</strong></span>
               </div>
-            )}
+            </div>
             <button
-              onClick={() => setShowIOSGuide(false)}
+              onClick={pwa.closeIOSGuide}
               style={{
                 marginTop: 24,
                 padding: "12px 32px",
@@ -294,7 +218,7 @@ export default function AppStoreLandingPage() {
                 boxShadow: "0 4px 12px rgba(37,99,235,0.4)",
               }}
             >
-              Got it
+              Close
             </button>
           </div>
         </div>

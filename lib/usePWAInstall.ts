@@ -48,6 +48,7 @@ export function usePWAInstall() {
   }, []);
 
   const handleInstall = useCallback(async () => {
+    // If native PWA prompt is available, trigger it directly
     if (deferredPrompt) {
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
@@ -57,22 +58,29 @@ export function usePWAInstall() {
       setDeferredPrompt(null);
       return;
     }
+    // On iOS there's no native prompt — show manual instructions
     if (getIsIOS()) {
       setShowIOSGuide(true);
       return;
     }
-    setShowIOSGuide(true);
+    // For other browsers without native prompt support, there's nothing
+    // we can do programmatically. Don't show a useless overlay.
   }, [deferredPrompt]);
 
   const closeIOSGuide = useCallback(() => {
     setShowIOSGuide(false);
   }, []);
 
+  const isIOS = typeof navigator !== "undefined" ? getIsIOS() : false;
+
   return {
     isInstalled,
-    isIOS: typeof navigator !== "undefined" ? getIsIOS() : false,
+    isIOS,
     showIOSGuide,
     canPrompt: !!deferredPrompt,
+    // Show install UI only when we can actually do something:
+    // either the native prompt is available, or it's iOS (where we show manual steps)
+    canShowInstall: !!deferredPrompt || isIOS,
     handleInstall,
     closeIOSGuide,
   };

@@ -8,16 +8,19 @@ export default function InstallPrompt() {
   const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
-    if (pwa.isInstalled) return;
+    if (pwa.isInstalled || !pwa.canShowInstall) return;
     // Show the banner after a short delay so it doesn't feel intrusive
     const timer = setTimeout(() => setShowBanner(true), 3000);
     return () => clearTimeout(timer);
-  }, [pwa.isInstalled]);
+  }, [pwa.isInstalled, pwa.canShowInstall]);
 
   const handleInstall = useCallback(async () => {
     await pwa.handleInstall();
-    setShowBanner(false);
-  }, [pwa.handleInstall]);
+    // Hide banner after triggering install (native prompt handles the rest)
+    if (!pwa.isIOS) {
+      setShowBanner(false);
+    }
+  }, [pwa.handleInstall, pwa.isIOS]);
 
   const handleDismiss = useCallback(() => {
     setShowBanner(false);
@@ -27,8 +30,8 @@ export default function InstallPrompt() {
 
   return (
     <>
-      {/* Install banner */}
-      {showBanner && (
+      {/* Install banner — only shown when install is actually possible */}
+      {showBanner && pwa.canShowInstall && (
         <div
           style={{
             position: "fixed",
@@ -93,8 +96,8 @@ export default function InstallPrompt() {
         </div>
       )}
 
-      {/* iOS / fallback Install Guide Overlay */}
-      {pwa.showIOSGuide && (
+      {/* iOS Install Guide — only shown on iOS where manual steps are required */}
+      {pwa.showIOSGuide && pwa.isIOS && (
         <div
           style={{
             position: "fixed",
@@ -130,33 +133,25 @@ export default function InstallPrompt() {
             <h3 style={{ margin: "0 0 12px", fontSize: 20, fontWeight: 700 }}>
               Install StickAINote
             </h3>
-            {pwa.isIOS ? (
-              <div style={{ fontSize: 15, color: "#cbd5e1", lineHeight: 1.8, textAlign: "left" }}>
-                <p style={{ margin: "0 0 16px", textAlign: "center", color: "#94a3b8" }}>
-                  Follow these 2 simple steps:
-                </p>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, padding: "10px 14px", background: "rgba(56,189,248,0.1)", borderRadius: 12 }}>
-                  <span style={{ fontSize: 24, flexShrink: 0 }}>1.</span>
-                  <span>Tap the <strong style={{ color: "#38bdf8" }}>Share</strong> button
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "middle", margin: "0 4px" }}>
-                      <path d="M12 5v14M5 12l7-7 7 7" />
-                      <rect x="4" y="18" width="16" height="2" rx="1" />
-                    </svg>
-                    at the bottom of Safari
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "rgba(56,189,248,0.1)", borderRadius: 12 }}>
-                  <span style={{ fontSize: 24, flexShrink: 0 }}>2.</span>
-                  <span>Tap <strong style={{ color: "#38bdf8" }}>Add to Home Screen</strong></span>
-                </div>
+            <div style={{ fontSize: 15, color: "#cbd5e1", lineHeight: 1.8, textAlign: "left" }}>
+              <p style={{ margin: "0 0 16px", textAlign: "center", color: "#94a3b8" }}>
+                Follow these 2 simple steps:
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, padding: "10px 14px", background: "rgba(56,189,248,0.1)", borderRadius: 12 }}>
+                <span style={{ fontSize: 24, flexShrink: 0 }}>1.</span>
+                <span>Tap the <strong style={{ color: "#38bdf8" }}>Share</strong> button
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "middle", margin: "0 4px" }}>
+                    <path d="M12 5v14M5 12l7-7 7 7" />
+                    <rect x="4" y="18" width="16" height="2" rx="1" />
+                  </svg>
+                  at the bottom of Safari
+                </span>
               </div>
-            ) : (
-              <div style={{ fontSize: 15, color: "#cbd5e1", lineHeight: 1.8 }}>
-                <p style={{ margin: "0 0 12px" }}>
-                  Use your browser menu and select <strong style={{ color: "#38bdf8" }}>Install App</strong> or <strong style={{ color: "#38bdf8" }}>Add to Home Screen</strong>.
-                </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "rgba(56,189,248,0.1)", borderRadius: 12 }}>
+                <span style={{ fontSize: 24, flexShrink: 0 }}>2.</span>
+                <span>Tap <strong style={{ color: "#38bdf8" }}>Add to Home Screen</strong></span>
               </div>
-            )}
+            </div>
             <button
               onClick={pwa.closeIOSGuide}
               style={{
@@ -172,7 +167,7 @@ export default function InstallPrompt() {
                 boxShadow: "0 4px 12px rgba(37,99,235,0.4)",
               }}
             >
-              Got it
+              Close
             </button>
           </div>
         </div>
