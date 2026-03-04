@@ -108,26 +108,18 @@ const FREE_TRIAL_LIMIT = 5;
 export default function NotesPage() {
   const [notes, setNotes] = useState<NoteRecord[]>([]);
   const [activeId, setActiveIdRaw] = useState<string | null>(null);
-  const activeIdSetAt = useRef<number>(0); // Timestamp of last non-null setActiveId call
 
-  // Wrapper: persist activeId to sessionStorage so note stays open on refresh.
-  // Also guards against accidental rapid null-setting (e.g. focus loss during DOM transition).
-  const setActiveId = useCallback((id: string | null) => {
-    if (id !== null) {
-      activeIdSetAt.current = Date.now();
-    } else {
-      // Guard: if a note was just opened (< 600ms ago), ignore null sets.
-      // This prevents DOM focus-loss from triggering "All Notes" accidentally.
-      if (Date.now() - activeIdSetAt.current < 600) return;
-    }
+  // openNote: the ONLY way to open a note. Accepts a non-null noteId.
+  const openNote = useCallback((id: string) => {
     setActiveIdRaw(id);
-    try {
-      if (id) {
-        window.sessionStorage.setItem("stickanote-active-id", id);
-      } else {
-        window.sessionStorage.removeItem("stickanote-active-id");
-      }
-    } catch { /* ignore */ }
+    try { window.sessionStorage.setItem("stickanote-active-id", id); } catch { /* ignore */ }
+  }, []);
+
+  // closeNote: the ONLY way to go back to All Notes. No arguments.
+  // This is the SOLE code path that can set activeId to null.
+  const closeNote = useCallback(() => {
+    setActiveIdRaw(null);
+    try { window.sessionStorage.removeItem("stickanote-active-id"); } catch { /* ignore */ }
   }, []);
   const [loaded, setLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -368,8 +360,8 @@ export default function NotesPage() {
     }
     const note = await createNote();
     setNotes((prev) => [note, ...prev]);
-    setActiveId(note.id);
-  }, [isPaidUser, notes.length]);
+    openNote(note.id);
+  }, [isPaidUser, notes.length, openNote]);
 
   const handleNewNoteWithContent = useCallback(
     async (title: string, content: string) => {
@@ -378,9 +370,9 @@ export default function NotesPage() {
         content: content.replace(/\n/g, "<br>"),
       });
       setNotes((prev) => [note, ...prev]);
-      setActiveId(note.id);
+      openNote(note.id);
     },
-    []
+    [openNote]
   );
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -392,11 +384,11 @@ export default function NotesPage() {
       await softDeleteNote(id);
       setNotes((prev) => prev.filter((n) => n.id !== id));
       if (activeId === id) {
-        setActiveId(null);
+        closeNote();
       }
       setConfirmDeleteId(null);
     },
-    [activeId, notes]
+    [activeId, notes, closeNote]
   );
 
   const handlePin = useCallback(
@@ -428,9 +420,9 @@ export default function NotesPage() {
         tables: note.tables,
       });
       setNotes((prev) => [dup, ...prev]);
-      setActiveId(dup.id);
+      openNote(dup.id);
     },
-    [notes]
+    [notes, openNote]
   );
 
   const handlePriorityChange = useCallback(
@@ -463,10 +455,10 @@ export default function NotesPage() {
         content: template.content,
       });
       setNotes((prev) => [note, ...prev]);
-      setActiveId(note.id);
+      openNote(note.id);
       setShowTemplates(false);
     },
-    [isPaidUser, notes.length]
+    [isPaidUser, notes.length, openNote]
   );
 
   const handleAiAction = useCallback(
@@ -705,7 +697,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
           content,
         });
         setNotes((prev) => [note, ...prev]);
-        setActiveId(note.id);
+        openNote(note.id);
         alert(`Imported "${baseName}" as a new note!`);
       }
     };
@@ -736,28 +728,6 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [handleManualSave]);
-
-  // Focus guard: when a note is active, if focus moves to body or an unexpected element
-  // (e.g. after card unmount), redirect focus back to the title/editor to prevent
-  // accidental "All Notes" navigation via keyboard.
-  useEffect(() => {
-    if (!activeId) return;
-    const handler = () => {
-      const active = document.activeElement;
-      // If focus landed on body or the root element (no focused element), refocus the title
-      if (active === document.body || active === document.documentElement) {
-        titleInputRef.current?.focus();
-      }
-    };
-    // Small delay to let React finish the DOM update
-    const timer = setTimeout(() => {
-      document.addEventListener("focusin", handler);
-    }, 200);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("focusin", handler);
-    };
-  }, [activeId]);
 
   // Close dropdown menus when clicking elsewhere
   useEffect(() => {
@@ -932,7 +902,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
               return (
                 <button
                   key={note.id}
-                  onClick={() => setActiveId(note.id)}
+                  onClick={() => openNote(note.id)}
                   style={{
                     padding: "5px 12px",
                     borderRadius: 8,
@@ -1096,7 +1066,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                     return (
                       <div
                         key={note.id}
-                        onClick={() => setActiveId(note.id)}
+                        onClick={() => openNote(note.id)}
                         className="note-card"
                         style={{
                           background: note.color,
@@ -1112,7 +1082,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                           minHeight: 140,
                         }}
                         tabIndex={0}
-                        onKeyDown={(e) => { if (e.key === "Enter") setActiveId(note.id); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") openNote(note.id); }}
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           {note.pinned && (
@@ -1159,17 +1129,10 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   flexShrink: 0,
                 }}
               >
-                {/* Back to cards - tabIndex -1 and onKeyDown guard prevents accidental keyboard activation */}
+                {/* Back to cards - only closeNote() can set activeId to null */}
                 <button
-                  onClick={() => setActiveId(null)}
+                  onClick={closeNote}
                   tabIndex={-1}
-                  onKeyDown={(e) => {
-                    // Prevent Space/Enter from accidentally triggering "All Notes" navigation
-                    if (e.key === " " || e.key === "Enter") {
-                      e.preventDefault();
-                      titleInputRef.current?.focus();
-                    }
-                  }}
                   style={{ ...(darkMode ? actionBtnDark : actionBtnStyle), display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}
                   type="button"
                   title="Back to all notes"
