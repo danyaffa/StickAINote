@@ -121,7 +121,7 @@ export default function HomePage() {
               >
                 Login
               </Link>
-              {!pwa.isInstalled && pwa.canShowInstall && (
+              {!pwa.isInstalled && (
                 <button
                   onClick={pwa.handleInstall}
                   style={{

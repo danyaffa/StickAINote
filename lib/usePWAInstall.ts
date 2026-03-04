@@ -58,13 +58,9 @@ export function usePWAInstall() {
       setDeferredPrompt(null);
       return;
     }
-    // On iOS there's no native prompt — show manual instructions
-    if (getIsIOS()) {
-      setShowIOSGuide(true);
-      return;
-    }
-    // For other browsers without native prompt support, there's nothing
-    // we can do programmatically. Don't show a useless overlay.
+    // No native prompt available — show manual guide for all platforms
+    // (iOS needs Share > Add to Home Screen, others need browser menu > Install)
+    setShowIOSGuide(true);
   }, [deferredPrompt]);
 
   const closeIOSGuide = useCallback(() => {
