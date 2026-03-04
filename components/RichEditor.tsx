@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useRef, useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+
+const EmojiPicker = dynamic(() => import("./EmojiPicker"), { ssr: false });
 
 export interface RichEditorProps {
   content: string;
@@ -22,6 +25,7 @@ export default function RichEditor({
   const editorRef = useRef<HTMLDivElement>(null);
   const lastContentRef = useRef(content);
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Sync content into editor when it changes externally
   useEffect(() => {
@@ -277,6 +281,31 @@ export default function RichEditor({
               <path d="M10 4L14 7L10 10V8H5C3.3 8 2 6.7 2 5C2 3.3 3.3 2 5 2H8V0H5C2.2 0 0 2.2 0 5C0 7.8 2.2 10 5 10H10V4Z"/>
             </svg>
           </button>
+
+          <span style={dividerStyle} />
+
+          {/* Emoji Picker */}
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              title="Insert emoji"
+              onClick={(e) => { e.stopPropagation(); setShowEmojiPicker(!showEmojiPicker); }}
+              style={tbStyle(showEmojiPicker)}
+            >
+              <span style={{ fontSize: 16, lineHeight: 1 }}>{"\u{1F600}"}</span>
+            </button>
+            {showEmojiPicker && (
+              <EmojiPicker
+                onSelect={(emoji) => {
+                  editorRef.current?.focus();
+                  document.execCommand("insertText", false, emoji);
+                  handleInput();
+                  setShowEmojiPicker(false);
+                }}
+                onClose={() => setShowEmojiPicker(false)}
+              />
+            )}
+          </div>
         </div>
       )}
 
