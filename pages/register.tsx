@@ -289,6 +289,41 @@ export default function RegisterPage() {
               </a>
             </p>
 
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                margin: "0.75rem 0",
+              }}
+            >
+              <div
+                style={{ flex: 1, height: 1, background: "#e5e7eb" }}
+              />
+              <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>or</span>
+              <div
+                style={{ flex: 1, height: 1, background: "#e5e7eb" }}
+              />
+            </div>
+
+            <a
+              href="/paypal-checkout"
+              style={{
+                display: "block",
+                textAlign: "center",
+                width: "100%",
+                padding: "0.6rem 1rem",
+                borderRadius: 999,
+                background: "linear-gradient(to right, #fbbf24, #f59e0b)",
+                color: "#1e293b",
+                fontWeight: 600,
+                fontSize: "0.9rem",
+                textDecoration: "none",
+              }}
+            >
+              Pay with PayPal instead
+            </a>
+
             <p
               style={{
                 marginTop: "0.5rem",

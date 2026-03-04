@@ -107,7 +107,19 @@ const FREE_TRIAL_LIMIT = 5;
 
 export default function NotesPage() {
   const [notes, setNotes] = useState<NoteRecord[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveIdRaw] = useState<string | null>(null);
+
+  // Wrapper: persist activeId to sessionStorage so note stays open on refresh
+  const setActiveId = useCallback((id: string | null) => {
+    setActiveIdRaw(id);
+    try {
+      if (id) {
+        window.sessionStorage.setItem("stickanote-active-id", id);
+      } else {
+        window.sessionStorage.removeItem("stickanote-active-id");
+      }
+    } catch { /* ignore */ }
+  }, []);
   const [loaded, setLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "idle">("idle");
@@ -195,6 +207,13 @@ export default function NotesPage() {
         const storedNoteFolder = window.localStorage.getItem("stickanote-note-folders");
         if (storedNoteFolder) setNoteFolder(JSON.parse(storedNoteFolder));
       } catch { /* ignore */ }
+      // Restore active note from sessionStorage so it survives page refresh
+      try {
+        const savedActiveId = window.sessionStorage.getItem("stickanote-active-id");
+        if (savedActiveId && loaded.some((n) => n.id === savedActiveId)) {
+          setActiveIdRaw(savedActiveId);
+        }
+      } catch { /* ignore */ }
       setLoaded(true);
     })();
   }, []);
@@ -212,9 +231,11 @@ export default function NotesPage() {
     // Focus the title input so keystrokes go to the editor, not to action buttons.
     // Without this, focus can land on the "All Notes" button after the card unmounts,
     // causing the next keystroke (Space/Enter) to navigate back to All Notes.
-    setTimeout(() => {
-      titleInputRef.current?.focus();
-    }, 50);
+    // Use multiple attempts to ensure focus sticks even if the DOM is still settling.
+    const focusTitle = () => titleInputRef.current?.focus();
+    focusTitle();
+    setTimeout(focusTitle, 50);
+    setTimeout(focusTitle, 150);
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup auto-save and version timers on unmount or activeId change
@@ -707,6 +728,28 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
     return () => document.removeEventListener("keydown", handler);
   }, [handleManualSave]);
 
+  // Focus guard: when a note is active, if focus moves to body or an unexpected element
+  // (e.g. after card unmount), redirect focus back to the title/editor to prevent
+  // accidental "All Notes" navigation via keyboard.
+  useEffect(() => {
+    if (!activeId) return;
+    const handler = () => {
+      const active = document.activeElement;
+      // If focus landed on body or the root element (no focused element), refocus the title
+      if (active === document.body || active === document.documentElement) {
+        titleInputRef.current?.focus();
+      }
+    };
+    // Small delay to let React finish the DOM update
+    const timer = setTimeout(() => {
+      document.addEventListener("focusin", handler);
+    }, 200);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("focusin", handler);
+    };
+  }, [activeId]);
+
   // Close dropdown menus when clicking elsewhere
   useEffect(() => {
     const anyOpen = showExportMenu || showPriorityMenu || showAiMenu || showQuickActions || showMoveToFolder;
@@ -1107,10 +1150,17 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   flexShrink: 0,
                 }}
               >
-                {/* Back to cards - tabIndex -1 prevents accidental keyboard activation */}
+                {/* Back to cards - tabIndex -1 and onKeyDown guard prevents accidental keyboard activation */}
                 <button
                   onClick={() => setActiveId(null)}
                   tabIndex={-1}
+                  onKeyDown={(e) => {
+                    // Prevent Space/Enter from accidentally triggering "All Notes" navigation
+                    if (e.key === " " || e.key === "Enter") {
+                      e.preventDefault();
+                      titleInputRef.current?.focus();
+                    }
+                  }}
                   style={{ ...(darkMode ? actionBtnDark : actionBtnStyle), display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}
                   type="button"
                   title="Back to all notes"
@@ -1763,6 +1813,24 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   type="button"
                 >
                   Upgrade Now
+                </button>
+                <button
+                  onClick={() => {
+                    window.location.href = "/paypal-checkout";
+                  }}
+                  style={{
+                    padding: "12px 28px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: "linear-gradient(135deg, #fbbf24, #f59e0b)",
+                    color: "#1e293b",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    fontWeight: 700,
+                  }}
+                  type="button"
+                >
+                  Pay with PayPal
                 </button>
               </div>
               <p style={{ marginTop: 16, fontSize: 11, color: "#94a3b8" }}>

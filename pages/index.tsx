@@ -386,6 +386,23 @@ export default function HomePage() {
                 >
                   Start Free Trial
                 </Link>
+                <Link
+                  href="/paypal-checkout"
+                  style={{
+                    display: "block",
+                    textAlign: "center",
+                    padding: "14px",
+                    borderRadius: 12,
+                    background: "linear-gradient(to right, #fbbf24, #f59e0b)",
+                    color: "#1e293b",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    textDecoration: "none",
+                    marginTop: 10,
+                  }}
+                >
+                  Pay with PayPal
+                </Link>
               </div>
             </div>
           </section>
@@ -404,6 +421,7 @@ export default function HomePage() {
               <Link href="/account-settings" style={{ color: "#94a3b8", textDecoration: "none" }}>Account Settings</Link>
               <Link href="/support" style={{ color: "#94a3b8", textDecoration: "none" }}>Support</Link>
               <Link href="/delete-account" style={{ color: "#94a3b8", textDecoration: "none" }}>Delete Account</Link>
+              <Link href="/paypal-checkout" style={{ color: "#94a3b8", textDecoration: "none" }}>PayPal</Link>
             </div>
           </footer>
         </div>
