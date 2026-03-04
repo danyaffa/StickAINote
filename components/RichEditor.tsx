@@ -165,7 +165,11 @@ export default function RichEditor({
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+    <div
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
+    >
       {/* Toolbar */}
       {!readOnly && (
         <div
