@@ -1450,17 +1450,8 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
               {/* Editor area */}
               <div
                 ref={editorDivRef}
-                onClick={(e) => {
-                  // Stop clicks inside the editor from bubbling to parent/document handlers
-                  // which could inadvertently trigger navigation back to All Notes.
-                  e.stopPropagation();
-                  // Close any open dropdown menus (replaces document-level handler for this area)
-                  setShowExportMenu(false);
-                  setShowPriorityMenu(false);
-                  setShowAiMenu(false);
-                  setShowQuickActions(false);
-                  setShowMoveToFolder(false);
-                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
                 style={{
                   flex: 1,
                   display: "flex",
