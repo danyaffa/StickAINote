@@ -16,7 +16,7 @@ const FAQ: { q: string; a: string }[] = [
   { q: "How does AI Assist work?", a: "Open a note with some text, then click 'AI Assist' in the toolbar. You can fix spelling and grammar, improve writing, summarise, or polish and structure your content." },
   { q: "How do I cancel my subscription?", a: "Go to Account Settings from the footer, then click 'Cancel Subscription / Stop Payment'. Note: cancelling means you will lose access to premium features at the end of your billing period." },
   { q: "How do I change my password?", a: "Go to Account Settings from the footer. You'll find the Change Password section where you can update your password." },
-  { q: "How do I delete my account?", a: "Go to Account Settings, then click 'Go to Delete Account'. Please cancel your Stripe subscription first. Account deletion is permanent and cannot be reversed." },
+  { q: "How do I delete my account?", a: "Go to Account Settings, then click 'Go to Delete Account'. Please cancel your PayPal subscription first. Account deletion is permanent and cannot be reversed." },
   { q: "Does StickAINote work offline?", a: "Yes! StickAINote is a Progressive Web App (PWA) with full offline support. Your notes are saved locally and you can create, edit and view notes without an internet connection." },
   { q: "How do I install StickAINote on my phone?", a: "Visit stickainote.com in your mobile browser. You should see an 'Install' or 'Add to Home Screen' prompt. If not, use your browser's menu to find the option." },
   { q: "Can I use tables in my notes?", a: "Yes! Click the '+ Table' button in the note toolbar to add a spreadsheet-like table. You can add rows, columns, and even use checkboxes." },

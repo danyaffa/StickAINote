@@ -42,7 +42,7 @@ export default function PayPalCheckoutPage() {
         <title>StickAINote – Pay with PayPal</title>
         <meta
           name="description"
-          content="Subscribe to StickAINote Pro using PayPal. Secure payment, cancel any time."
+          content="Subscribe to StickAINote Pro using PayPal. 14 days free trial, cancel any time."
         />
       </Head>
 
@@ -177,6 +177,46 @@ export default function PayPalCheckoutPage() {
             </button>
           </div>
 
+          {/* 14-Day Free Trial Banner */}
+          <div
+            style={{
+              background: "linear-gradient(135deg, #22c55e20, #16a34a20)",
+              border: "1px solid #22c55e40",
+              borderRadius: 12,
+              padding: "14px 18px",
+              marginBottom: 20,
+              textAlign: "center",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                color: "#4ade80",
+                margin: "0 0 6px",
+              }}
+            >
+              &#10003; 14 Days free trial
+            </p>
+            <p
+              style={{
+                fontSize: 13,
+                color: "#94a3b8",
+                margin: 0,
+                lineHeight: 1.5,
+              }}
+            >
+              Thereafter you can continue to enjoy the app or{" "}
+              <a
+                href="https://www.stickainote.com/delete-account"
+                style={{ color: "#3b82f6", textDecoration: "underline" }}
+              >
+                delete your account
+              </a>
+              .
+            </p>
+          </div>
+
           {/* Features */}
           <ul
             style={{
@@ -272,45 +312,6 @@ export default function PayPalCheckoutPage() {
             )}
           </button>
 
-          {/* Divider */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              margin: "20px 0",
-            }}
-          >
-            <div
-              style={{ flex: 1, height: 1, background: "rgba(148,163,184,0.2)" }}
-            />
-            <span style={{ fontSize: 12, color: "#64748b" }}>or</span>
-            <div
-              style={{ flex: 1, height: 1, background: "rgba(148,163,184,0.2)" }}
-            />
-          </div>
-
-          {/* Stripe Alternative */}
-          <Link
-            href="/register"
-            style={{
-              display: "block",
-              width: "100%",
-              padding: "14px",
-              borderRadius: 12,
-              border: "1px solid #334155",
-              background: "transparent",
-              color: "#94a3b8",
-              fontWeight: 600,
-              fontSize: 14,
-              textAlign: "center",
-              textDecoration: "none",
-              cursor: "pointer",
-            }}
-          >
-            Pay with Credit Card (Stripe)
-          </Link>
-
           {/* Footer info */}
           <p
             style={{
@@ -323,11 +324,7 @@ export default function PayPalCheckoutPage() {
           >
             Secure payment via PayPal. Cancel any time from your PayPal account.
             <br />
-            First month free when paying with{" "}
-            <Link href="/register" style={{ color: "#3b82f6" }}>
-              credit card via Stripe
-            </Link>
-            .
+            14-day free trial included with all plans.
           </p>
 
           {/* Back link */}
