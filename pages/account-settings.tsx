@@ -183,8 +183,8 @@ export default function AccountSettingsPage() {
                   </button>
                   <button
                     onClick={() => {
-                      // Placeholder - integrate with Stripe customer portal
-                      alert("Please contact support or visit your Stripe billing portal to cancel.");
+                      // Redirect to PayPal to manage subscription
+                      alert("Please contact support or visit your PayPal account to cancel your subscription.");
                       setShowCancelConfirm(false);
                     }}
                     style={btnDanger}

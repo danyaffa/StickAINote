@@ -170,7 +170,7 @@ export default function RoadmapPage() {
                 >
                   <strong>Subscriptions & Billing</strong>
                   <br />
-                  Stripe-hosted checkout links for Basic and Pro subscription payments (web / PWA).
+                  PayPal checkout for subscription payments with 14-day free trial (web / PWA).
                 </li>
                 <li
                   style={{

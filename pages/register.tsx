@@ -3,14 +3,9 @@ import Head from "next/head";
 import React, { useState } from "react";
 import { useRouter } from "next/router";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { requireAuth } from "../utils/firebaseClient"; // ✅ correct Firebase Auth source
+import { requireAuth } from "../utils/firebaseClient";
 
 const DEVELOPER_EMAIL = "leffleryd@gmail.com";
-
-// ✅ USE YOUR ENV NAME: NEXT_PUBLIC_STRIPE_CHECKOUT_URL
-const STRIPE_LINK =
-  process.env.NEXT_PUBLIC_STRIPE_CHECKOUT_URL ||
-  "https://buy.stripe.com/9B63cv44u2XSeHxaBK4F20h"; // fallback
 
 export default function RegisterPage() {
   const canonicalUrl = "https://stickainote.com/register";
@@ -33,12 +28,8 @@ export default function RegisterPage() {
       return;
     }
 
-    // Normal users → Stripe to enter card details
-    const url = new URL(STRIPE_LINK);
-    if (email) url.searchParams.set("prefilled_email", email);
-    if (name) url.searchParams.set("client_reference_id", name);
-
-    window.location.href = url.toString();
+    // Normal users → PayPal checkout for payment
+    router.push("/paypal-checkout");
   };
 
   async function handleSubmit(e: React.FormEvent) {
@@ -53,14 +44,13 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      // ✅ Get Firebase Auth only on the client (submit click)
       const auth = requireAuth();
       if (!auth) throw new Error("Firebase is not configured.");
 
-      // 1️⃣ Create user in Firebase
+      // Create user in Firebase
       const cred = await createUserWithEmailAndPassword(auth, email, password);
 
-      // 2️⃣ Then redirect (dev → app, others → Stripe)
+      // Redirect to PayPal checkout
       handleSuccessfulAuth(cred.user.email || email);
     } catch (err: any) {
       console.error(err);
@@ -72,10 +62,10 @@ export default function RegisterPage() {
   return (
     <>
       <Head>
-        <title>Stick AI Note – Start your free trial</title>
+        <title>Stick AI Note – Start your 14-day free trial</title>
         <meta
           name="description"
-          content="Start your free trial of Stick AI Note. Create your account, then add your payment details securely via Stripe. First month free, cancel any time."
+          content="Start your 14-day free trial of Stick AI Note. Create your account, then subscribe securely via PayPal. Cancel any time."
         />
         <link rel="canonical" href={canonicalUrl} />
       </Head>
@@ -114,7 +104,7 @@ export default function RegisterPage() {
                 color: "#0f172a",
               }}
             >
-              Start your free trial
+              Start your 14-day free trial
             </h1>
 
             <p
@@ -127,7 +117,7 @@ export default function RegisterPage() {
               Step 1 – Create your Stick AI Note account (saved in Firebase).
               <br />
               Step 2 – On the next screen, you&apos;ll be taken to{" "}
-              <strong>Stripe</strong> to enter your card details.
+              <strong>PayPal</strong> to complete your subscription.
             </p>
 
             <p
@@ -137,14 +127,13 @@ export default function RegisterPage() {
                 color: "#6b7280",
               }}
             >
-              Your <strong>first month is free</strong>. You must enter your
-              credit-card details now to activate the free trial. Going forward
-              fee is only US$6.60 per month.
+              Your <strong>first 14 days are free</strong>. After your trial
+              ends, the fee is only US$6.60 per month.
               <br />
               You can{" "}
-              <strong>cancel any time before the end of the month</strong> and
-              you will <strong>not be charged</strong>. You can also remove or
-              change your card later.
+              <strong>cancel any time before the trial ends</strong> and
+              you will <strong>not be charged</strong>. You can also manage
+              your subscription from your PayPal account.
             </p>
 
             {errorMsg && (
@@ -262,8 +251,10 @@ export default function RegisterPage() {
                   width: "100%",
                   padding: "0.65rem 1rem",
                   borderRadius: 999,
-                  background: loading ? "#16a34a80" : "#16a34a",
-                  color: "#ffffff",
+                  background: loading
+                    ? "linear-gradient(to right, #fbbf2480, #f59e0b80)"
+                    : "linear-gradient(to right, #fbbf24, #f59e0b)",
+                  color: "#1e293b",
                   fontWeight: 600,
                   fontSize: "0.95rem",
                   border: "none",
@@ -272,7 +263,7 @@ export default function RegisterPage() {
               >
                 {loading
                   ? "Creating account…"
-                  : "Create account & go to secure Stripe page"}
+                  : "Create account & pay with PayPal"}
               </button>
             </form>
 
@@ -289,41 +280,6 @@ export default function RegisterPage() {
               </a>
             </p>
 
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                margin: "0.75rem 0",
-              }}
-            >
-              <div
-                style={{ flex: 1, height: 1, background: "#e5e7eb" }}
-              />
-              <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>or</span>
-              <div
-                style={{ flex: 1, height: 1, background: "#e5e7eb" }}
-              />
-            </div>
-
-            <a
-              href="/paypal-checkout"
-              style={{
-                display: "block",
-                textAlign: "center",
-                width: "100%",
-                padding: "0.6rem 1rem",
-                borderRadius: 999,
-                background: "linear-gradient(to right, #fbbf24, #f59e0b)",
-                color: "#1e293b",
-                fontWeight: 600,
-                fontSize: "0.9rem",
-                textDecoration: "none",
-              }}
-            >
-              Pay with PayPal instead
-            </a>
-
             <p
               style={{
                 marginTop: "0.5rem",
@@ -331,8 +287,8 @@ export default function RegisterPage() {
                 color: "#9ca3af",
               }}
             >
-              You can cancel any time in your Stripe customer portal before your
-              free month ends and you will not be charged.
+              You can cancel any time from your PayPal account before your
+              trial ends and you will not be charged.
             </p>
           </div>
         </main>

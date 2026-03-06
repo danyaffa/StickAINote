@@ -40,7 +40,7 @@ export default function PrivacyPage() {
           </p>
 
           <p style={{ fontSize: 14, lineHeight: 1.6 }}>
-            Third-party services such as Stripe (for payments), analytics
+            Third-party services such as PayPal (for payments), analytics
             providers and AI model providers may also receive some technical or
             usage data in order to deliver the service. These providers have
             their own privacy policies and security practices.

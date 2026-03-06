@@ -148,7 +148,7 @@ export default function HomePage() {
                 </button>
               )}
               <Link
-                href="/notes"
+                href="/trial-note"
                 style={{
                   padding: "8px 20px",
                   borderRadius: 999,
@@ -159,7 +159,7 @@ export default function HomePage() {
                   textDecoration: "none",
                 }}
               >
-                Open My Notes
+                Test a Note
               </Link>
             </nav>
           </header>
@@ -307,7 +307,7 @@ export default function HomePage() {
                   <div style={{ fontSize: 48, fontWeight: 800 }}>
                     $6.60<span style={{ fontSize: 18, fontWeight: 500, color: "#94a3b8" }}>/mo</span>
                   </div>
-                  <div style={{ color: "#4ade80", fontSize: 14, fontWeight: 600, marginTop: 6 }}>First month free</div>
+                  <div style={{ color: "#4ade80", fontSize: 14, fontWeight: 600, marginTop: 6 }}>14 days free trial</div>
                 </div>
 
                 <ul style={{ listStyle: "none", padding: 0, margin: "0 0 30px 0", display: "flex", flexDirection: "column", gap: 14, fontSize: 15, color: "#e2e8f0", textAlign: "left" }}>
@@ -321,23 +321,22 @@ export default function HomePage() {
                   <li style={{ display: "flex", gap: 10 }}><span style={{ color: "#38bdf8" }}>★</span> Pin, color-code & organize</li>
                 </ul>
 
-                <Link
-                  href="/register"
+                <div
                   style={{
                     display: "block",
                     textAlign: "center",
                     padding: "16px",
                     borderRadius: 12,
-                    background: "linear-gradient(to right, #2563eb, #4f46e5)",
+                    background: "linear-gradient(to right, #22c55e, #16a34a)",
                     color: "white",
                     fontWeight: 700,
                     fontSize: 16,
-                    textDecoration: "none",
-                    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.4)",
+                    cursor: "default",
+                    boxShadow: "0 4px 12px rgba(34, 197, 94, 0.4)",
                   }}
                 >
-                  Start Free Trial
-                </Link>
+                  14 Days Free Trial
+                </div>
                 <Link
                   href="/paypal-checkout"
                   style={{

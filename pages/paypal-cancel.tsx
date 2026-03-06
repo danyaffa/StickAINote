@@ -96,22 +96,6 @@ export default function PayPalCancelPage() {
             </Link>
 
             <Link
-              href="/register"
-              style={{
-                display: "inline-block",
-                padding: "12px 36px",
-                borderRadius: 12,
-                border: "1px solid #334155",
-                color: "#94a3b8",
-                fontWeight: 600,
-                fontSize: 14,
-                textDecoration: "none",
-              }}
-            >
-              Pay with Credit Card Instead
-            </Link>
-
-            <Link
               href="/notes"
               style={{
                 color: "#64748b",

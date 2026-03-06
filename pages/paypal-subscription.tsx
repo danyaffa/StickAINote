@@ -218,23 +218,6 @@ export default function PayPalSubscriptionPage() {
                 </Link>
 
                 <Link
-                  href="/register"
-                  style={{
-                    display: "block",
-                    textAlign: "center",
-                    padding: "14px",
-                    borderRadius: 12,
-                    border: "1px solid #334155",
-                    color: "#94a3b8",
-                    fontWeight: 600,
-                    fontSize: 14,
-                    textDecoration: "none",
-                  }}
-                >
-                  Subscribe with Credit Card (Stripe)
-                </Link>
-
-                <Link
                   href="/notes"
                   style={{
                     display: "block",

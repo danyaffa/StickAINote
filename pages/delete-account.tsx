@@ -135,7 +135,7 @@ export default function DeleteAccountPage() {
                   Before you delete:
                 </h3>
                 <ul style={{ margin: 0, padding: "0 0 0 20px", fontSize: 14, color: "#94a3b8", lineHeight: 1.8 }}>
-                  <li>Cancel your Stripe subscription first (if you have one)</li>
+                  <li>Cancel your PayPal subscription first (if you have one)</li>
                   <li>Export your notes if you want to keep them</li>
                   <li>Your notes are stored locally and will remain on this device, but your login will be removed</li>
                   <li>You will not be able to recover your account</li>

@@ -100,9 +100,7 @@ export default function LoginPage() {
             </h1>
 
             <p style={{ fontSize: "0.9rem", marginBottom: "1.25rem" }}>
-              Temporary login page – when Firebase + Stripe are connected this
-              will sign you in. For now, log in here and we&apos;ll open your
-              note in the next step.
+              Log in to your StickAINote account to access your notes.
             </p>
 
             <form
