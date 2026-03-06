@@ -5,9 +5,10 @@
 
 const ALLOWED_TAGS = new Set([
   "p", "br", "b", "strong", "i", "em", "u", "s", "strike",
-  "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "pre", "code",
+  "h1", "h2", "h3", "h4", "h5", "h6",
+  "ul", "ol", "li", "blockquote", "pre", "code",
   "a", "img", "table", "thead", "tbody", "tr", "th", "td",
-  "div", "span", "sub", "sup", "hr",
+  "div", "span", "sub", "sup", "hr", "font",
 ]);
 
 const ALLOWED_ATTRS: Record<string, Set<string>> = {
@@ -17,8 +18,17 @@ const ALLOWED_ATTRS: Record<string, Set<string>> = {
   th: new Set(["colspan", "rowspan", "style"]),
   span: new Set(["style"]),
   div: new Set(["style"]),
+  p: new Set(["style"]),
   pre: new Set(["style"]),
   code: new Set(["class"]),
+  font: new Set(["face", "size", "color"]),
+  h1: new Set(["style"]),
+  h2: new Set(["style"]),
+  h3: new Set(["style"]),
+  li: new Set(["style"]),
+  ul: new Set(["style"]),
+  ol: new Set(["style"]),
+  blockquote: new Set(["style"]),
 };
 
 export function sanitizeHtml(html: string): string {
