@@ -1392,10 +1392,6 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                 <button onClick={handleShare} style={darkMode ? actionBtnDark : actionBtnStyle} type="button" title="Share note">
                   Share
                 </button>
-                <button onClick={() => setShowVersions(true)} style={darkMode ? actionBtnDark : actionBtnStyle} type="button" title="Version history">
-                  Versions
-                </button>
-
                 {/* Export dropdown */}
                 <div style={{ position: "relative" }}>
                   <button
@@ -1501,15 +1497,15 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   onClick={handleManualSave}
                   style={{
                     ...(darkMode ? actionBtnDark : actionBtnStyle),
-                    background: darkMode ? "#1e3a5f" : "#eff6ff",
-                    borderColor: darkMode ? "#2563eb" : "#93c5fd",
-                    color: darkMode ? "#93c5fd" : "#2563eb",
+                    background: saveStatus === "saving" ? (darkMode ? "#374151" : "#d1d5db") : saveStatus === "saved" ? (darkMode ? "#065f46" : "#bbf7d0") : (darkMode ? "#1e3a5f" : "#eff6ff"),
+                    borderColor: saveStatus === "saving" ? (darkMode ? "#6b7280" : "#9ca3af") : saveStatus === "saved" ? (darkMode ? "#10b981" : "#22c55e") : (darkMode ? "#2563eb" : "#93c5fd"),
+                    color: saveStatus === "saving" ? (darkMode ? "#9ca3af" : "#6b7280") : saveStatus === "saved" ? (darkMode ? "#34d399" : "#15803d") : (darkMode ? "#93c5fd" : "#2563eb"),
                     fontWeight: 600,
                   }}
                   type="button"
                   title="Save note now"
                 >
-                  Save my Note
+                  {saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved!" : "Save my Note"}
                 </button>
 
                 <button
