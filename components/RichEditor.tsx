@@ -79,6 +79,7 @@ export default function RichEditor({
 }: RichEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const lastContentRef = useRef(content);
+  const savedSelectionRef = useRef<Range | null>(null);
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showTextColor, setShowTextColor] = useState(false);
@@ -243,6 +244,10 @@ export default function RichEditor({
   const openLinkDialog = useCallback(() => {
     const sel = window.getSelection();
     const text = sel?.toString() || "";
+    // Save the current selection so we can restore it when inserting the link
+    if (sel && sel.rangeCount > 0) {
+      savedSelectionRef.current = sel.getRangeAt(0).cloneRange();
+    }
     setLinkText(text);
     setLinkUrl("");
     setShowLinkDialog(true);
@@ -251,6 +256,15 @@ export default function RichEditor({
   const insertLink = useCallback(() => {
     if (!linkUrl) return;
     editorRef.current?.focus();
+    // Restore the saved selection before inserting
+    if (savedSelectionRef.current) {
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(savedSelectionRef.current);
+      }
+      savedSelectionRef.current = null;
+    }
     const url = linkUrl.startsWith("http") ? linkUrl : `https://${linkUrl}`;
     if (linkText) {
       document.execCommand(
@@ -377,7 +391,15 @@ export default function RichEditor({
 
   return (
     <div
-      onMouseDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        // Prevent toolbar buttons from stealing editor focus/selection,
+        // but allow input fields (e.g. link dialog) to receive focus
+        const tgt = e.target as HTMLElement;
+        if (tgt.tagName !== "INPUT" && tgt.tagName !== "TEXTAREA") {
+          e.preventDefault();
+        }
+      }}
       onClick={(e) => e.stopPropagation()}
       style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
     >
@@ -445,7 +467,22 @@ export default function RichEditor({
             )}
           </div>
 
-          {/* ─── Font Size Dropdown ─── */}
+          {/* ─── Font Size Controls ─── */}
+          <button
+            type="button"
+            title="Decrease font size"
+            onClick={() => {
+              const idx = FONT_SIZES.findIndex((s) => s.value === currentSize);
+              if (idx > 0) {
+                const newSize = FONT_SIZES[idx - 1].value;
+                execCmd("fontSize", newSize);
+                setCurrentSize(newSize);
+              }
+            }}
+            style={tbStyle(false)}
+          >
+            &minus;
+          </button>
           <div style={{ position: "relative" }} data-dropdown>
             <button
               type="button"
@@ -489,6 +526,21 @@ export default function RichEditor({
               </div>
             )}
           </div>
+          <button
+            type="button"
+            title="Increase font size"
+            onClick={() => {
+              const idx = FONT_SIZES.findIndex((s) => s.value === currentSize);
+              if (idx < FONT_SIZES.length - 1) {
+                const newSize = FONT_SIZES[idx + 1].value;
+                execCmd("fontSize", newSize);
+                setCurrentSize(newSize);
+              }
+            }}
+            style={tbStyle(false)}
+          >
+            +
+          </button>
 
           <span style={dividerStyle} />
 
@@ -592,7 +644,7 @@ export default function RichEditor({
                       title={c === "transparent" ? "None" : c}
                       onClick={() => {
                         if (c === "transparent") {
-                          execCmd("removeFormat");
+                          execCmd("hiliteColor", "transparent");
                         } else {
                           execCmd("hiliteColor", c);
                         }
@@ -1039,6 +1091,25 @@ export default function RichEditor({
         [contenteditable] sup {
           vertical-align: super;
           font-size: 0.75em;
+        }
+        /* Toolbar button hover & active feedback */
+        [role="toolbar"] button:hover {
+          background: rgba(37, 99, 235, 0.08) !important;
+          border-color: rgba(37, 99, 235, 0.25) !important;
+          color: #2563eb !important;
+          transition: all 0.15s ease;
+        }
+        [role="toolbar"] button:active {
+          background: rgba(37, 99, 235, 0.2) !important;
+          transform: scale(0.95);
+          transition: all 0.05s ease;
+        }
+        [role="toolbar"] button {
+          transition: all 0.15s ease;
+        }
+        /* Dropdown item hover */
+        [role="toolbar"] [data-dropdown] button:hover {
+          background: rgba(37, 99, 235, 0.08) !important;
         }
       `}</style>
     </div>
