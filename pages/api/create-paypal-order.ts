@@ -36,10 +36,10 @@ export default async function handler(
   }
 
   const { plan } = req.body as { plan?: "monthly" | "yearly" };
-  const amount = plan === "yearly" ? "79.20" : "6.60";
+  const amount = plan === "yearly" ? "60.00" : "5.00";
   const description =
     plan === "yearly"
-      ? "StickAINote Pro – Yearly ($6.60/mo)"
+      ? "StickAINote Pro – Yearly ($5.00/mo)"
       : "StickAINote Pro – Monthly";
 
   try {

@@ -305,7 +305,7 @@ export default function HomePage() {
 
                 <div style={{ marginBottom: 24 }}>
                   <div style={{ fontSize: 48, fontWeight: 800 }}>
-                    $6.60<span style={{ fontSize: 18, fontWeight: 500, color: "#94a3b8" }}>/mo</span>
+                    $5.00<span style={{ fontSize: 18, fontWeight: 500, color: "#94a3b8" }}>/mo</span>
                   </div>
                   <div style={{ color: "#4ade80", fontSize: 14, fontWeight: 600, marginTop: 6 }}>14 days free trial</div>
                 </div>

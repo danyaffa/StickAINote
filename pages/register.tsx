@@ -128,7 +128,7 @@ export default function RegisterPage() {
               }}
             >
               Your <strong>first 14 days are free</strong>. After your trial
-              ends, the fee is only US$6.60 per month.
+              ends, the fee is only US$5.00 per month.
               <br />
               You can{" "}
               <strong>cancel any time before the trial ends</strong> and

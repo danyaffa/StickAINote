@@ -8,7 +8,7 @@ export default function PayPalCheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const price = plan === "yearly" ? "$79.20/yr ($6.60/mo)" : "$6.60/mo";
+  const price = plan === "yearly" ? "$60.00/yr ($5.00/mo)" : "$5.00/mo";
 
   async function handlePayPal() {
     setError(null);
@@ -129,7 +129,7 @@ export default function PayPalCheckoutPage() {
               type="button"
             >
               <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>
-                $6.60
+                $5.00
               </div>
               <div style={{ fontSize: 12, color: "#94a3b8" }}>per month</div>
             </button>
@@ -153,26 +153,11 @@ export default function PayPalCheckoutPage() {
               }}
               type="button"
             >
-              <div
-                style={{
-                  position: "absolute",
-                  top: -10,
-                  right: 10,
-                  background: "#22c55e",
-                  color: "white",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  padding: "2px 8px",
-                  borderRadius: 6,
-                }}
-              >
-                SAVE 17%
-              </div>
               <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>
-                $79.20
+                $60.00
               </div>
               <div style={{ fontSize: 12, color: "#94a3b8" }}>
-                per year ($6.60/mo)
+                per year ($5.00/mo)
               </div>
             </button>
           </div>
