@@ -6,9 +6,11 @@ const PAYPAL_CLIENT_ID =
 const PAYPAL_SECRET =
   process.env.PAYPAL_SECRET || process.env.PAYPAL_CLIENT_SECRET;
 const PAYPAL_ENV = process.env.PAYPAL_ENV || "sandbox";
+const IS_LIVE =
+  PAYPAL_ENV === "live" || PAYPAL_ENV === "production" || PAYPAL_ENV === "1";
 const PAYPAL_API =
   process.env.PAYPAL_API_URL ||
-  (PAYPAL_ENV === "live"
+  (IS_LIVE
     ? "https://api-m.paypal.com"
     : "https://api-m.sandbox.paypal.com");
 
@@ -59,6 +61,7 @@ export default async function handler(
   ).replace(/\/+$/, "");
 
   try {
+    console.log(`PayPal env: ${PAYPAL_ENV}, isLive: ${IS_LIVE}, API: ${PAYPAL_API}`);
     const accessToken = await getAccessToken();
 
     const orderRes = await fetch(`${PAYPAL_API}/v2/checkout/orders`, {
@@ -100,7 +103,7 @@ export default async function handler(
       return;
     }
 
-    res.status(200).json({ id: order.id, paypalEnv: PAYPAL_ENV });
+    res.status(200).json({ id: order.id, paypalEnv: IS_LIVE ? "live" : "sandbox" });
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: err?.message || "PayPal error" });
