@@ -6,9 +6,11 @@ const PAYPAL_CLIENT_ID =
 const PAYPAL_SECRET =
   process.env.PAYPAL_SECRET || process.env.PAYPAL_CLIENT_SECRET;
 const PAYPAL_ENV = process.env.PAYPAL_ENV || "sandbox";
+const IS_LIVE =
+  PAYPAL_ENV === "live" || PAYPAL_ENV === "production" || PAYPAL_ENV === "1";
 const PAYPAL_API =
   process.env.PAYPAL_API_URL ||
-  (PAYPAL_ENV === "live"
+  (IS_LIVE
     ? "https://api-m.paypal.com"
     : "https://api-m.sandbox.paypal.com");
 
@@ -51,10 +53,15 @@ export default async function handler(
   const amount = plan === "yearly" ? "60.00" : "5.00";
   const description =
     plan === "yearly"
-      ? "StickAINote Pro – Yearly ($5.00/mo)"
-      : "StickAINote Pro – Monthly";
+      ? "StickAINote Pro - Yearly ($5.00/mo)"
+      : "StickAINote Pro - Monthly";
+
+  const appUrl = (
+    process.env.NEXT_PUBLIC_APP_URL || "https://stickainote.com"
+  ).replace(/\/+$/, "");
 
   try {
+    console.log(`PayPal env: ${PAYPAL_ENV}, isLive: ${IS_LIVE}, API: ${PAYPAL_API}`);
     const accessToken = await getAccessToken();
 
     const orderRes = await fetch(`${PAYPAL_API}/v2/checkout/orders`, {
@@ -78,8 +85,8 @@ export default async function handler(
           brand_name: "StickAINote",
           landing_page: "NO_PREFERENCE",
           user_action: "PAY_NOW",
-          return_url: `${process.env.NEXT_PUBLIC_APP_URL || ""}/paypal-success`,
-          cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || ""}/paypal-cancel`,
+          return_url: `${appUrl}/paypal-success`,
+          cancel_url: `${appUrl}/paypal-cancel`,
         },
       }),
     });
@@ -88,14 +95,15 @@ export default async function handler(
 
     if (!orderRes.ok) {
       console.error("PayPal order error:", JSON.stringify(order, null, 2));
-      const detail = order?.details?.[0]?.description || order?.message;
-      res.status(500).json({
-        error: detail || "PayPal order creation failed",
-      });
+      const d = order?.details?.[0];
+      const detail = d
+        ? `${d.description || d.issue || "Unknown error"}${d.field ? ` (field: ${d.field})` : ""}`
+        : order?.message || "PayPal order creation failed";
+      res.status(500).json({ error: detail });
       return;
     }
 
-    res.status(200).json({ id: order.id, paypalEnv: PAYPAL_ENV });
+    res.status(200).json({ id: order.id, paypalEnv: IS_LIVE ? "live" : "sandbox" });
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: err?.message || "PayPal error" });
