@@ -1,9 +1,16 @@
 // FILE: pages/api/capture-paypal-order.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
-const PAYPAL_SECRET = process.env.PAYPAL_SECRET;
-const PAYPAL_API = process.env.PAYPAL_API_URL || "https://api-m.sandbox.paypal.com";
+const PAYPAL_CLIENT_ID =
+  process.env.PAYPAL_CLIENT_ID || process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+const PAYPAL_SECRET =
+  process.env.PAYPAL_SECRET || process.env.PAYPAL_CLIENT_SECRET;
+const PAYPAL_ENV = process.env.PAYPAL_ENV || "sandbox";
+const PAYPAL_API =
+  process.env.PAYPAL_API_URL ||
+  (PAYPAL_ENV === "live"
+    ? "https://api-m.paypal.com"
+    : "https://api-m.sandbox.paypal.com");
 
 type Data = { status: string } | { error: string };
 
@@ -18,6 +25,11 @@ async function getAccessToken(): Promise<string> {
     body: "grant_type=client_credentials",
   });
   const data = await res.json();
+  if (!res.ok || !data.access_token) {
+    throw new Error(
+      data.error_description || data.error || "PayPal authentication failed"
+    );
+  }
   return data.access_token;
 }
 
@@ -58,8 +70,11 @@ export default async function handler(
     const capture = await captureRes.json();
 
     if (!captureRes.ok) {
-      console.error("PayPal capture error:", capture);
-      res.status(500).json({ error: capture?.message || "PayPal capture failed" });
+      console.error("PayPal capture error:", JSON.stringify(capture, null, 2));
+      const detail = capture?.details?.[0]?.description || capture?.message;
+      res.status(500).json({
+        error: detail || "PayPal capture failed",
+      });
       return;
     }
 

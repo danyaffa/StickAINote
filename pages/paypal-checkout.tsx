@@ -3,6 +3,11 @@ import Head from "next/head";
 import Link from "next/link";
 import React, { useState } from "react";
 
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+const PAYPAL_PLAN_ID = process.env.NEXT_PUBLIC_PAYPAL_PLAN_ID;
+
+const isConfigured = Boolean(PAYPAL_CLIENT_ID && PAYPAL_PLAN_ID);
+
 export default function PayPalCheckoutPage() {
   const [plan, setPlan] = useState<"monthly" | "yearly">("monthly");
   const [loading, setLoading] = useState(false);
@@ -12,6 +17,17 @@ export default function PayPalCheckoutPage() {
 
   async function handlePayPal() {
     setError(null);
+
+    if (!isConfigured) {
+      const missing: string[] = [];
+      if (!PAYPAL_CLIENT_ID) missing.push("NEXT_PUBLIC_PAYPAL_CLIENT_ID");
+      if (!PAYPAL_PLAN_ID) missing.push("NEXT_PUBLIC_PAYPAL_PLAN_ID");
+      setError(
+        `PayPal configuration incomplete. Missing: ${missing.join(", ")}. Please contact support.`
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -24,12 +40,17 @@ export default function PayPalCheckoutPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to create PayPal order");
+        throw new Error(
+          data.error || `PayPal order creation failed (HTTP ${res.status})`
+        );
       }
 
-      // Redirect to PayPal approval URL
-      const approvalUrl = `https://www.sandbox.paypal.com/checkoutnow?token=${data.id}`;
-      window.location.href = approvalUrl;
+      // Use the environment from the server to determine the correct PayPal URL
+      const paypalDomain =
+        data.paypalEnv === "live"
+          ? "https://www.paypal.com"
+          : "https://www.sandbox.paypal.com";
+      window.location.href = `${paypalDomain}/checkoutnow?token=${data.id}`;
     } catch (err: any) {
       setError(err?.message || "Something went wrong. Please try again.");
       setLoading(false);
@@ -241,6 +262,23 @@ export default function PayPalCheckoutPage() {
             </li>
           </ul>
 
+          {/* Config Warning */}
+          {!isConfigured && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: "10px 14px",
+                borderRadius: 10,
+                background: "#7f1d1d",
+                color: "#fca5a5",
+                fontSize: 13,
+              }}
+            >
+              PayPal is not configured. Please contact support or try again
+              later.
+            </div>
+          )}
+
           {/* Error */}
           {error && (
             <div
@@ -260,19 +298,20 @@ export default function PayPalCheckoutPage() {
           {/* Pay Button */}
           <button
             onClick={handlePayPal}
-            disabled={loading}
+            disabled={loading || !isConfigured}
             style={{
               width: "100%",
               padding: "16px",
               borderRadius: 12,
               border: "none",
-              background: loading
-                ? "#1e40af80"
-                : "linear-gradient(to right, #fbbf24, #f59e0b)",
-              color: loading ? "#94a3b8" : "#1e293b",
+              background:
+                loading || !isConfigured
+                  ? "#1e40af80"
+                  : "linear-gradient(to right, #fbbf24, #f59e0b)",
+              color: loading || !isConfigured ? "#94a3b8" : "#1e293b",
               fontWeight: 700,
               fontSize: 16,
-              cursor: loading ? "default" : "pointer",
+              cursor: loading || !isConfigured ? "default" : "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",

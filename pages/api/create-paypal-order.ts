@@ -1,11 +1,18 @@
 // FILE: pages/api/create-paypal-order.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
-const PAYPAL_SECRET = process.env.PAYPAL_SECRET;
-const PAYPAL_API = process.env.PAYPAL_API_URL || "https://api-m.sandbox.paypal.com";
+const PAYPAL_CLIENT_ID =
+  process.env.PAYPAL_CLIENT_ID || process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+const PAYPAL_SECRET =
+  process.env.PAYPAL_SECRET || process.env.PAYPAL_CLIENT_SECRET;
+const PAYPAL_ENV = process.env.PAYPAL_ENV || "sandbox";
+const PAYPAL_API =
+  process.env.PAYPAL_API_URL ||
+  (PAYPAL_ENV === "live"
+    ? "https://api-m.paypal.com"
+    : "https://api-m.sandbox.paypal.com");
 
-type Data = { id: string } | { error: string };
+type Data = { id: string; paypalEnv: string } | { error: string };
 
 async function getAccessToken(): Promise<string> {
   const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_SECRET}`).toString("base64");
@@ -18,6 +25,11 @@ async function getAccessToken(): Promise<string> {
     body: "grant_type=client_credentials",
   });
   const data = await res.json();
+  if (!res.ok || !data.access_token) {
+    throw new Error(
+      data.error_description || data.error || "PayPal authentication failed"
+    );
+  }
   return data.access_token;
 }
 
@@ -75,12 +87,15 @@ export default async function handler(
     const order = await orderRes.json();
 
     if (!orderRes.ok) {
-      console.error("PayPal order error:", order);
-      res.status(500).json({ error: order?.message || "PayPal order creation failed" });
+      console.error("PayPal order error:", JSON.stringify(order, null, 2));
+      const detail = order?.details?.[0]?.description || order?.message;
+      res.status(500).json({
+        error: detail || "PayPal order creation failed",
+      });
       return;
     }
 
-    res.status(200).json({ id: order.id });
+    res.status(200).json({ id: order.id, paypalEnv: PAYPAL_ENV });
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: err?.message || "PayPal error" });
