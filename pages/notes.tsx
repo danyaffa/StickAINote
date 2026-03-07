@@ -1822,7 +1822,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
               </p>
               <p style={{ fontSize: 14, color: "#94a3b8", margin: "0 0 24px", lineHeight: 1.6 }}>
                 Upgrade to <strong>StickAINote Pro</strong> for unlimited notes, AI features, and more.
-                Only <strong>US$6.60/month</strong> - cancel any time.
+                Only <strong>US$5.00/month</strong> - cancel any time.
               </p>
               <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
                 <button

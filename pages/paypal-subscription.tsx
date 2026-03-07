@@ -118,7 +118,7 @@ export default function PayPalSubscriptionPage() {
             >
               <span style={{ fontSize: 14, color: "#94a3b8" }}>Price</span>
               <span style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0" }}>
-                {isPaid ? "$6.60/month" : "Free (up to 5 notes)"}
+                {isPaid ? "$5.00/month" : "Free (up to 5 notes)"}
               </span>
             </div>
           </div>
