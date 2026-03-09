@@ -116,7 +116,7 @@ export async function deleteNoteFromCloud(
  */
 export async function syncNotes(
   userId: string
-): Promise<{ toLocal: NoteRecord[]; toCloud: NoteRecord[] }> {
+): Promise<{ toLocal: NoteRecord[]; toCloud: NoteRecord[]; pushFailures: number }> {
   const [localActive, localTrash, cloudNotes] = await Promise.all([
     getAllNotes(),
     getTrashNotes(),
@@ -158,9 +158,14 @@ export async function syncNotes(
   }
 
   // Push local → cloud (use allSettled so one failure doesn't block the rest)
-  await Promise.allSettled(toCloud.map((n) => pushNoteToCloud(userId, n)));
+  const results = await Promise.allSettled(toCloud.map((n) => pushNoteToCloud(userId, n)));
+  const failed = results.filter((r) => r.status === "rejected");
+  if (failed.length > 0) {
+    console.error(`[syncNotes] ${failed.length}/${toCloud.length} notes failed to push to Firestore:`,
+      failed.map((r) => (r as PromiseRejectedResult).reason));
+  }
 
-  return { toLocal, toCloud };
+  return { toLocal, toCloud, pushFailures: failed.length };
 }
 
 /**
@@ -172,4 +177,37 @@ export async function fetchAllCloudNotes(
   userId: string
 ): Promise<NoteRecord[]> {
   return getCloudNotes(userId);
+}
+
+/**
+ * Push ALL local notes to Firestore.
+ * Used when Firestore is empty but local notes exist (first-time sync,
+ * or if previous syncs silently failed).
+ * Returns { pushed, failed } counts.
+ */
+export async function pushAllNotesToCloud(
+  userId: string
+): Promise<{ pushed: number; failed: number }> {
+  const [active, trash] = await Promise.all([getAllNotes(), getTrashNotes()]);
+  const all = [...active, ...trash];
+  if (all.length === 0) return { pushed: 0, failed: 0 };
+
+  const results = await Promise.allSettled(
+    all.map((n) => pushNoteToCloud(userId, n))
+  );
+  const failed = results.filter((r) => r.status === "rejected").length;
+  const pushed = results.length - failed;
+
+  if (failed > 0) {
+    console.error(
+      `[pushAllNotesToCloud] ${failed}/${all.length} notes failed to push to Firestore:`,
+      results
+        .filter((r) => r.status === "rejected")
+        .map((r) => (r as PromiseRejectedResult).reason)
+    );
+  } else {
+    console.info(`[pushAllNotesToCloud] Successfully pushed ${pushed} notes to Firestore.`);
+  }
+
+  return { pushed, failed };
 }
