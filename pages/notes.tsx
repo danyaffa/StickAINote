@@ -25,7 +25,7 @@ import {
 import { sanitizeHtml, stripHtml, htmlToMarkdown } from "../lib/sanitize";
 import { usePWAInstall } from "../lib/usePWAInstall";
 import { useAuth } from "../context/AuthContext";
-import { syncNotes, pushNoteToCloud, fetchAllCloudNotes } from "../lib/syncNotes";
+import { syncNotes, pushNoteToCloud, fetchAllCloudNotes, pushAllNotesToCloud } from "../lib/syncNotes";
 
 const RichEditor = dynamic(() => import("../components/RichEditor"), { ssr: false });
 const NoteTable = dynamic(() => import("../components/NoteTable"), { ssr: false });
@@ -241,6 +241,7 @@ export default function NotesPage() {
   // Always recover notes from Firestore so notes survive browser restarts,
   // cache clears, or switching to a new device.
   const [cloudRecoveryStatus, setCloudRecoveryStatus] = useState<"idle" | "recovering" | "done" | "error">("idle");
+  const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
 
   const recoverFromCloud = useCallback(async () => {
     if (!user) {
@@ -307,21 +308,45 @@ export default function NotesPage() {
             if (!cancelled) setNotes(refreshed);
           }
 
-          // Then do bidirectional sync to push any local-only notes to cloud
-          const { toLocal } = await syncNotes(user.uid);
-          if (cancelled) return;
-          if (toLocal.length > 0) {
-            for (const note of toLocal) {
-              await putNote(note);
+          // If Firestore is empty but we have local notes, force-push everything
+          const localNotes = await getAllNotes();
+          if (cloudNotes.length === 0 && localNotes.length > 0) {
+            console.info(`[cloud-sync] Firestore is empty but ${localNotes.length} local notes exist — pushing all to cloud...`);
+            const { pushed, failed } = await pushAllNotesToCloud(user.uid);
+            if (cancelled) return;
+            if (failed > 0) {
+              console.error(`[cloud-sync] Failed to push ${failed} notes to Firestore.`);
+              setCloudSyncError(`Cloud sync: ${failed} note(s) failed to save. Check your Firestore rules or network.`);
+            } else {
+              console.info(`[cloud-sync] Successfully pushed ${pushed} notes to Firestore.`);
+              setCloudSyncError(null);
             }
-            const refreshed = await getAllNotes();
-            if (!cancelled) setNotes(refreshed);
+          } else {
+            // Normal bidirectional sync to push any local-only notes to cloud
+            const { toLocal, pushFailures } = await syncNotes(user.uid);
+            if (cancelled) return;
+            if (pushFailures && pushFailures > 0) {
+              setCloudSyncError(`Cloud sync: ${pushFailures} note(s) failed to save.`);
+            } else {
+              setCloudSyncError(null);
+            }
+            if (toLocal.length > 0) {
+              for (const note of toLocal) {
+                await putNote(note);
+              }
+              const refreshed = await getAllNotes();
+              if (!cancelled) setNotes(refreshed);
+            }
           }
           break; // Success — stop retrying
-        } catch {
+        } catch (err) {
+          console.error(`[cloud-sync] Attempt ${attempt + 1}/3 failed:`, err);
           // Retry after backoff (1s, 2s, 4s)
           if (attempt < 2 && !cancelled) {
             await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+          }
+          if (attempt === 2 && !cancelled) {
+            setCloudSyncError("Cloud sync failed after 3 attempts. Notes are saved locally only.");
           }
         }
       }
@@ -382,15 +407,16 @@ export default function NotesPage() {
         setSaveStatus("saved");
         // Push to cloud if logged in (retry once on failure)
         if (latestUser.current && updated) {
-          pushNoteToCloud(latestUser.current.uid, updated).catch(async () => {
+          pushNoteToCloud(latestUser.current.uid, updated).catch(async (err) => {
+            console.error("[cloud] Auto-save push failed, retrying:", err);
             // Retry once after 2 seconds
             try {
               await new Promise((r) => setTimeout(r, 2000));
               if (latestUser.current) {
                 await pushNoteToCloud(latestUser.current.uid, updated);
               }
-            } catch {
-              console.warn("Cloud save failed for note:", id);
+            } catch (retryErr) {
+              console.error("[cloud] Auto-save retry also failed for note:", id, retryErr);
             }
           });
         }
@@ -481,7 +507,7 @@ export default function NotesPage() {
     const note = await createNote();
     setNotes((prev) => [note, ...prev]);
     openNote(note.id);
-    if (user) pushNoteToCloud(user.uid, note).catch(() => {});
+    if (user) pushNoteToCloud(user.uid, note).catch((err) => { console.error("[cloud] Failed to push new note:", err); setCloudSyncError("Failed to save note to cloud."); });
   }, [isPaidUser, notes.length, openNote, user]);
 
   const handleNewNoteWithContent = useCallback(
@@ -496,7 +522,7 @@ export default function NotesPage() {
       });
       setNotes((prev) => [note, ...prev]);
       openNote(note.id);
-      if (user) pushNoteToCloud(user.uid, note).catch(() => {});
+      if (user) pushNoteToCloud(user.uid, note).catch((err) => { console.error("[cloud] Failed to push new note:", err); setCloudSyncError("Failed to save note to cloud."); });
     },
     [openNote, user, isPaidUser, notes.length]
   );
@@ -515,7 +541,7 @@ export default function NotesPage() {
       setConfirmDeleteId(null);
       // Sync soft-delete to cloud
       if (user && note) {
-        pushNoteToCloud(user.uid, { ...note, deleted: true, deletedAt: Date.now(), updatedAt: Date.now() }).catch(() => {});
+        pushNoteToCloud(user.uid, { ...note, deleted: true, deletedAt: Date.now(), updatedAt: Date.now() }).catch((err) => console.error("[cloud] Failed to sync delete:", err));
       }
     },
     [activeId, notes, closeNote, user]
@@ -534,7 +560,7 @@ export default function NotesPage() {
             return b.updatedAt - a.updatedAt;
           });
         });
-        if (user) pushNoteToCloud(user.uid, updated).catch(() => {});
+        if (user) pushNoteToCloud(user.uid, updated).catch((err) => console.error("[cloud] Failed to sync pin:", err));
       }
     },
     [notes, user]
@@ -552,7 +578,7 @@ export default function NotesPage() {
       });
       setNotes((prev) => [dup, ...prev]);
       openNote(dup.id);
-      if (user) pushNoteToCloud(user.uid, dup).catch(() => {});
+      if (user) pushNoteToCloud(user.uid, dup).catch((err) => console.error("[cloud] Failed to push duplicate:", err));
     },
     [notes, openNote, user]
   );
@@ -560,13 +586,14 @@ export default function NotesPage() {
   const handlePriorityChange = useCallback(
     async (priority: NotePriority) => {
       if (!activeId) return;
-      await dbUpdateNote(activeId, { priority });
+      const updated = await dbUpdateNote(activeId, { priority });
       setNotes((prev) =>
         prev.map((n) => (n.id === activeId ? { ...n, priority } : n))
       );
       setShowPriorityMenu(false);
+      if (user && updated) pushNoteToCloud(user.uid, updated).catch((err) => console.error("[cloud] Failed to sync priority:", err));
     },
-    [activeId]
+    [activeId, user]
   );
 
   const handleToggleDarkMode = useCallback(async () => {
@@ -589,7 +616,7 @@ export default function NotesPage() {
       setNotes((prev) => [note, ...prev]);
       openNote(note.id);
       setShowTemplates(false);
-      if (user) pushNoteToCloud(user.uid, note).catch(() => {});
+      if (user) pushNoteToCloud(user.uid, note).catch((err) => console.error("[cloud] Failed to push template note:", err));
     },
     [isPaidUser, notes.length, openNote, user]
   );
@@ -742,7 +769,7 @@ export default function NotesPage() {
       await reloadNotes();
       // Sync restored version to Firestore
       if (user && updated) {
-        pushNoteToCloud(user.uid, updated).catch(() => {});
+        pushNoteToCloud(user.uid, updated).catch((err) => console.error("[cloud] Failed to sync version restore:", err));
       }
     },
     [activeId, reloadNotes, user]
@@ -835,7 +862,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
         });
         setNotes((prev) => [note, ...prev]);
         openNote(note.id);
-        if (user) pushNoteToCloud(user.uid, note).catch(() => {});
+        if (user) pushNoteToCloud(user.uid, note).catch((err) => console.error("[cloud] Failed to push imported note:", err));
         alert(`Imported "${baseName}" as a new note!`);
       }
     };
@@ -1018,6 +1045,33 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
             </button>
           )}
         </header>
+
+        {/* CLOUD SYNC ERROR BANNER */}
+        {cloudSyncError && (
+          <div
+            style={{
+              background: "#fef2f2",
+              border: "1px solid #fca5a5",
+              color: "#991b1b",
+              padding: "8px 16px",
+              fontSize: 13,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+              flexShrink: 0,
+            }}
+          >
+            <span>{cloudSyncError}</span>
+            <button
+              onClick={() => setCloudSyncError(null)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#991b1b", fontWeight: 700, fontSize: 16 }}
+              type="button"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {/* NOTES TABS BAR */}
         <div
