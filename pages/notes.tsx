@@ -243,24 +243,47 @@ export default function NotesPage() {
   const [cloudRecoveryStatus, setCloudRecoveryStatus] = useState<"idle" | "recovering" | "done" | "error">("idle");
 
   const recoverFromCloud = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      // Redirect to login, then come back
+      window.location.href = "/login?redirect=/notes&recover=1";
+      return;
+    }
     setCloudRecoveryStatus("recovering");
     try {
       const cloudNotes = await fetchAllCloudNotes(user.uid);
+      let recovered = 0;
       if (cloudNotes.length > 0) {
         for (const note of cloudNotes) {
-          await putNote(note);
+          // Force-restore: undelete notes so they appear in the main list
+          await putNote({ ...note, deleted: false, deletedAt: null });
+          recovered++;
         }
         const refreshed = await getAllNotes();
         setNotes(refreshed);
       }
       setCloudRecoveryStatus("done");
-      setTimeout(() => setCloudRecoveryStatus("idle"), 3000);
-    } catch {
+      setTimeout(() => setCloudRecoveryStatus("idle"), 5000);
+    } catch (err) {
+      console.error("Cloud recovery failed:", err);
       setCloudRecoveryStatus("error");
-      setTimeout(() => setCloudRecoveryStatus("idle"), 3000);
+      setTimeout(() => setCloudRecoveryStatus("idle"), 5000);
     }
   }, [user]);
+
+  // Auto-trigger recovery if redirected back from login with ?recover=1
+  useEffect(() => {
+    if (!loaded || !user) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("recover") === "1") {
+      // Remove the query param to avoid re-triggering
+      const url = new URL(window.location.href);
+      url.searchParams.delete("recover");
+      url.searchParams.delete("redirect");
+      window.history.replaceState({}, "", url.pathname);
+      // Trigger full recovery
+      recoverFromCloud();
+    }
+  }, [loaded, user, recoverFromCloud]);
 
   useEffect(() => {
     if (!loaded || !user) return;
@@ -269,29 +292,30 @@ export default function NotesPage() {
     (async () => {
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
+          // Always do a full cloud pull first to ensure no notes are missed
+          const cloudNotes = await fetchAllCloudNotes(user.uid);
+          if (cancelled) return;
+
+          if (cloudNotes.length > 0) {
+            // Write all cloud notes to local (non-deleted ones)
+            for (const note of cloudNotes) {
+              if (!note.deleted) {
+                await putNote(note);
+              }
+            }
+            const refreshed = await getAllNotes();
+            if (!cancelled) setNotes(refreshed);
+          }
+
+          // Then do bidirectional sync to push any local-only notes to cloud
           const { toLocal } = await syncNotes(user.uid);
           if (cancelled) return;
           if (toLocal.length > 0) {
             for (const note of toLocal) {
               await putNote(note);
             }
-            // Reload notes from IndexedDB after sync
             const refreshed = await getAllNotes();
             if (!cancelled) setNotes(refreshed);
-          }
-          // Fallback: if local is empty but cloud has notes, force full recovery
-          if (toLocal.length === 0) {
-            const localNotes = await getAllNotes();
-            if (localNotes.length === 0) {
-              const cloudNotes = await fetchAllCloudNotes(user.uid);
-              if (!cancelled && cloudNotes.length > 0) {
-                for (const note of cloudNotes) {
-                  await putNote(note);
-                }
-                const refreshed = await getAllNotes();
-                if (!cancelled) setNotes(refreshed);
-              }
-            }
           }
           break; // Success — stop retrying
         } catch {
@@ -928,21 +952,22 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
           <button onClick={() => setShowTrash(true)} style={headerBtn} type="button" title="View trash">
             Trash
           </button>
-          {user && (
-            <button
-              onClick={recoverFromCloud}
-              disabled={cloudRecoveryStatus === "recovering"}
-              style={{
-                ...headerBtn,
-                background: cloudRecoveryStatus === "done" ? "#22c55e" : cloudRecoveryStatus === "error" ? "#ef4444" : undefined,
-                color: cloudRecoveryStatus === "done" || cloudRecoveryStatus === "error" ? "white" : undefined,
-              }}
-              type="button"
-              title="Recover lost notes from cloud backup"
-            >
-              {cloudRecoveryStatus === "recovering" ? "Recovering..." : cloudRecoveryStatus === "done" ? "Recovered!" : cloudRecoveryStatus === "error" ? "Error" : "Recover"}
-            </button>
-          )}
+          <button
+            onClick={recoverFromCloud}
+            disabled={cloudRecoveryStatus === "recovering"}
+            style={{
+              ...headerBtn,
+              background: cloudRecoveryStatus === "done" ? "#22c55e" : cloudRecoveryStatus === "error" ? "#ef4444" : "linear-gradient(to right, #f59e0b, #ef4444)",
+              color: "white",
+              fontWeight: 700,
+              borderRadius: 8,
+              padding: "6px 14px",
+            }}
+            type="button"
+            title={user ? "Recover lost notes from cloud backup" : "Sign in to recover your notes from cloud"}
+          >
+            {cloudRecoveryStatus === "recovering" ? "Recovering..." : cloudRecoveryStatus === "done" ? "Recovered!" : cloudRecoveryStatus === "error" ? "Error" : "Recover"}
+          </button>
           <button onClick={handleToggleDarkMode} style={headerBtn} type="button" title="Toggle dark mode">
             {darkMode ? "Light" : "Dark"}
           </button>

@@ -3,6 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import React, { useState } from "react";
 import { useRouter } from "next/router";
+import { useAuth } from "../context/AuthContext";
 
 const FAMILY_PROMO_CODE =
   process.env.NEXT_PUBLIC_FAMILY_PROMO_CODE || "DANFAM2025";
@@ -14,20 +15,35 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [promoCode, setPromoCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const router = useRouter();
+  const { login } = useAuth();
 
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    setErrorMsg(null);
+
+    // Determine redirect target (supports ?redirect= query param)
+    const params = new URLSearchParams(window.location.search);
+    const redirect = params.get("redirect") || "/notes";
+    const recover = params.get("recover");
+    const target = recover ? `${redirect}?recover=1` : redirect;
 
     // 1. Developer Access (leffleryd@gmail.com)
-    // Grants full access immediately regardless of password for now
     if (email.trim().toLowerCase() === "leffleryd@gmail.com") {
       if (typeof window !== "undefined") {
-        // Set the promo flag to ensure access to features is unlocked
         window.localStorage.setItem("stickainote-promo", "1");
       }
-      router.push("/notes");
+      // Still authenticate with Firebase so cloud sync works
+      try {
+        setLoading(true);
+        await login(email.trim(), password);
+      } catch {
+        // Dev access proceeds even if Firebase auth fails
+      }
+      router.push(target);
       return;
     }
 
@@ -36,18 +52,45 @@ export default function LoginPage() {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("stickainote-promo", "1");
       }
-      router.push("/notes");
+      // Still authenticate with Firebase
+      if (email.trim() && password.trim()) {
+        try {
+          setLoading(true);
+          await login(email.trim(), password);
+        } catch {
+          // Promo access proceeds even if Firebase auth fails
+        }
+      }
+      router.push(target);
       return;
     }
 
-    // 3. TEMP: normal login placeholder
+    // 3. Normal login – authenticate with Firebase
     if (!email.trim()) {
-      alert("Please enter your email.");
+      setErrorMsg("Please enter your email.");
+      return;
+    }
+    if (!password.trim()) {
+      setErrorMsg("Please enter your password.");
       return;
     }
 
-    // For standard users (placeholder logic)
-    router.push("/notes");
+    try {
+      setLoading(true);
+      await login(email.trim(), password);
+      router.push(target);
+    } catch (err: any) {
+      console.error("Login failed:", err);
+      const code = err?.code || "";
+      if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
+        setErrorMsg("Invalid email or password. Please try again.");
+      } else if (code === "auth/too-many-requests") {
+        setErrorMsg("Too many failed attempts. Please try again later.");
+      } else {
+        setErrorMsg(err?.message || "Login failed. Please try again.");
+      }
+      setLoading(false);
+    }
   }
 
   return (
@@ -102,6 +145,21 @@ export default function LoginPage() {
             <p style={{ fontSize: "0.9rem", marginBottom: "1.25rem" }}>
               Log in to your StickAINote account to access your notes.
             </p>
+
+            {errorMsg && (
+              <div
+                style={{
+                  marginBottom: "0.75rem",
+                  padding: "0.45rem 0.6rem",
+                  borderRadius: 8,
+                  background: "#fee2e2",
+                  color: "#b91c1c",
+                  fontSize: "0.8rem",
+                }}
+              >
+                {errorMsg}
+              </div>
+            )}
 
             <form
               onSubmit={handleLogin}
@@ -186,21 +244,22 @@ export default function LoginPage() {
               {/* Login button */}
               <button
                 type="submit"
+                disabled={loading}
                 style={{
                   marginTop: 8,
                   width: "100%",
                   padding: "0.65rem 1rem",
                   borderRadius: 999,
-                  background: "#2563eb",
+                  background: loading ? "#93c5fd" : "#2563eb",
                   color: "#ffffff",
                   fontWeight: 600,
                   textDecoration: "none",
                   fontSize: "0.95rem",
                   border: "none",
-                  cursor: "pointer",
+                  cursor: loading ? "default" : "pointer",
                 }}
               >
-                Log in &amp; open my note
+                {loading ? "Signing in..." : "Log in & open my note"}
               </button>
             </form>
 

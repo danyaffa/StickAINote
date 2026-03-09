@@ -983,7 +983,7 @@ export default function RichEditor({
       {/* Editor area */}
       <div
         ref={editorRef}
-        contentEditable={!readOnly}
+        contentEditable={readOnly ? "false" : "true"}
         suppressContentEditableWarning
         spellCheck={spellCheck}
         role="textbox"
