@@ -25,7 +25,7 @@ import {
 import { sanitizeHtml, stripHtml, htmlToMarkdown } from "../lib/sanitize";
 import { usePWAInstall } from "../lib/usePWAInstall";
 import { useAuth } from "../context/AuthContext";
-import { syncNotes, pushNoteToCloud } from "../lib/syncNotes";
+import { syncNotes, pushNoteToCloud, deleteNoteFromCloud, fetchAllCloudNotes } from "../lib/syncNotes";
 
 const RichEditor = dynamic(() => import("../components/RichEditor"), { ssr: false });
 const NoteTable = dynamic(() => import("../components/NoteTable"), { ssr: false });
@@ -238,23 +238,36 @@ export default function NotesPage() {
   }, []);
 
   // --- CLOUD SYNC: pull/push notes when user is logged in ---
+  // Always recover notes from Firestore so notes survive browser restarts,
+  // cache clears, or switching to a new device.
   useEffect(() => {
     if (!loaded || !user) return;
+    let cancelled = false;
+
     (async () => {
-      try {
-        const { toLocal } = await syncNotes(user.uid);
-        if (toLocal.length > 0) {
-          for (const note of toLocal) {
-            await putNote(note);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const { toLocal } = await syncNotes(user.uid);
+          if (cancelled) return;
+          if (toLocal.length > 0) {
+            for (const note of toLocal) {
+              await putNote(note);
+            }
+            // Reload notes from IndexedDB after sync
+            const refreshed = await getAllNotes();
+            if (!cancelled) setNotes(refreshed);
           }
-          // Reload notes from IndexedDB after sync
-          const refreshed = await getAllNotes();
-          setNotes(refreshed);
+          break; // Success — stop retrying
+        } catch {
+          // Retry after backoff (1s, 2s, 4s)
+          if (attempt < 2 && !cancelled) {
+            await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+          }
         }
-      } catch {
-        // Cloud sync failed silently — offline or Firebase not configured
       }
     })();
+
+    return () => { cancelled = true; };
   }, [loaded, user]);
 
   // --- SYNC EDIT STATE FROM ACTIVE NOTE ---
@@ -647,14 +660,18 @@ export default function NotesPage() {
       setEditContent(version.content);
       setEditTitle(version.title);
       setEditTables(version.tables || []);
-      await dbUpdateNote(activeId, {
+      const updated = await dbUpdateNote(activeId, {
         content: version.content,
         title: version.title,
         tables: version.tables || [],
       });
       await reloadNotes();
+      // Sync restored version to Firestore
+      if (user && updated) {
+        pushNoteToCloud(user.uid, updated).catch(() => {});
+      }
     },
-    [activeId, reloadNotes]
+    [activeId, reloadNotes, user]
   );
 
   // Filtered notes (search + folder filter)

@@ -2,6 +2,10 @@
  * Bidirectional sync between local IndexedDB and Firestore.
  * When a user is logged in, notes are synced so they appear
  * across browser and installed PWA.
+ *
+ * Firestore is the source of truth — notes are always recoverable
+ * from the cloud even if IndexedDB is cleared (e.g. browser restart,
+ * cache clear, new device).
  */
 
 import {
@@ -157,4 +161,15 @@ export async function syncNotes(
   await Promise.all(toCloud.map((n) => pushNoteToCloud(userId, n)));
 
   return { toLocal, toCloud };
+}
+
+/**
+ * Fetch all notes for a user from Firestore.
+ * Used as a fallback to recover notes when IndexedDB is empty
+ * (e.g. after a restart, cache clear, or on a new device).
+ */
+export async function fetchAllCloudNotes(
+  userId: string
+): Promise<NoteRecord[]> {
+  return getCloudNotes(userId);
 }

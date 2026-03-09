@@ -3,11 +3,14 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
   getTrashNotes,
+  getNote,
   restoreNote,
   permanentDeleteNote,
   type NoteRecord,
 } from "../lib/db";
 import { stripHtml } from "../lib/sanitize";
+import { useAuth } from "../context/AuthContext";
+import { pushNoteToCloud, deleteNoteFromCloud } from "../lib/syncNotes";
 
 interface TrashViewProps {
   onClose: () => void;
@@ -17,6 +20,7 @@ interface TrashViewProps {
 export default function TrashView({ onClose, onRestored }: TrashViewProps) {
   const [notes, setNotes] = useState<NoteRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   const loadTrash = useCallback(async () => {
     setLoading(true);
@@ -32,28 +36,37 @@ export default function TrashView({ onClose, onRestored }: TrashViewProps) {
   const handleRestore = useCallback(
     async (id: string) => {
       await restoreNote(id);
+      // Sync restored note to Firestore so it's marked as active in the cloud
+      if (user) {
+        const restored = await getNote(id);
+        if (restored) pushNoteToCloud(user.uid, restored).catch(() => {});
+      }
       await loadTrash();
       onRestored();
     },
-    [loadTrash, onRestored]
+    [loadTrash, onRestored, user]
   );
 
   const handlePermanentDelete = useCallback(
     async (id: string) => {
       if (!window.confirm("Permanently delete this note? This cannot be undone.")) return;
       await permanentDeleteNote(id);
+      // Remove from Firestore too so it doesn't come back on next sync
+      if (user) deleteNoteFromCloud(user.uid, id).catch(() => {});
       await loadTrash();
     },
-    [loadTrash]
+    [loadTrash, user]
   );
 
   const handleEmptyTrash = useCallback(async () => {
     if (!window.confirm("Permanently delete all trashed notes?")) return;
     for (const note of notes) {
       await permanentDeleteNote(note.id);
+      // Remove from Firestore too
+      if (user) deleteNoteFromCloud(user.uid, note.id).catch(() => {});
     }
     await loadTrash();
-  }, [notes, loadTrash]);
+  }, [notes, loadTrash, user]);
 
   return (
     <div
