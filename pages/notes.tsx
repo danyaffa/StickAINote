@@ -11,6 +11,7 @@ import {
   updateNote as dbUpdateNote,
   softDeleteNote,
   putNote,
+  getTrashNotes,
   saveVersion,
   migrateFromLocalStorage,
   purgeOldTrash,
@@ -117,7 +118,23 @@ export default function NotesPage() {
   const openedAtRef = useRef(0);
 
   // openNote: the ONLY way to open a note. Accepts a non-null noteId.
+  // Flushes any pending auto-save before switching to prevent data loss.
   const openNote = useCallback((id: string) => {
+    // Flush pending auto-save for the current note before switching
+    if (autoSaveTimer.current) {
+      clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = null;
+      const prevId = latestActiveId.current;
+      if (prevId) {
+        const sanitized = sanitizeHtml(latestEditContent.current);
+        dbUpdateNote(prevId, {
+          title: latestEditTitle.current,
+          content: sanitized,
+          tables: latestEditTables.current,
+          color: latestEditColor.current,
+        }).catch(() => {});
+      }
+    }
     openedAtRef.current = Date.now();
     setActiveIdRaw(id);
     try { window.sessionStorage.setItem("stickanote-active-id", id); } catch { /* ignore */ }
@@ -179,6 +196,7 @@ export default function NotesPage() {
 
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const versionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveStatusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editorDivRef = useRef<HTMLDivElement | null>(null);
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const lastVersionContent = useRef("");
@@ -255,9 +273,11 @@ export default function NotesPage() {
       let recovered = 0;
       if (cloudNotes.length > 0) {
         for (const note of cloudNotes) {
-          // Force-restore: undelete notes so they appear in the main list
-          await putNote({ ...note, deleted: false, deletedAt: null });
-          recovered++;
+          // Only recover non-deleted notes; keep deleted ones in trash
+          if (!note.deleted) {
+            await putNote(note);
+            recovered++;
+          }
         }
         const refreshed = await getAllNotes();
         setNotes(refreshed);
@@ -299,12 +319,16 @@ export default function NotesPage() {
 
           if (cloudNotes.length > 0) {
             // Write cloud notes to local — only if newer or missing locally
+            // Also fetch trash to avoid un-deleting locally trashed notes
             const localNow = await getAllNotes();
-            const localMap = new Map(localNow.map((n) => [n.id, n]));
+            const localTrash = await getTrashNotes();
+            const localMap = new Map([...localNow, ...localTrash].map((n) => [n.id, n]));
             let pulled = 0;
             for (const note of cloudNotes) {
               if (note.deleted) continue;
               const local = localMap.get(note.id);
+              // Skip if locally soft-deleted (user intentionally trashed it)
+              if (local?.deleted) continue;
               if (!local || note.updatedAt > local.updatedAt) {
                 await putNote(note);
                 pulled++;
@@ -413,7 +437,8 @@ export default function NotesPage() {
           )
         );
         setSaveStatus("saved");
-        setTimeout(() => setSaveStatus("idle"), 2000);
+        if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
+        saveStatusTimer.current = setTimeout(() => setSaveStatus("idle"), 2000);
         // Push to cloud if logged in (retry once on failure)
         if (latestUser.current && updated) {
           pushNoteToCloud(latestUser.current.uid, updated).catch(async (err) => {
@@ -509,19 +534,20 @@ export default function NotesPage() {
 
   const handleNewNote = useCallback(async () => {
     // Free trial limit check
-    if (!isPaidUser && notes.length >= FREE_TRIAL_LIMIT) {
+    if (!isPaidUser && latestNotes.current.length >= FREE_TRIAL_LIMIT) {
       setShowUpgradePopup(true);
       return;
     }
     const note = await createNote();
     setNotes((prev) => [note, ...prev]);
     openNote(note.id);
-    if (user) pushNoteToCloud(user.uid, note).catch((err) => { console.error("[cloud] Failed to push new note:", err); setCloudSyncError("Failed to save note to cloud."); });
-  }, [isPaidUser, notes.length, openNote, user]);
+    const u = latestUser.current;
+    if (u) pushNoteToCloud(u.uid, note).catch((err) => { console.error("[cloud] Failed to push new note:", err); setCloudSyncError("Failed to save note to cloud."); });
+  }, [isPaidUser, openNote]);
 
   const handleNewNoteWithContent = useCallback(
     async (title: string, content: string) => {
-      if (!isPaidUser && notes.length >= FREE_TRIAL_LIMIT) {
+      if (!isPaidUser && latestNotes.current.length >= FREE_TRIAL_LIMIT) {
         setShowUpgradePopup(true);
         return;
       }
@@ -531,34 +557,36 @@ export default function NotesPage() {
       });
       setNotes((prev) => [note, ...prev]);
       openNote(note.id);
-      if (user) pushNoteToCloud(user.uid, note).catch((err) => { console.error("[cloud] Failed to push new note:", err); setCloudSyncError("Failed to save note to cloud."); });
+      const u = latestUser.current;
+      if (u) pushNoteToCloud(u.uid, note).catch((err) => { console.error("[cloud] Failed to push new note:", err); setCloudSyncError("Failed to save note to cloud."); });
     },
-    [openNote, user, isPaidUser, notes.length]
+    [openNote, isPaidUser]
   );
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleDelete = useCallback(
     async (id: string) => {
-      const note = notes.find((n) => n.id === id);
+      const note = latestNotes.current.find((n) => n.id === id);
       if (note) await saveVersion(note);
       await softDeleteNote(id);
       setNotes((prev) => prev.filter((n) => n.id !== id));
-      if (activeId === id) {
+      if (latestActiveId.current === id) {
         closeNote();
       }
       setConfirmDeleteId(null);
       // Sync soft-delete to cloud
-      if (user && note) {
-        pushNoteToCloud(user.uid, { ...note, deleted: true, deletedAt: Date.now(), updatedAt: Date.now() }).catch((err) => console.error("[cloud] Failed to sync delete:", err));
+      const u = latestUser.current;
+      if (u && note) {
+        pushNoteToCloud(u.uid, { ...note, deleted: true, deletedAt: Date.now(), updatedAt: Date.now() }).catch((err) => console.error("[cloud] Failed to sync delete:", err));
       }
     },
-    [activeId, notes, closeNote, user]
+    [closeNote]
   );
 
   const handlePin = useCallback(
     async (id: string) => {
-      const note = notes.find((n) => n.id === id);
+      const note = latestNotes.current.find((n) => n.id === id);
       if (!note) return;
       const updated = await dbUpdateNote(id, { pinned: !note.pinned });
       if (updated) {
@@ -569,15 +597,16 @@ export default function NotesPage() {
             return b.updatedAt - a.updatedAt;
           });
         });
-        if (user) pushNoteToCloud(user.uid, updated).catch((err) => console.error("[cloud] Failed to sync pin:", err));
+        const u = latestUser.current;
+        if (u) pushNoteToCloud(u.uid, updated).catch((err) => console.error("[cloud] Failed to sync pin:", err));
       }
     },
-    [notes, user]
+    []
   );
 
   const handleDuplicate = useCallback(
     async (id: string) => {
-      const note = notes.find((n) => n.id === id);
+      const note = latestNotes.current.find((n) => n.id === id);
       if (!note) return;
       const dup = await createNote({
         title: note.title + " (copy)",
@@ -587,9 +616,10 @@ export default function NotesPage() {
       });
       setNotes((prev) => [dup, ...prev]);
       openNote(dup.id);
-      if (user) pushNoteToCloud(user.uid, dup).catch((err) => console.error("[cloud] Failed to push duplicate:", err));
+      const u = latestUser.current;
+      if (u) pushNoteToCloud(u.uid, dup).catch((err) => console.error("[cloud] Failed to push duplicate:", err));
     },
-    [notes, openNote, user]
+    [openNote]
   );
 
   const handlePriorityChange = useCallback(
@@ -613,7 +643,7 @@ export default function NotesPage() {
 
   const handleCreateFromTemplate = useCallback(
     async (template: (typeof TEMPLATES)[number]) => {
-      if (!isPaidUser && notes.length >= FREE_TRIAL_LIMIT) {
+      if (!isPaidUser && latestNotes.current.length >= FREE_TRIAL_LIMIT) {
         setShowTemplates(false);
         setShowUpgradePopup(true);
         return;
@@ -625,22 +655,31 @@ export default function NotesPage() {
       setNotes((prev) => [note, ...prev]);
       openNote(note.id);
       setShowTemplates(false);
-      if (user) pushNoteToCloud(user.uid, note).catch((err) => console.error("[cloud] Failed to push template note:", err));
+      const u = latestUser.current;
+      if (u) pushNoteToCloud(u.uid, note).catch((err) => console.error("[cloud] Failed to push template note:", err));
     },
-    [isPaidUser, notes.length, openNote, user]
+    [isPaidUser, openNote]
   );
 
   const handleAiAction = useCallback(
     async (action: string) => {
-      if (!activeId || aiLoading) return;
+      const id = latestActiveId.current;
+      if (!id || aiLoading) return;
       setShowAiMenu(false);
       setAiLoading(true);
 
       try {
-        const text = stripHtml(editContent);
+        const currentContent = latestEditContent.current;
+        const text = stripHtml(currentContent);
         if (!text.trim()) {
           setAiLoading(false);
           return;
+        }
+
+        // Save a version snapshot before AI replaces content
+        const currentNote = latestNotes.current.find((n) => n.id === id);
+        if (currentNote) {
+          await saveVersion({ ...currentNote, content: currentContent, title: latestEditTitle.current });
         }
 
         const res = await fetch("/api/ai-note", {
@@ -664,7 +703,7 @@ export default function NotesPage() {
         setAiLoading(false);
       }
     },
-    [activeId, aiLoading, editContent, scheduleAutoSave]
+    [aiLoading, scheduleAutoSave]
   );
 
   const handleShare = useCallback(async () => {
@@ -878,12 +917,13 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
         });
         setNotes((prev) => [note, ...prev]);
         openNote(note.id);
-        if (user) pushNoteToCloud(user.uid, note).catch((err) => console.error("[cloud] Failed to push imported note:", err));
+        const u = latestUser.current;
+        if (u) pushNoteToCloud(u.uid, note).catch((err) => console.error("[cloud] Failed to push imported note:", err));
         alert(`Imported "${baseName}" as a new note!`);
       }
     };
     input.click();
-  }, [reloadNotes, isPaidUser, notes.length]);
+  }, [reloadNotes, isPaidUser, openNote]);
 
   const handleExportAll = useCallback(async () => {
     const { exportAllNotes } = await import("../lib/db");
@@ -2397,5 +2437,6 @@ function escapeHtml(str: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

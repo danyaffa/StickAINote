@@ -71,7 +71,7 @@ export default function BasicNote() {
             }));
         }
     };
-    const onUp = () => { setDragging({ ...dragging, active: false }); setResizing({ ...resizing, active: false }); };
+    const onUp = () => { setDragging(prev => ({ ...prev, active: false })); setResizing(prev => ({ ...prev, active: false })); };
     
     if (dragging.active || resizing.active) {
         window.addEventListener("mousemove", onMove);

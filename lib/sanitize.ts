@@ -42,7 +42,9 @@ export function sanitizeHtml(html: string): string {
 function sanitizeNode(node: Node): void {
   const toRemove: Node[] = [];
 
-  node.childNodes.forEach((child) => {
+  // Snapshot childNodes to avoid issues with live NodeList mutation
+  const children = Array.from(node.childNodes);
+  for (const child of children) {
     if (child.nodeType === Node.ELEMENT_NODE) {
       const el = child as Element;
       const tag = el.tagName.toLowerCase();
@@ -53,6 +55,8 @@ function sanitizeNode(node: Node): void {
         while (el.firstChild) fragment.appendChild(el.firstChild);
         node.insertBefore(fragment, el);
         toRemove.push(el);
+        // Re-sanitize the inserted children
+        sanitizeNode(node);
         return;
       }
 
@@ -94,7 +98,7 @@ function sanitizeNode(node: Node): void {
     } else if (child.nodeType === Node.COMMENT_NODE) {
       toRemove.push(child);
     }
-  });
+  }
 
   for (const rm of toRemove) {
     node.removeChild(rm);

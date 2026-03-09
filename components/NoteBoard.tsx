@@ -77,7 +77,7 @@ export default function NoteBoard() {
           y: parsed.y ?? 100,
           width: parsed.width ?? 700,
           height: parsed.height ?? 500,
-          text: parsed.text?.includes("My name is Deb") ? "" : (parsed.text || ""),
+          text: parsed.text || "",
           strokes: parsed.strokes || [],
           aiImages: parsed.aiImages || [],
           lastImagePrompt: parsed.lastImagePrompt || ""
@@ -103,10 +103,9 @@ export default function NoteBoard() {
   useEffect(() => {
     if (note && typeof window !== "undefined") {
       const merged = { ...note, strokes };
-      setNote(merged);
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
     }
-  }, [strokes, note?.text, note?.title, note?.color, note?.aiImages, note?.x, note?.y, note?.width, note?.height]);
+  }, [strokes, note?.text, note?.title, note?.color, note?.aiImages, note?.x, note?.y, note?.width, note?.height]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- DRAG & RESIZE HANDLERS (FIXED TYPE ERROR) ---
   useEffect(() => {
@@ -128,8 +127,8 @@ export default function NoteBoard() {
     };
 
     const onUp = () => {
-      setDragging({ ...dragging, active: false });
-      setResizing({ ...resizing, active: false });
+      setDragging(prev => ({ ...prev, active: false }));
+      setResizing(prev => ({ ...prev, active: false }));
     };
 
     if (dragging.active || resizing.active) {
@@ -224,6 +223,7 @@ export default function NoteBoard() {
     a.href = url;
     a.download = "stick-pro-backup.json";
     a.click();
+    URL.revokeObjectURL(url);
   };
   const triggerImport = () => fileInputRef.current?.click();
   const handleImport = (e: ReactChangeEvent<HTMLInputElement>) => {
@@ -232,6 +232,8 @@ export default function NoteBoard() {
     const reader = new FileReader();
     reader.onload = () => { try { const parsed = JSON.parse(reader.result as string); setNote(parsed); setStrokes(parsed.strokes || []); } catch { alert("Invalid file"); }};
     reader.readAsText(file);
+    // Reset input so the same file can be re-imported
+    e.target.value = "";
   };
 
   const toggleDictation = () => {

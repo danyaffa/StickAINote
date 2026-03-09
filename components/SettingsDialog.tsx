@@ -11,7 +11,10 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
 
   useEffect(() => {
-    getSettings().then(setSettings);
+    getSettings().then(setSettings).catch(() => {
+      // Fall back to defaults if IndexedDB fails
+      setSettings({ id: "default", autoCorrect: false, trashRetentionDays: 30, maxVersionsPerNote: 10, darkMode: false });
+    });
   }, []);
 
   const handleChange = useCallback(
