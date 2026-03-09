@@ -363,7 +363,7 @@ export default function NotesPage() {
     setEditTables(activeNote.tables || []);
     setEditColor(activeNote.color);
     lastVersionContent.current = activeNote.content;
-    setSaveStatus("saved");
+    setSaveStatus("idle");
 
     // Focus the title input once. The editor is now always in DOM (display toggle),
     // so there is no unmount/remount race. No setTimeout needed.
@@ -405,6 +405,7 @@ export default function NotesPage() {
           )
         );
         setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 2000);
         // Push to cloud if logged in (retry once on failure)
         if (latestUser.current && updated) {
           pushNoteToCloud(latestUser.current.uid, updated).catch(async (err) => {
@@ -750,6 +751,7 @@ export default function NotesPage() {
         )
       );
       setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
     } catch {
       setSaveStatus("idle");
     }
@@ -1669,7 +1671,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   type="button"
                   title="Save note now"
                 >
-                  {saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved!" : "Save my Note"}
+                  {saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved" : "Save"}
                 </button>
 
                 <button
