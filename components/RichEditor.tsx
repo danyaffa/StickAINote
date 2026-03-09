@@ -137,7 +137,7 @@ export default function RichEditor({
       handleInput();
       updateActiveFormats();
     },
-    [readOnly, handleInput]
+    [readOnly, handleInput] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const updateActiveFormats = useCallback(() => {
@@ -265,12 +265,20 @@ export default function RichEditor({
       }
       savedSelectionRef.current = null;
     }
-    const url = linkUrl.startsWith("http") ? linkUrl : `https://${linkUrl}`;
+    let url = linkUrl.startsWith("http") ? linkUrl : `https://${linkUrl}`;
+    // Block dangerous URL schemes
+    const lowerUrl = url.trim().toLowerCase();
+    if (lowerUrl.startsWith("javascript:") || lowerUrl.startsWith("data:") || lowerUrl.startsWith("vbscript:")) {
+      url = "#";
+    }
+    // Escape HTML entities to prevent XSS injection
+    const safeUrl = url.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const safeText = linkText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     if (linkText) {
       document.execCommand(
         "insertHTML",
         false,
-        `<a href="${url}" target="_blank" rel="noopener noreferrer">${linkText}</a>`
+        `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeText}</a>`
       );
     } else {
       document.execCommand("createLink", false, url);
@@ -322,7 +330,7 @@ export default function RichEditor({
       </style></head><body>${el.innerHTML}</body></html>
     `);
     printWindow.document.close();
-    printWindow.print();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
   }, []);
 
   const handlePaste = useCallback(

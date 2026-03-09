@@ -27,6 +27,9 @@ import {
 // Firestore collection: "userNotes" (separate from legacy "notes" collection)
 const COLLECTION = "userNotes";
 
+// Sync lock to prevent concurrent sync operations
+let _syncInProgress = false;
+
 function getDb() {
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebase not configured");
@@ -38,16 +41,16 @@ function toFirestore(note: NoteRecord, userId: string): Record<string, any> {
   return {
     userId,
     id: note.id,
-    title: note.title || "",
-    content: note.content || "",
-    color: note.color || "#fef3c7",
-    pinned: note.pinned || false,
-    priority: note.priority || "none",
-    deleted: note.deleted || false,
+    title: note.title ?? "",
+    content: note.content ?? "",
+    color: note.color ?? "#fef3c7",
+    pinned: note.pinned ?? false,
+    priority: note.priority ?? "none",
+    deleted: note.deleted ?? false,
     deletedAt: note.deletedAt ?? null,
     createdAt: note.createdAt,
     updatedAt: note.updatedAt,
-    tables: JSON.stringify(note.tables || []),
+    tables: JSON.stringify(note.tables ?? []),
   };
 }
 
@@ -55,21 +58,21 @@ function toFirestore(note: NoteRecord, userId: string): Record<string, any> {
 function fromFirestore(data: Record<string, any>): NoteRecord {
   let tables = [];
   try {
-    tables = typeof data.tables === "string" ? JSON.parse(data.tables) : (data.tables || []);
+    tables = typeof data.tables === "string" ? JSON.parse(data.tables) : (data.tables ?? []);
   } catch {
     tables = [];
   }
   return {
     id: data.id,
-    title: data.title || "",
-    content: data.content || "",
-    color: data.color || "#fef3c7",
-    pinned: data.pinned || false,
-    priority: data.priority || "none",
-    deleted: data.deleted || false,
+    title: data.title ?? "",
+    content: data.content ?? "",
+    color: data.color ?? "#fef3c7",
+    pinned: data.pinned ?? false,
+    priority: data.priority ?? "none",
+    deleted: data.deleted ?? false,
     deletedAt: data.deletedAt ?? null,
-    createdAt: data.createdAt || Date.now(),
-    updatedAt: data.updatedAt || Date.now(),
+    createdAt: data.createdAt ?? Date.now(),
+    updatedAt: data.updatedAt ?? Date.now(),
     tables,
   };
 }
@@ -117,55 +120,65 @@ export async function deleteNoteFromCloud(
 export async function syncNotes(
   userId: string
 ): Promise<{ toLocal: NoteRecord[]; toCloud: NoteRecord[]; pushFailures: number }> {
-  const [localActive, localTrash, cloudNotes] = await Promise.all([
-    getAllNotes(),
-    getTrashNotes(),
-    getCloudNotes(userId),
-  ]);
+  // Prevent concurrent syncs
+  if (_syncInProgress) {
+    return { toLocal: [], toCloud: [], pushFailures: 0 };
+  }
+  _syncInProgress = true;
 
-  const localAll = [...localActive, ...localTrash];
-  const localMap = new Map(localAll.map((n) => [n.id, n]));
-  const cloudMap = new Map(cloudNotes.map((n) => [n.id, n]));
+  try {
+    const [localActive, localTrash, cloudNotes] = await Promise.all([
+      getAllNotes(),
+      getTrashNotes(),
+      getCloudNotes(userId),
+    ]);
 
-  const toLocal: NoteRecord[] = [];
-  const toCloud: NoteRecord[] = [];
+    const localAll = [...localActive, ...localTrash];
+    const localMap = new Map(localAll.map((n) => [n.id, n]));
+    const cloudMap = new Map(cloudNotes.map((n) => [n.id, n]));
 
-  // Notes in local but not in cloud → push to cloud
-  for (const note of localAll) {
-    if (!cloudMap.has(note.id)) {
-      toCloud.push(note);
+    const toLocal: NoteRecord[] = [];
+    const toCloud: NoteRecord[] = [];
+
+    // Notes in local but not in cloud → push to cloud
+    for (const note of localAll) {
+      if (!cloudMap.has(note.id)) {
+        toCloud.push(note);
+      }
     }
-  }
 
-  // Notes in cloud but not in local → pull to local
-  for (const note of cloudNotes) {
-    if (!localMap.has(note.id)) {
-      toLocal.push(note);
+    // Notes in cloud but not in local → pull to local
+    for (const note of cloudNotes) {
+      if (!localMap.has(note.id)) {
+        toLocal.push(note);
+      }
     }
-  }
 
-  // Notes in both → compare updatedAt, sync the newer one
-  for (const note of localAll) {
-    const cloudNote = cloudMap.get(note.id);
-    if (!cloudNote) continue;
+    // Notes in both → compare updatedAt, sync the newer one
+    for (const note of localAll) {
+      const cloudNote = cloudMap.get(note.id);
+      if (!cloudNote) continue;
 
-    if (note.updatedAt > cloudNote.updatedAt) {
-      toCloud.push(note);
-    } else if (cloudNote.updatedAt > note.updatedAt) {
-      toLocal.push(cloudNote);
+      if (note.updatedAt > cloudNote.updatedAt) {
+        toCloud.push(note);
+      } else if (cloudNote.updatedAt > note.updatedAt) {
+        toLocal.push(cloudNote);
+      }
+      // If equal, already in sync
     }
-    // If equal, already in sync
-  }
 
-  // Push local → cloud (use allSettled so one failure doesn't block the rest)
-  const results = await Promise.allSettled(toCloud.map((n) => pushNoteToCloud(userId, n)));
-  const failed = results.filter((r) => r.status === "rejected");
-  if (failed.length > 0) {
-    console.error(`[syncNotes] ${failed.length}/${toCloud.length} notes failed to push to Firestore:`,
-      failed.map((r) => (r as PromiseRejectedResult).reason));
-  }
+    // Push local → cloud (use allSettled so one failure doesn't block the rest)
+    const results = await Promise.allSettled(toCloud.map((n) => pushNoteToCloud(userId, n)));
+    const failed = results.filter((r) => r.status === "rejected");
+    if (failed.length > 0) {
+      console.error(`[syncNotes] ${failed.length}/${toCloud.length} notes failed to push to Firestore:`,
+        failed.map((r) => (r as PromiseRejectedResult).reason));
+    }
 
-  return { toLocal, toCloud, pushFailures: failed.length };
+    return { toLocal, toCloud, pushFailures: failed.length };
+  } finally {
+    _syncInProgress = false;
+  }
 }
 
 /**

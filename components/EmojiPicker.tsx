@@ -153,7 +153,13 @@ export default function EmojiPicker({ onSelect, onClose, darkMode = false }: Emo
   );
 
   const filteredEmojis = search
-    ? EMOJI_CATEGORIES.flatMap((c) => c.emojis)
+    ? EMOJI_CATEGORIES.flatMap((c) =>
+        c.emojis.filter((emoji) => {
+          // Match by category name or emoji character
+          const q = search.toLowerCase();
+          return c.name.toLowerCase().includes(q) || emoji.includes(q);
+        })
+      )
     : EMOJI_CATEGORIES[activeCategory].emojis;
 
   return (

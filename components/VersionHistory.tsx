@@ -16,10 +16,14 @@ export default function VersionHistory({ noteId, onRestore, onClose }: VersionHi
   const [selected, setSelected] = useState<NoteVersion | null>(null);
 
   useEffect(() => {
-    getVersionsForNote(noteId).then((v) => {
-      setVersions(v);
-      setLoading(false);
-    });
+    getVersionsForNote(noteId)
+      .then((v) => {
+        setVersions(v);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
   }, [noteId]);
 
   const handleRestore = useCallback(

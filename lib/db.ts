@@ -104,6 +104,13 @@ function openDB(): Promise<IDBDatabase> {
 
     request.onsuccess = () => {
       dbInstance = request.result;
+      // Clear cached instance if connection is closed externally
+      dbInstance.onclose = () => { dbInstance = null; };
+      // Handle version change from another tab
+      dbInstance.onversionchange = () => {
+        dbInstance?.close();
+        dbInstance = null;
+      };
       resolve(dbInstance);
     };
 
@@ -142,16 +149,16 @@ export async function createNote(
   const now = Date.now();
   const note: NoteRecord = {
     id: makeId(),
-    title: partial?.title || "Untitled Note",
-    content: partial?.content || "",
-    color: partial?.color || "#fef3c7",
-    pinned: partial?.pinned || false,
-    priority: partial?.priority || "none",
+    title: partial?.title ?? "Untitled Note",
+    content: partial?.content ?? "",
+    color: partial?.color ?? "#fef3c7",
+    pinned: partial?.pinned ?? false,
+    priority: partial?.priority ?? "none",
     deleted: false,
     deletedAt: null,
     createdAt: now,
     updatedAt: now,
-    tables: partial?.tables || [],
+    tables: partial?.tables ?? [],
   };
 
   const { store } = await tx(STORE_NOTES, "readwrite");
@@ -379,9 +386,22 @@ export async function importNotes(json: string): Promise<number> {
 
   const arr = Array.isArray(notes) ? notes : [];
   for (const note of arr) {
-    if (note.id && note.title !== undefined) {
+    if (note.id && typeof note.id === "string" && note.title !== undefined) {
+      const sanitized: NoteRecord = {
+        id: note.id,
+        title: String(note.title ?? ""),
+        content: String(note.content ?? ""),
+        color: String(note.color ?? "#fef3c7"),
+        pinned: Boolean(note.pinned),
+        priority: ["none", "low", "medium", "high"].includes(note.priority) ? note.priority : "none",
+        deleted: Boolean(note.deleted),
+        deletedAt: typeof note.deletedAt === "number" ? note.deletedAt : null,
+        createdAt: typeof note.createdAt === "number" ? note.createdAt : Date.now(),
+        updatedAt: typeof note.updatedAt === "number" ? note.updatedAt : Date.now(),
+        tables: Array.isArray(note.tables) ? note.tables : [],
+      };
       const { store } = await tx(STORE_NOTES, "readwrite");
-      await reqToPromise(store.put({ ...note, deleted: note.deleted || false, deletedAt: note.deletedAt || null }));
+      await reqToPromise(store.put(sanitized));
       count++;
     }
   }

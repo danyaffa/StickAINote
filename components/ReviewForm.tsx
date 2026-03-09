@@ -8,8 +8,12 @@ export default function ReviewForm({ userId }: { userId: string }) {
 
   const handleSubmit = async () => {
     if(!comment.trim()) return;
-    await addReview(userId, rating, comment);
-    setSent(true);
+    try {
+      await addReview(userId, rating, comment);
+      setSent(true);
+    } catch {
+      alert("Failed to submit review. Please try again.");
+    }
   };
 
   if (sent) return <p className="text-green-400">Thanks for your feedback!</p>;
