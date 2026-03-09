@@ -65,10 +65,14 @@ function sanitizeNode(node: Node): void {
         }
       }
 
-      // Sanitize href to prevent javascript: URLs
+      // Sanitize href to prevent dangerous URL schemes
       if (tag === "a") {
-        const href = el.getAttribute("href") || "";
-        if (href.toLowerCase().startsWith("javascript:")) {
+        const href = (el.getAttribute("href") || "").trim().toLowerCase();
+        if (
+          href.startsWith("javascript:") ||
+          href.startsWith("data:") ||
+          href.startsWith("vbscript:")
+        ) {
           el.setAttribute("href", "#");
         }
         el.setAttribute("rel", "noopener noreferrer");
