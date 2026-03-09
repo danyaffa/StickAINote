@@ -380,9 +380,19 @@ export default function NotesPage() {
           )
         );
         setSaveStatus("saved");
-        // Push to cloud if logged in
+        // Push to cloud if logged in (retry once on failure)
         if (latestUser.current && updated) {
-          pushNoteToCloud(latestUser.current.uid, updated).catch(() => {});
+          pushNoteToCloud(latestUser.current.uid, updated).catch(async () => {
+            // Retry once after 2 seconds
+            try {
+              await new Promise((r) => setTimeout(r, 2000));
+              if (latestUser.current) {
+                await pushNoteToCloud(latestUser.current.uid, updated);
+              }
+            } catch {
+              console.warn("Cloud save failed for note:", id);
+            }
+          });
         }
       } catch {
         setSaveStatus("idle");
