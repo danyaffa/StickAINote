@@ -65,7 +65,7 @@ const STORE_SETTINGS = "settings";
 
 const DEFAULT_SETTINGS: AppSettings = {
   id: "default",
-  autoCorrect: false,
+  autoCorrect: true,
   trashRetentionDays: 30,
   maxVersionsPerNote: 10,
   darkMode: false,

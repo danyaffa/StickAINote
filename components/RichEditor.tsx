@@ -103,7 +103,7 @@ export default function RichEditor({
   onImagePaste,
   placeholder = "Start typing...",
   spellCheck = true,
-  autoCorrect = false,
+  autoCorrect = true,
   readOnly = false,
 }: RichEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -236,8 +236,10 @@ export default function RichEditor({
       newRange.collapse(true);
       sel.removeAllRanges();
       sel.addRange(newRange);
+      // Notify parent of the change immediately
+      handleInput();
     }
-  }, [autoCorrect]);
+  }, [autoCorrect, handleInput]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -936,12 +938,23 @@ export default function RichEditor({
 
           {/* ─── Remove Formatting ─── */}
           <button type="button" title="Remove formatting (Ctrl+\\)" onClick={removeFormatting}
-            style={tbStyle(false)}>
+            style={{
+              ...tbStyle(false),
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+              padding: "2px 8px",
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#dc2626",
+              whiteSpace: "nowrap",
+            }}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
               <path d="M1 1H10V3H6.9L5.1 9H7V11H1V9H3.1L4.9 3H1V1Z"/>
               <line x1="9" y1="13" x2="13" y2="5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
               <line x1="9" y1="5" x2="13" y2="13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
             </svg>
+            Remove Format
           </button>
 
           <span style={dividerStyle} />

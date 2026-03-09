@@ -165,7 +165,7 @@ export default function NotesPage() {
   const [showAiMenu, setShowAiMenu] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [autoCorrectEnabled, setAutoCorrectEnabled] = useState(false);
+  const [autoCorrectEnabled, setAutoCorrectEnabled] = useState(true);
   const [showUpgradePopup, setShowUpgradePopup] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
 

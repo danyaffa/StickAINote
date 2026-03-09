@@ -14,7 +14,7 @@ export default function SettingsDialog({ onClose, onSettingsChange }: SettingsDi
   useEffect(() => {
     getSettings().then(setSettings).catch(() => {
       // Fall back to defaults if IndexedDB fails
-      setSettings({ id: "default", autoCorrect: false, trashRetentionDays: 30, maxVersionsPerNote: 10, darkMode: false });
+      setSettings({ id: "default", autoCorrect: true, trashRetentionDays: 30, maxVersionsPerNote: 10, darkMode: false });
     });
   }, []);
 
