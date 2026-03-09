@@ -240,6 +240,28 @@ export default function NotesPage() {
   // --- CLOUD SYNC: pull/push notes when user is logged in ---
   // Always recover notes from Firestore so notes survive browser restarts,
   // cache clears, or switching to a new device.
+  const [cloudRecoveryStatus, setCloudRecoveryStatus] = useState<"idle" | "recovering" | "done" | "error">("idle");
+
+  const recoverFromCloud = useCallback(async () => {
+    if (!user) return;
+    setCloudRecoveryStatus("recovering");
+    try {
+      const cloudNotes = await fetchAllCloudNotes(user.uid);
+      if (cloudNotes.length > 0) {
+        for (const note of cloudNotes) {
+          await putNote(note);
+        }
+        const refreshed = await getAllNotes();
+        setNotes(refreshed);
+      }
+      setCloudRecoveryStatus("done");
+      setTimeout(() => setCloudRecoveryStatus("idle"), 3000);
+    } catch {
+      setCloudRecoveryStatus("error");
+      setTimeout(() => setCloudRecoveryStatus("idle"), 3000);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!loaded || !user) return;
     let cancelled = false;
@@ -256,6 +278,20 @@ export default function NotesPage() {
             // Reload notes from IndexedDB after sync
             const refreshed = await getAllNotes();
             if (!cancelled) setNotes(refreshed);
+          }
+          // Fallback: if local is empty but cloud has notes, force full recovery
+          if (toLocal.length === 0) {
+            const localNotes = await getAllNotes();
+            if (localNotes.length === 0) {
+              const cloudNotes = await fetchAllCloudNotes(user.uid);
+              if (!cancelled && cloudNotes.length > 0) {
+                for (const note of cloudNotes) {
+                  await putNote(note);
+                }
+                const refreshed = await getAllNotes();
+                if (!cancelled) setNotes(refreshed);
+              }
+            }
           }
           break; // Success — stop retrying
         } catch {
@@ -892,6 +928,21 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
           <button onClick={() => setShowTrash(true)} style={headerBtn} type="button" title="View trash">
             Trash
           </button>
+          {user && (
+            <button
+              onClick={recoverFromCloud}
+              disabled={cloudRecoveryStatus === "recovering"}
+              style={{
+                ...headerBtn,
+                background: cloudRecoveryStatus === "done" ? "#22c55e" : cloudRecoveryStatus === "error" ? "#ef4444" : undefined,
+                color: cloudRecoveryStatus === "done" || cloudRecoveryStatus === "error" ? "white" : undefined,
+              }}
+              type="button"
+              title="Recover lost notes from cloud backup"
+            >
+              {cloudRecoveryStatus === "recovering" ? "Recovering..." : cloudRecoveryStatus === "done" ? "Recovered!" : cloudRecoveryStatus === "error" ? "Error" : "Recover"}
+            </button>
+          )}
           <button onClick={handleToggleDarkMode} style={headerBtn} type="button" title="Toggle dark mode">
             {darkMode ? "Light" : "Dark"}
           </button>
@@ -2058,6 +2109,11 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                 <button onClick={() => { setShowTrash(true); setShowQuickActions(false); }} style={{ ...dropdownBtn, color: darkMode ? "#e2e8f0" : undefined, padding: "8px 12px" }} type="button">
                   View Trash
                 </button>
+                {user && (
+                  <button onClick={() => { recoverFromCloud(); setShowQuickActions(false); }} style={{ ...dropdownBtn, color: darkMode ? "#e2e8f0" : undefined, padding: "8px 12px" }} type="button">
+                    Recover from Cloud
+                  </button>
+                )}
               </div>
             )}
             <button
