@@ -25,7 +25,7 @@ import {
 import { sanitizeHtml, stripHtml, htmlToMarkdown } from "../lib/sanitize";
 import { usePWAInstall } from "../lib/usePWAInstall";
 import { useAuth } from "../context/AuthContext";
-import { syncNotes, pushNoteToCloud, deleteNoteFromCloud, fetchAllCloudNotes } from "../lib/syncNotes";
+import { syncNotes, pushNoteToCloud, fetchAllCloudNotes } from "../lib/syncNotes";
 
 const RichEditor = dynamic(() => import("../components/RichEditor"), { ssr: false });
 const NoteTable = dynamic(() => import("../components/NoteTable"), { ssr: false });
