@@ -117,6 +117,50 @@ export async function deleteNote(noteId: string): Promise<void> {
   await deleteDoc(noteRef);
 }
 
+// --- AI SHARE TRACKING ---
+
+export interface AIShareRecord {
+  id?: string;
+  userId: string;
+  noteId: string;
+  noteTitle: string;
+  service: string; // e.g. "ChatGPT", "Gemini", "Claude"
+  sharedContent: string; // first 500 chars of note text
+  createdAt: number;
+}
+
+export async function saveAIShare(share: Omit<AIShareRecord, "id">): Promise<void> {
+  const db = getDb();
+  await addDoc(collection(db, "aiShares"), {
+    ...share,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function getAIShares(userId: string): Promise<AIShareRecord[]> {
+  const db = getDb();
+  const q = query(
+    collection(db, "aiShares"),
+    where("userId", "==", userId),
+    orderBy("createdAt", "desc")
+  );
+  const snap = await getDocs(q);
+  const shares: AIShareRecord[] = [];
+  snap.forEach((d) => {
+    const data = d.data() as DocumentData;
+    shares.push({
+      id: d.id,
+      userId: String(data.userId ?? userId),
+      noteId: String(data.noteId ?? ""),
+      noteTitle: String(data.noteTitle ?? ""),
+      service: String(data.service ?? ""),
+      sharedContent: String(data.sharedContent ?? ""),
+      createdAt: tsToMillis(data.createdAt),
+    });
+  });
+  return shares;
+}
+
 export async function addReview(
   userId: string,
   rating: number,
