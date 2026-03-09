@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence, type Firestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -36,6 +36,15 @@ function initFirebaseIfPossible() {
     _app = getApps().length ? getApp() : initializeApp(firebaseConfig as any);
     _auth = getAuth(_app);
     _db = getFirestore(_app);
+    // Enable offline persistence so Firestore caches data locally
+    // and queues writes when offline — notes survive browser restarts
+    enableIndexedDbPersistence(_db).catch((err) => {
+      if (err.code === "failed-precondition") {
+        console.warn("[Firebase] Persistence failed: multiple tabs open");
+      } else if (err.code === "unimplemented") {
+        console.warn("[Firebase] Persistence not supported in this browser");
+      }
+    });
   }
 }
 
