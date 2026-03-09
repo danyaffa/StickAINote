@@ -394,9 +394,14 @@ export default function RichEditor({
       onMouseDown={(e) => {
         e.stopPropagation();
         // Prevent toolbar buttons from stealing editor focus/selection,
-        // but allow input fields (e.g. link dialog) to receive focus
+        // but allow input fields, textareas, and the contentEditable editor to receive focus
         const tgt = e.target as HTMLElement;
-        if (tgt.tagName !== "INPUT" && tgt.tagName !== "TEXTAREA") {
+        if (
+          tgt.tagName !== "INPUT" &&
+          tgt.tagName !== "TEXTAREA" &&
+          !tgt.isContentEditable &&
+          !tgt.closest("[contenteditable]")
+        ) {
           e.preventDefault();
         }
       }}
