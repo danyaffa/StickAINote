@@ -1,9 +1,9 @@
 // FILE: /pages/register.tsx
 import Head from "next/head";
+import Link from "next/link";
 import React, { useState } from "react";
 import { useRouter } from "next/router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { requireAuth } from "../utils/firebaseClient";
+import { useAuth } from "../context/AuthContext";
 
 const DEVELOPER_EMAIL = "leffleryd@gmail.com";
 
@@ -18,6 +18,7 @@ export default function RegisterPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const router = useRouter();
+  const { register } = useAuth();
 
   const handleSuccessfulAuth = (userEmail: string | null) => {
     const e = (userEmail || "").toLowerCase();
@@ -44,14 +45,11 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      const auth = requireAuth();
-      if (!auth) throw new Error("Firebase is not configured.");
-
-      // Create user in Firebase
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      // Create user in Firebase + Firestore profile via AuthContext
+      await register({ email: email.trim(), password, displayName: name.trim() });
 
       // Redirect to PayPal checkout
-      handleSuccessfulAuth(cred.user.email || email);
+      handleSuccessfulAuth(email.trim());
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err?.message || "Registration failed. Please try again.");
@@ -275,9 +273,9 @@ export default function RegisterPage() {
               }}
             >
               Already have an account?{" "}
-              <a href="/login" style={{ color: "#2563eb" }}>
+              <Link href="/login" style={{ color: "#2563eb" }}>
                 Log in
-              </a>
+              </Link>
             </p>
 
             <p

@@ -7,7 +7,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { Resend } from "resend";
 
-const APP_NAME = "StickAINote";
+import { APP_NAME } from "../../lib/appConfig";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export default async function handler(

@@ -476,6 +476,10 @@ export default function NotesPage() {
 
   const handleNewNoteWithContent = useCallback(
     async (title: string, content: string) => {
+      if (!isPaidUser && notes.length >= FREE_TRIAL_LIMIT) {
+        setShowUpgradePopup(true);
+        return;
+      }
       const note = await createNote({
         title,
         content: content.replace(/\n/g, "<br>"),
@@ -484,7 +488,7 @@ export default function NotesPage() {
       openNote(note.id);
       if (user) pushNoteToCloud(user.uid, note).catch(() => {});
     },
-    [openNote, user]
+    [openNote, user, isPaidUser, notes.length]
   );
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -1367,6 +1371,9 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                 </button>
                 <button onClick={() => setShowTranslate(true)} style={darkMode ? actionBtnDark : actionBtnStyle} type="button" title="Translate note">
                   Translate
+                </button>
+                <button onClick={() => setShowVersions(true)} style={darkMode ? actionBtnDark : actionBtnStyle} type="button" title="View version history">
+                  History
                 </button>
 
                 {/* Priority dropdown */}

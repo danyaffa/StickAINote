@@ -27,7 +27,11 @@ export default function LoginPage() {
 
     // Determine redirect target (supports ?redirect= query param)
     const params = new URLSearchParams(window.location.search);
-    const redirect = params.get("redirect") || "/notes";
+    let redirect = params.get("redirect") || "/notes";
+    // Prevent open redirect: only allow relative paths
+    if (!redirect.startsWith("/") || redirect.startsWith("//")) {
+      redirect = "/notes";
+    }
     const recover = params.get("recover");
     const target = recover ? `${redirect}?recover=1` : redirect;
 

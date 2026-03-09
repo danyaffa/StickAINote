@@ -157,8 +157,8 @@ export async function syncNotes(
     // If equal, already in sync
   }
 
-  // Push local → cloud
-  await Promise.all(toCloud.map((n) => pushNoteToCloud(userId, n)));
+  // Push local → cloud (use allSettled so one failure doesn't block the rest)
+  await Promise.allSettled(toCloud.map((n) => pushNoteToCloud(userId, n)));
 
   return { toLocal, toCloud };
 }
