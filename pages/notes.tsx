@@ -298,14 +298,22 @@ export default function NotesPage() {
           if (cancelled) return;
 
           if (cloudNotes.length > 0) {
-            // Write all cloud notes to local (non-deleted ones)
+            // Write cloud notes to local — only if newer or missing locally
+            const localNow = await getAllNotes();
+            const localMap = new Map(localNow.map((n) => [n.id, n]));
+            let pulled = 0;
             for (const note of cloudNotes) {
-              if (!note.deleted) {
+              if (note.deleted) continue;
+              const local = localMap.get(note.id);
+              if (!local || note.updatedAt > local.updatedAt) {
                 await putNote(note);
+                pulled++;
               }
             }
-            const refreshed = await getAllNotes();
-            if (!cancelled) setNotes(refreshed);
+            if (pulled > 0) {
+              const refreshed = await getAllNotes();
+              if (!cancelled) setNotes(refreshed);
+            }
           }
 
           // If Firestore is empty but we have local notes, force-push everything
@@ -742,7 +750,7 @@ export default function NotesPage() {
     const tables = latestEditTables.current;
     const color = latestEditColor.current;
     try {
-      await dbUpdateNote(id, { title, content: sanitized, tables, color });
+      const updated = await dbUpdateNote(id, { title, content: sanitized, tables, color });
       setNotes((prev) =>
         prev.map((n) =>
           n.id === id
@@ -752,6 +760,12 @@ export default function NotesPage() {
       );
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
+      // Push to cloud if logged in
+      if (latestUser.current && updated) {
+        pushNoteToCloud(latestUser.current.uid, updated).catch((err) => {
+          console.error("[cloud] Manual save push failed:", err);
+        });
+      }
     } catch {
       setSaveStatus("idle");
     }
@@ -980,6 +994,28 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
             + New Note
           </button>
 
+          <button
+            onClick={async () => {
+              const refreshed = await getAllNotes();
+              setNotes(refreshed);
+              if (user) {
+                try {
+                  const { toLocal } = await syncNotes(user.uid);
+                  if (toLocal.length > 0) {
+                    for (const note of toLocal) await putNote(note);
+                    setNotes(await getAllNotes());
+                  }
+                } catch (err) {
+                  console.error("[cloud] Refresh sync failed:", err);
+                }
+              }
+            }}
+            style={headerBtn}
+            type="button"
+            title="Refresh notes from local storage and cloud"
+          >
+            Refresh
+          </button>
           <button onClick={() => setShowTemplates(true)} style={headerBtn} type="button" title="Create from template">
             Templates
           </button>
