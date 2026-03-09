@@ -5,9 +5,10 @@ import { getSettings, updateSettings, type AppSettings } from "../lib/db";
 
 interface SettingsDialogProps {
   onClose: () => void;
+  onSettingsChange?: (settings: AppSettings) => void;
 }
 
-export default function SettingsDialog({ onClose }: SettingsDialogProps) {
+export default function SettingsDialog({ onClose, onSettingsChange }: SettingsDialogProps) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
 
   useEffect(() => {
@@ -22,8 +23,9 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
       if (!settings) return;
       const updated = await updateSettings(patch);
       setSettings(updated);
+      onSettingsChange?.(updated);
     },
-    [settings]
+    [settings, onSettingsChange]
   );
 
   if (!settings) return null;

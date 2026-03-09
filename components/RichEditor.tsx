@@ -11,8 +11,36 @@ export interface RichEditorProps {
   onImagePaste?: (dataUrl: string) => void;
   placeholder?: string;
   spellCheck?: boolean;
+  autoCorrect?: boolean;
   readOnly?: boolean;
 }
+
+/* ─── Common autocorrect rules ─── */
+const AUTOCORRECT_MAP: Record<string, string> = {
+  // Common typos
+  teh: "the", adn: "and", ahve: "have", dont: "don't", doesnt: "doesn't",
+  didnt: "didn't", cant: "can't", wont: "won't", isnt: "isn't", wasnt: "wasn't",
+  arent: "aren't", werent: "weren't", wouldnt: "wouldn't", shouldnt: "shouldn't",
+  couldnt: "couldn't", hasnt: "hasn't", havent: "haven't", hadnt: "hadn't",
+  thier: "their", recieve: "receive", wiht: "with", hte: "the", taht: "that",
+  waht: "what", nto: "not", fro: "for", yuo: "you", tiem: "time",
+  jsut: "just", ot: "to", htat: "that", wich: "which", becuase: "because",
+  shoudl: "should", woudl: "would", coudl: "could", thsi: "this",
+  htere: "there", whre: "where", abuot: "about", knwo: "know",
+  konw: "know", ahd: "had", nad: "and", thn: "then", hwo: "how",
+  watn: "want", liek: "like", wrok: "work",
+  peple: "people", beacuse: "because", definately: "definitely",
+  occured: "occurred", seperate: "separate", untill: "until",
+  accomodate: "accommodate", acheive: "achieve", apparantly: "apparently",
+  calender: "calendar", collegue: "colleague", concious: "conscious",
+  enviroment: "environment", goverment: "government", guarentee: "guarantee",
+  immedietly: "immediately", knowlege: "knowledge", neccessary: "necessary",
+  occurence: "occurrence", priviledge: "privilege", recomend: "recommend",
+  refrence: "reference", relevent: "relevant", succesful: "successful",
+  tommorow: "tomorrow", togehter: "together", ussually: "usually",
+  // Capitalization shortcuts
+  i: "I",
+};
 
 /* ─── Font & size options (Google Docs style) ─── */
 const FONT_FAMILIES = [
@@ -75,6 +103,7 @@ export default function RichEditor({
   onImagePaste,
   placeholder = "Start typing...",
   spellCheck = true,
+  autoCorrect = false,
   readOnly = false,
 }: RichEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -174,10 +203,51 @@ export default function RichEditor({
     setActiveFormats(formats);
   }, []);
 
+  // Autocorrect: replace last typed word when Space or Enter is pressed
+  const applyAutoCorrect = useCallback(() => {
+    if (!autoCorrect) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE) return;
+    const text = node.textContent || "";
+    const offset = range.startOffset;
+    // Find the last word boundary before cursor
+    let wordStart = offset - 1;
+    while (wordStart >= 0 && /\S/.test(text[wordStart])) wordStart--;
+    wordStart++;
+    const word = text.slice(wordStart, offset);
+    const lower = word.toLowerCase();
+    const replacement = AUTOCORRECT_MAP[lower];
+    if (replacement && replacement !== word) {
+      // Preserve capitalisation if the first letter was uppercase
+      const corrected = word[0] === word[0].toUpperCase() && word[0] !== word[0].toLowerCase()
+        ? replacement.charAt(0).toUpperCase() + replacement.slice(1)
+        : replacement;
+      // Replace the word in the text node
+      const before = text.slice(0, wordStart);
+      const after = text.slice(offset);
+      node.textContent = before + corrected + after;
+      // Restore cursor position
+      const newOffset = wordStart + corrected.length;
+      const newRange = document.createRange();
+      newRange.setStart(node, newOffset);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    }
+  }, [autoCorrect]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (readOnly) return;
       const mod = e.metaKey || e.ctrlKey;
+
+      // Autocorrect on Space or Enter (before default handling)
+      if (!mod && (e.key === " " || e.key === "Enter")) {
+        applyAutoCorrect();
+      }
 
       if (mod && e.key === "b") {
         e.preventDefault();
@@ -229,7 +299,7 @@ export default function RichEditor({
         execCmd("justifyFull");
       }
     },
-    [execCmd, readOnly]
+    [execCmd, readOnly, applyAutoCorrect]
   );
 
   const removeFormatting = useCallback(() => {

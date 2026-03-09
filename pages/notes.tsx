@@ -165,7 +165,9 @@ export default function NotesPage() {
   const [showAiMenu, setShowAiMenu] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [autoCorrectEnabled, setAutoCorrectEnabled] = useState(false);
   const [showUpgradePopup, setShowUpgradePopup] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
 
   // PWA install
   const pwa = usePWAInstall();
@@ -234,6 +236,7 @@ export default function NotesPage() {
       await migrateFromLocalStorage();
       const settings = await getSettings();
       setDarkMode(settings.darkMode || false);
+      setAutoCorrectEnabled(settings.autoCorrect || false);
       await purgeOldTrash(settings.trashRetentionDays);
       const loaded = await getAllNotes();
       setNotes(loaded);
@@ -706,29 +709,79 @@ export default function NotesPage() {
     [aiLoading, scheduleAutoSave]
   );
 
-  const handleShare = useCallback(async () => {
+  // Share with AI services
+  const AI_SHARE_TARGETS = [
+    { id: "chatgpt", label: "ChatGPT", url: "https://chatgpt.com/?q=", color: "#10a37f" },
+    { id: "gemini", label: "Gemini", url: "https://gemini.google.com/app?q=", color: "#4285f4" },
+    { id: "claude", label: "Claude", url: "https://claude.ai/new?q=", color: "#d97706" },
+    { id: "copilot", label: "Copilot", url: "https://copilot.microsoft.com/?q=", color: "#0078d4" },
+    { id: "perplexity", label: "Perplexity", url: "https://www.perplexity.ai/search?q=", color: "#20808d" },
+    { id: "deepseek", label: "DeepSeek", url: "https://chat.deepseek.com/?q=", color: "#4f46e5" },
+  ];
+
+  const saveShareToFirestore = useCallback(async (noteId: string, target: string, noteTitle: string) => {
+    if (!user) return;
+    try {
+      const { doc, setDoc, collection } = await import("firebase/firestore");
+      const { getFirebaseDb } = await import("../utils/firebaseClient");
+      const db = getFirebaseDb();
+      if (!db) return;
+      const shareId = `${user.uid}_${noteId}_${Date.now()}`;
+      await setDoc(doc(collection(db, "sharedNotes"), shareId), {
+        userId: user.uid,
+        noteId,
+        noteTitle,
+        sharedWith: target,
+        sharedAt: Date.now(),
+      });
+    } catch (err) {
+      console.error("[share] Failed to save share to Firestore:", err);
+    }
+  }, [user]);
+
+  const handleShareWith = useCallback(async (target: { id: string; label: string; url: string }) => {
     if (!activeNote) return;
     const text = stripHtml(editContent);
+    const noteText = `${editTitle}\n\n${text}`.slice(0, 4000);
+    const encoded = encodeURIComponent(noteText);
+    window.open(`${target.url}${encoded}`, "_blank", "noopener,noreferrer");
+    setShowShareMenu(false);
+    // Save to Firestore
+    saveShareToFirestore(activeNote.id, target.id, editTitle);
+  }, [activeNote, editTitle, editContent, saveShareToFirestore]);
 
+  const handleNativeShare = useCallback(async () => {
+    if (!activeNote) return;
+    const text = stripHtml(editContent);
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: editTitle,
-          text: text.slice(0, 1000),
-        });
-      } catch {
-        // User cancelled or error
-      }
+        await navigator.share({ title: editTitle, text: text.slice(0, 1000) });
+        saveShareToFirestore(activeNote.id, "native", editTitle);
+      } catch { /* cancelled */ }
     } else {
-      // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(`${editTitle}\n\n${text}`);
         alert("Note copied to clipboard!");
+        saveShareToFirestore(activeNote.id, "clipboard", editTitle);
       } catch {
         alert("Could not share or copy note.");
       }
     }
-  }, [activeNote, editTitle, editContent]);
+    setShowShareMenu(false);
+  }, [activeNote, editTitle, editContent, saveShareToFirestore]);
+
+  const handleCopyToClipboard = useCallback(async () => {
+    if (!activeNote) return;
+    const text = stripHtml(editContent);
+    try {
+      await navigator.clipboard.writeText(`${editTitle}\n\n${text}`);
+      alert("Note copied to clipboard!");
+      saveShareToFirestore(activeNote.id, "clipboard", editTitle);
+    } catch {
+      alert("Could not copy note.");
+    }
+    setShowShareMenu(false);
+  }, [activeNote, editTitle, editContent, saveShareToFirestore]);
 
   const reloadNotes = useCallback(async () => {
     const loaded = await getAllNotes();
@@ -952,7 +1005,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
 
   // Close dropdown menus when clicking elsewhere
   useEffect(() => {
-    const anyOpen = showExportMenu || showPriorityMenu || showAiMenu || showQuickActions || showMoveToFolder;
+    const anyOpen = showExportMenu || showPriorityMenu || showAiMenu || showQuickActions || showMoveToFolder || showShareMenu;
     if (!anyOpen) return;
     const handler = () => {
       setShowExportMenu(false);
@@ -960,10 +1013,11 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
       setShowAiMenu(false);
       setShowQuickActions(false);
       setShowMoveToFolder(false);
+      setShowShareMenu(false);
     };
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
-  }, [showExportMenu, showPriorityMenu, showAiMenu, showQuickActions, showMoveToFolder]);
+  }, [showExportMenu, showPriorityMenu, showAiMenu, showQuickActions, showMoveToFolder, showShareMenu]);
 
   if (!loaded) {
     return (
@@ -1631,9 +1685,72 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   )}
                 </div>
 
-                <button onClick={handleShare} style={darkMode ? actionBtnDark : actionBtnStyle} type="button" title="Share note">
-                  Share
-                </button>
+                {/* Share dropdown */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowShareMenu(!showShareMenu); }}
+                    style={{
+                      ...(darkMode ? actionBtnDark : actionBtnStyle),
+                      background: darkMode ? "#1e3a5f" : "#f0f9ff",
+                      borderColor: darkMode ? "#2563eb" : "#93c5fd",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                    type="button"
+                    title="Share note"
+                  >
+                    Share
+                  </button>
+                  {showShareMenu && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        marginTop: 4,
+                        background: darkMode ? "#1e293b" : "white",
+                        border: darkMode ? "1px solid #475569" : "1px solid #e2e8f0",
+                        borderRadius: 8,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        zIndex: 50,
+                        minWidth: 180,
+                        padding: 4,
+                      }}
+                    >
+                      <div style={{ padding: "4px 10px", fontSize: 10, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Share with AI
+                      </div>
+                      {AI_SHARE_TARGETS.map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => handleShareWith(t)}
+                          style={{ ...dropdownBtn, color: darkMode ? "#e2e8f0" : undefined, display: "flex", alignItems: "center", gap: 8 }}
+                          type="button"
+                        >
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: t.color, flexShrink: 0 }} />
+                          {t.label}
+                        </button>
+                      ))}
+                      <div style={{ height: 1, background: darkMode ? "#475569" : "#e2e8f0", margin: "4px 0" }} />
+                      <button
+                        onClick={handleCopyToClipboard}
+                        style={{ ...dropdownBtn, color: darkMode ? "#e2e8f0" : undefined }}
+                        type="button"
+                      >
+                        Copy to Clipboard
+                      </button>
+                      <button
+                        onClick={handleNativeShare}
+                        style={{ ...dropdownBtn, color: darkMode ? "#e2e8f0" : undefined }}
+                        type="button"
+                      >
+                        Share via Device...
+                      </button>
+                    </div>
+                  )}
+                </div>
                 {/* Export dropdown */}
                 <div style={{ position: "relative" }}>
                   <button
@@ -1815,6 +1932,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   content={editContent}
                   onChange={handleContentChange}
                   spellCheck={true}
+                  autoCorrect={autoCorrectEnabled}
                   placeholder="Start writing your note..."
                 />
 
@@ -1958,7 +2076,13 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
           />
         )}
         {showSettings && (
-          <SettingsDialog onClose={() => setShowSettings(false)} />
+          <SettingsDialog
+            onClose={() => setShowSettings(false)}
+            onSettingsChange={(s) => {
+              setDarkMode(s.darkMode || false);
+              setAutoCorrectEnabled(s.autoCorrect || false);
+            }}
+          />
         )}
 
         {/* Templates modal */}
