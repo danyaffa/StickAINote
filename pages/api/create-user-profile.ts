@@ -43,6 +43,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ success: true });
   } catch (err: any) {
     console.error("create-user-profile error:", err);
-    return res.status(500).json({ error: err?.message || "Failed to create user profile." });
+
+    // Return a user-friendly message instead of leaking internal gRPC / OpenSSL errors
+    const raw = err?.message || "";
+    const isInternalError =
+      raw.includes("DECODER routines") ||
+      raw.includes("Getting metadata from plugin") ||
+      raw.includes("UNKNOWN");
+
+    const userMessage = isInternalError
+      ? "Account created, but we could not save your profile right now. Please log in – your profile will be created automatically."
+      : raw || "Failed to create user profile.";
+
+    return res.status(500).json({ error: userMessage });
   }
 }
