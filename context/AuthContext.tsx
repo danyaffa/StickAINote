@@ -8,8 +8,7 @@ import {
   onAuthStateChanged,
   updateProfile,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { getFirebaseAuth, getFirebaseDb, isFirebaseClientConfigured } from "../utils/firebaseClient";
+import { getFirebaseAuth, isFirebaseClientConfigured } from "../utils/firebaseClient";
 
 type AuthContextValue = {
   user: User | null;
@@ -58,9 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register: AuthContextValue["register"] = async ({ email, password, displayName }) => {
     const auth = getFirebaseAuth();
-    const db = getFirebaseDb();
 
-    if (!auth || !db) {
+    if (!auth) {
       throw new Error("Firebase is not configured. Please set NEXT_PUBLIC_FIREBASE_* in Vercel.");
     }
 
@@ -70,18 +68,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await updateProfile(cred.user, { displayName });
     }
 
-    const userRef = doc(db, "users", cred.user.uid);
-    await setDoc(
-      userRef,
-      {
-        email,
-        displayName: displayName || "",
-        createdAt: new Date().toISOString(),
-        subscriptionStatus: "none",
-        plan: null,
+    // Create user profile via server-side API (uses Firebase Admin to bypass Firestore rules)
+    const idToken = await cred.user.getIdToken();
+    const resp = await fetch("/api/create-user-profile", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
       },
-      { merge: true }
-    );
+      body: JSON.stringify({ email, displayName: displayName || "" }),
+    });
+
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      throw new Error(data.error || "Failed to create user profile.");
+    }
   };
 
   const login: AuthContextValue["login"] = async (email, password) => {
