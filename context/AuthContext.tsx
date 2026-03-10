@@ -68,20 +68,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await updateProfile(cred.user, { displayName });
     }
 
-    // Create user profile via server-side API (uses Firebase Admin to bypass Firestore rules)
-    const idToken = await cred.user.getIdToken();
-    const resp = await fetch("/api/create-user-profile", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
-      },
-      body: JSON.stringify({ email, displayName: displayName || "" }),
-    });
+    // Create user profile via server-side API (uses Firebase Admin to bypass Firestore rules).
+    // If this fails we still let the user proceed – the account exists in Firebase Auth
+    // and the profile can be created on next login.
+    try {
+      const idToken = await cred.user.getIdToken();
+      const resp = await fetch("/api/create-user-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ email, displayName: displayName || "" }),
+      });
 
-    if (!resp.ok) {
-      const data = await resp.json().catch(() => ({}));
-      throw new Error(data.error || "Failed to create user profile.");
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        console.warn("Profile creation returned error (non-blocking):", data.error);
+      }
+    } catch (profileErr) {
+      console.warn("Profile creation failed (non-blocking):", profileErr);
     }
   };
 
@@ -90,7 +96,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!auth) {
       throw new Error("Firebase is not configured. Please set NEXT_PUBLIC_FIREBASE_* in Vercel.");
     }
-    await signInWithEmailAndPassword(auth, email, password);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+
+    // Ensure user profile exists (covers case where profile creation failed during registration)
+    try {
+      const idToken = await cred.user.getIdToken();
+      await fetch("/api/create-user-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          email,
+          displayName: cred.user.displayName || "",
+        }),
+      });
+    } catch {
+      // Non-blocking – profile may already exist or Admin SDK may be unavailable
+    }
   };
 
   const logout = async () => {
