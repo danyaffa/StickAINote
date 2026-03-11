@@ -463,13 +463,18 @@ export default function NotesPage() {
 
   // --- SYNC EDIT STATE FROM ACTIVE NOTE ---
   useEffect(() => {
+    // Always reset saveStatus when switching notes (prevents stuck "Saving...")
+    setSaveStatus("idle");
+    if (saveStatusTimer.current) {
+      clearTimeout(saveStatusTimer.current);
+      saveStatusTimer.current = null;
+    }
     if (!activeNote) return;
     setEditContent(activeNote.content);
     setEditTitle(activeNote.title);
     setEditTables(activeNote.tables || []);
     setEditColor(activeNote.color);
     lastVersionContent.current = activeNote.content;
-    setSaveStatus("idle");
 
     // Focus the title input once. The editor is now always in DOM (display toggle),
     // so there is no unmount/remount race. No setTimeout needed.
@@ -496,13 +501,21 @@ export default function NotesPage() {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
       const id = latestActiveId.current;
-      if (!id) return;
+      if (!id) {
+        setSaveStatus("idle");
+        return;
+      }
       const sanitized = sanitizeHtml(latestEditContent.current);
       const title = latestEditTitle.current;
       const tables = latestEditTables.current;
       const color = latestEditColor.current;
       try {
         const updated = await dbUpdateNote(id, { title, content: sanitized, tables, color });
+        if (!updated) {
+          // Note was deleted or not found — reset status
+          setSaveStatus("idle");
+          return;
+        }
         setNotes((prev) =>
           prev.map((n) =>
             n.id === id
@@ -514,7 +527,7 @@ export default function NotesPage() {
         if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
         saveStatusTimer.current = setTimeout(() => setSaveStatus("idle"), 2000);
         // Push to cloud if logged in (retry once on failure)
-        if (latestUser.current && updated) {
+        if (latestUser.current) {
           pushNoteToCloud(latestUser.current.uid, updated).catch(async (err) => {
             console.error("[cloud] Auto-save push failed, retrying:", err);
             // Retry once after 2 seconds
@@ -939,6 +952,11 @@ export default function NotesPage() {
   const handleManualSave = useCallback(async () => {
     const id = latestActiveId.current;
     if (!id) return;
+    // Cancel any pending auto-save to avoid race conditions
+    if (autoSaveTimer.current) {
+      clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = null;
+    }
     setSaveStatus("saving");
     const sanitized = sanitizeHtml(latestEditContent.current);
     const title = latestEditTitle.current;
@@ -946,6 +964,10 @@ export default function NotesPage() {
     const color = latestEditColor.current;
     try {
       const updated = await dbUpdateNote(id, { title, content: sanitized, tables, color });
+      if (!updated) {
+        setSaveStatus("idle");
+        return;
+      }
       setNotes((prev) =>
         prev.map((n) =>
           n.id === id
@@ -954,9 +976,10 @@ export default function NotesPage() {
         )
       );
       setSaveStatus("saved");
-      setTimeout(() => setSaveStatus("idle"), 2000);
+      if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
+      saveStatusTimer.current = setTimeout(() => setSaveStatus("idle"), 2000);
       // Push to cloud if logged in
-      if (latestUser.current && updated) {
+      if (latestUser.current) {
         pushNoteToCloud(latestUser.current.uid, updated).catch((err) => {
           console.error("[cloud] Manual save push failed:", err);
         });

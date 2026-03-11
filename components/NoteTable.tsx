@@ -13,13 +13,16 @@ function makeId(): string {
   return Math.random().toString(36).slice(2, 9);
 }
 
-function makeRow(colCount: number): NoteTableRow {
+function makeRow(colCount: number, existingRows?: NoteTableRow[]): NoteTableRow {
   return {
     id: makeId(),
-    cells: Array.from({ length: colCount }, () => ({
-      value: "",
-      type: "text" as const,
-    })),
+    cells: Array.from({ length: colCount }, (_, ci) => {
+      // If all existing rows have checkbox type in this column, default new row to checkbox too
+      if (existingRows && existingRows.length > 0 && existingRows.every((r) => r.cells[ci]?.type === "checkbox")) {
+        return { value: "", type: "checkbox" as const, checked: false };
+      }
+      return { value: "", type: "text" as const };
+    }),
   };
 }
 
@@ -89,7 +92,7 @@ export default function NoteTable({ table, onChange, onDelete }: NoteTableProps)
   const addRow = useCallback(() => {
     onChange({
       ...table,
-      rows: [...table.rows, makeRow(table.columns.length)],
+      rows: [...table.rows, makeRow(table.columns.length, table.rows)],
     });
   }, [table, onChange]);
 
@@ -141,6 +144,39 @@ export default function NoteTable({ table, onChange, onDelete }: NoteTableProps)
       });
     },
     [table, updateCell]
+  );
+
+  // Check if a column is entirely checkboxes
+  const isCheckboxColumn = useCallback(
+    (colIdx: number): boolean => {
+      return table.rows.length > 0 && table.rows.every((row) => row.cells[colIdx]?.type === "checkbox");
+    },
+    [table]
+  );
+
+  // Check if all checkboxes in a column are checked
+  const allCheckedInColumn = useCallback(
+    (colIdx: number): boolean => {
+      return table.rows.length > 0 && table.rows.every((row) => row.cells[colIdx]?.checked);
+    },
+    [table]
+  );
+
+  // Toggle all checkboxes in a column (select all / deselect all)
+  const toggleAllInColumn = useCallback(
+    (colIdx: number) => {
+      const allChecked = allCheckedInColumn(colIdx);
+      const newRows = table.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((cell, ci) =>
+          ci === colIdx && cell.type === "checkbox"
+            ? { ...cell, checked: !allChecked }
+            : cell
+        ),
+      }));
+      onChange({ ...table, rows: newRows });
+    },
+    [table, onChange, allCheckedInColumn]
   );
 
   const exportCsv = useCallback(() => {
@@ -212,7 +248,7 @@ export default function NoteTable({ table, onChange, onDelete }: NoteTableProps)
       lines.forEach((line, lineIdx) => {
         const ri = rowIdx + lineIdx;
         if (ri >= newRows.length) {
-          newRows.push(makeRow(table.columns.length));
+          newRows.push(makeRow(table.columns.length, table.rows));
         }
         const vals = line.split("\t");
         vals.forEach((val, vi) => {
@@ -353,6 +389,17 @@ export default function NoteTable({ table, onChange, onDelete }: NoteTableProps)
                       style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}
                       onClick={() => setEditingHeader(ci)}
                     >
+                      {isCheckboxColumn(ci) && (
+                        <input
+                          type="checkbox"
+                          checked={allCheckedInColumn(ci)}
+                          onChange={(e) => { e.stopPropagation(); toggleAllInColumn(ci); }}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ width: 14, height: 14, cursor: "pointer", flexShrink: 0 }}
+                          title="Select all / Deselect all"
+                          aria-label={`Select all ${col}`}
+                        />
+                      )}
                       <span style={{ flex: 1 }}>{col}</span>
                       {table.columns.length > 1 && (
                         <button
