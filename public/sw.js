@@ -26,16 +26,23 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
-// Activate: clean old caches
+// Activate: clean old caches and request persistent storage
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      )
-    )
+    Promise.all([
+      // Clean old caches
+      caches.keys().then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
+        )
+      ),
+      // Request persistent storage so IndexedDB data survives restarts
+      navigator.storage && navigator.storage.persist
+        ? navigator.storage.persist().catch(() => {})
+        : Promise.resolve(),
+    ])
   );
   // Take control of all clients
   self.clients.claim();
