@@ -283,6 +283,7 @@ export default function RichEditor({
         `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeText}</a>`
       );
     } else {
+      // url already has dangerous schemes blocked above; use raw url for createLink
       document.execCommand("createLink", false, url);
     }
     handleInput();

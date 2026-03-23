@@ -15,6 +15,11 @@ export default function PayPalSuccessPage() {
     const { token } = router.query as { token?: string };
     if (!token) return;
 
+    // Prevent double-capture if effect re-fires
+    if (status !== "capturing") return;
+
+    let cancelled = false;
+
     (async () => {
       try {
         const res = await fetch("/api/capture-paypal-order", {
@@ -23,6 +28,7 @@ export default function PayPalSuccessPage() {
           body: JSON.stringify({ orderId: token }),
         });
 
+        if (cancelled) return;
         const data = await res.json();
 
         if (!res.ok) {
@@ -37,11 +43,15 @@ export default function PayPalSuccessPage() {
           throw new Error(`Unexpected status: ${data.status}`);
         }
       } catch (err: any) {
-        setErrorMsg(err?.message || "Payment capture failed");
-        setStatus("error");
+        if (!cancelled) {
+          setErrorMsg(err?.message || "Payment capture failed");
+          setStatus("error");
+        }
       }
     })();
-  }, [router.query]);
+
+    return () => { cancelled = true; };
+  }, [router.query]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>

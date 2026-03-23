@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from "react";
 import Head from "next/head";
 import Link from "next/link";
-import { getFirebaseAuth } from "../utils/firebaseClient";
+import {
+  getFirebaseAuth,
+} from "../utils/firebaseClient";
+import {
+  reauthenticateWithCredential,
+  updatePassword,
+  EmailAuthProvider,
+} from "firebase/auth";
 
 export default function AccountSettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -16,12 +23,18 @@ export default function AccountSettingsPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    // Try to get email from Firebase auth or localStorage
-    const stored = window.localStorage.getItem("stickainote-email");
-    if (stored) setEmail(stored);
+    // Get email from Firebase auth first, fall back to localStorage
+    const auth = getFirebaseAuth();
+    const firebaseEmail = auth?.currentUser?.email;
+    if (firebaseEmail) {
+      setEmail(firebaseEmail);
+    } else {
+      const stored = window.localStorage.getItem("stickainote-email");
+      if (stored) setEmail(stored);
+    }
   }, []);
 
-  function handleChangePassword(e: React.FormEvent) {
+  async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
     setPasswordMsg("");
 
@@ -38,11 +51,32 @@ export default function AccountSettingsPage() {
       return;
     }
 
-    // Placeholder - integrate with Firebase Auth updatePassword()
-    setPasswordMsg("Password updated successfully.");
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+    const auth = getFirebaseAuth();
+    const user = auth?.currentUser;
+    if (!user || !user.email) {
+      setPasswordMsg("You must be signed in to change your password.");
+      return;
+    }
+
+    try {
+      // Re-authenticate with current password before changing
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, newPassword);
+
+      setPasswordMsg("Password updated successfully.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      if (err?.code === "auth/wrong-password" || err?.code === "auth/invalid-credential") {
+        setPasswordMsg("Current password is incorrect.");
+      } else if (err?.code === "auth/weak-password") {
+        setPasswordMsg("New password is too weak. Please choose a stronger password.");
+      } else {
+        setPasswordMsg("Failed to update password. Please try again.");
+      }
+    }
   }
 
   return (
