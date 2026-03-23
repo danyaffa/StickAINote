@@ -296,35 +296,6 @@ const ReviewWidget: React.FC<ReviewWidgetProps> = ({ appStoreUrl }) => {
             Thank you for your feedback!
           </p>
 
-          {shouldShowStoreCta && (
-            <>
-              <p
-                style={{
-                  margin: 0,
-                  marginBottom: 12,
-                  fontSize: 13,
-                  color: "#cbd5f5",
-                }}
-              >
-                If the store page didn’t open, tap below to leave a quick
-                review in the app store. It helps more people discover {APP_NAME}
-                .
-              </p>
-
-              <button
-                onClick={handleOpenStore}
-                style={{
-                  ...buttonBase,
-                  background: "#facc15",
-                  color: "#0f172a",
-                  marginBottom: 8,
-                }}
-              >
-                💛 Leave a review in the app store
-              </button>
-            </>
-          )}
-
           <button
             onClick={() => {
               setIsOpen(false);
