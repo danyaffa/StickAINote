@@ -31,11 +31,10 @@ export default async function handler(
   }
 
   try {
-    // Only count good reviews (4★ and 5★)
+    // Count all reviews with a valid rating
     const snap = await adminDb
       .collection("reviews")
       .where("appName", "==", APP_NAME)
-      .where("rating", ">=", 4)
       .get();
 
     const count = snap.size;
@@ -49,13 +48,20 @@ export default async function handler(
     }
 
     let sum = 0;
+    let ratedCount = 0;
     snap.forEach((doc) => {
       const data = doc.data() as any;
-      const r = typeof data.rating === "number" ? data.rating : 0;
-      sum += r;
+      if (typeof data.rating === "number" && data.rating >= 1 && data.rating <= 5) {
+        sum += data.rating;
+        ratedCount++;
+      }
     });
 
-    const average = sum / count;
+    if (ratedCount === 0) {
+      return res.json({ success: true, count, average: null });
+    }
+
+    const average = Math.round((sum / ratedCount) * 10) / 10;
 
     return res.json({
       success: true,

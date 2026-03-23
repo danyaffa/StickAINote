@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
+import { getAuthHeaders } from "../lib/getAuthHeaders";
 
 type Json = any;
 
@@ -59,9 +60,10 @@ export default function AiToolsPage() {
     setTextBusy(true);
     setTextOut("");
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch(apiUrl("/api/ai-note"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           action: noteAction,
           text: noteText,
@@ -93,9 +95,10 @@ export default function AiToolsPage() {
     setDrawOutImage("");
     setDrawUsedPrompt("");
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch(apiUrl("/api/ai-draw"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           prompt: drawPrompt,
           previousPrompt: drawPrevPrompt || "",
@@ -146,9 +149,10 @@ export default function AiToolsPage() {
     setVisionBusy(true);
     setHandwritingOut("");
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch(apiUrl("/api/ai-handwriting"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ imageData: visionImageData }),
       });
       const data = (await res.json()) as { text?: string; error?: string };
@@ -166,9 +170,10 @@ export default function AiToolsPage() {
     setVisionBusy(true);
     setDetectOut(null);
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch(apiUrl("/api/ai-detect-objects"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ imageData: visionImageData }),
       });
       const data = await res.json();
@@ -223,9 +228,10 @@ export default function AiToolsPage() {
       const parsed = JSON.parse(strokesJson);
       if (!parsed?.strokes) throw new Error("JSON must include { strokes: [...] }");
 
+      const authHeaders = await getAuthHeaders();
       const res = await fetch(apiUrl("/api/ai-clean-layout"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify(parsed),
       });
       const data = await res.json();

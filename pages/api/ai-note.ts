@@ -1,5 +1,6 @@
 // FILE: pages/api/ai-note.ts
 import type { NextApiRequest, NextApiResponse } from "next";
+import { verifyAuth } from "../../lib/apiAuth";
 
 type Body = {
   action?: "fix" | "summarise" | "translate" | "improve" | "structure";
@@ -17,6 +18,11 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const auth = await verifyAuth(req);
+  if (!auth) {
+    return res.status(401).json({ error: "Authentication required." });
+  }
+
   const { action, text, targetLanguage } = req.body as Body;
 
   if (!text?.trim()) {
@@ -25,7 +31,7 @@ export default async function handler(
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: "OPENAI_API_KEY is not configured on the server." });
+    return res.status(500).json({ error: "AI service is not available." });
   }
 
   let instruction: string;
@@ -89,6 +95,10 @@ export default async function handler(
 
     const json = await response.json();
     const result = json.choices?.[0]?.message?.content || "";
+
+    if (!result.trim()) {
+      return res.status(500).json({ error: "AI returned no content. Please try again." });
+    }
 
     return res.status(200).json({ text: result.trim() });
   } catch (err) {

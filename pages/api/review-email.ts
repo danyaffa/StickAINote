@@ -21,12 +21,22 @@ export default async function handler(
   try {
     const { rating, text, comment, email, appName } = req.body;
 
+    // Validate rating
+    const numRating = typeof rating === "number" ? rating : Number(rating);
+    if (rating != null && (!Number.isFinite(numRating) || numRating < 1 || numRating > 5)) {
+      return res.status(400).json({ error: "Rating must be between 1 and 5." });
+    }
+    const safeRating = rating != null ? Math.round(numRating) : null;
+
     // Accept both "text" and "comment"
-    const bodyText: string = (text ?? comment ?? "").toString();
+    const bodyText: string = (text ?? comment ?? "").toString().slice(0, 5000);
 
     if (!bodyText.trim()) {
       return res.status(400).json({ error: "Missing review text" });
     }
+
+    // Basic email format validation
+    const safeEmail = typeof email === "string" ? email.slice(0, 254) : "";
 
     const appLabel = appName || APP_NAME;
     const createdAt = new Date().toISOString();
@@ -37,9 +47,9 @@ export default async function handler(
       console.warn("⚠ Firebase admin not initialised – skipping Firestore write.");
     } else {
       const docRef = await adminDb.collection("reviews").add({
-        rating: rating ?? null,
+        rating: safeRating,
         text: bodyText,
-        email: email || "",
+        email: safeEmail,
         appName: appLabel,
         createdAt,
       });
@@ -52,11 +62,11 @@ export default async function handler(
         const result = await resend.emails.send({
           from: "Reviews <onboarding@resend.dev>",
           to: process.env.REVIEW_RECEIVER_EMAIL,
-          subject: `New ${appLabel} review – ${rating ?? "no"}★`,
+          subject: `New ${appLabel} review – ${safeRating ?? "no"}★`,
           text: [
             `App: ${appLabel}`,
-            `Rating: ${rating ?? "n/a"} stars`,
-            `From email: ${email || "anonymous"}`,
+            `Rating: ${safeRating ?? "n/a"} stars`,
+            `From email: ${safeEmail || "anonymous"}`,
             `Created at: ${createdAt}`,
             docId ? `Firestore ID: ${docId}` : "",
             "",

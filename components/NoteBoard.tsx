@@ -9,6 +9,7 @@ import React, {
   TouchEvent as ReactTouchEvent,
   ChangeEvent as ReactChangeEvent,
 } from "react";
+import { getAuthHeaders } from "../lib/getAuthHeaders";
 
 // --- TYPES ---
 type AiAction = "fix" | "summarise" | "translate" | "improve" | "structure";
@@ -264,8 +265,9 @@ export default function NoteBoard() {
     if (!note?.text.trim()) { alert("Write text first."); return; }
     setAiBusy(true);
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch("/api/ai-note", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ action, text: note.text, targetLanguage })
       });
       const data = await res.json();
@@ -289,9 +291,10 @@ export default function NoteBoard() {
     if (!prompt) return;
     setAiBusy(true);
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch("/api/ai-draw", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, previousPrompt }) 
+        method: "POST", headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ prompt, previousPrompt })
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);

@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from "react";
 import { apiUrl } from "../lib/apiBase";
+import { getAuthHeaders } from "../lib/getAuthHeaders";
 
 interface TranslateDialogProps {
   selectedText: string;
@@ -41,9 +42,10 @@ export default function TranslateDialog({
     setResult("");
 
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch(apiUrl("/api/ai-note"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           action: "translate",
           text: textToTranslate,

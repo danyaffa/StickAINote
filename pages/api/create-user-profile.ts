@@ -29,10 +29,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: "Email is required." });
     }
 
+    // Validate displayName type and length
+    const safeName = typeof displayName === "string" ? displayName.slice(0, 100).trim() : "";
+
     await adminDb.collection("users").doc(uid).set(
       {
-        email,
-        displayName: displayName || "",
+        email: email.slice(0, 254),
+        displayName: safeName,
         createdAt: new Date().toISOString(),
         subscriptionStatus: "none",
         plan: null,

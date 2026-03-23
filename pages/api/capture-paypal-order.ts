@@ -83,6 +83,6 @@ export default async function handler(
     res.status(200).json({ status: capture.status });
   } catch (err: any) {
     console.error(err);
-    res.status(500).json({ error: err?.message || "PayPal capture error" });
+    res.status(500).json({ error: "Payment processing failed. Please try again." });
   }
 }
