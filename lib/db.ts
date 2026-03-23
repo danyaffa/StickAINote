@@ -71,9 +71,80 @@ const DEFAULT_SETTINGS: AppSettings = {
   darkMode: false,
 };
 
+// --- PERSISTENT STORAGE ---
+
+const LS_BACKUP_KEY = "stickanote-notes-backup";
+
+/**
+ * Request persistent storage so the browser won't evict IndexedDB data
+ * when the PWA is installed on desktop. This is the primary fix for
+ * notes disappearing after PC restart.
+ */
+async function requestPersistentStorage(): Promise<void> {
+  if (typeof navigator === "undefined" || !navigator.storage?.persist) return;
+  try {
+    const persisted = await navigator.storage.persisted();
+    if (!persisted) {
+      await navigator.storage.persist();
+    }
+  } catch {
+    /* Best-effort – ignore errors on unsupported browsers */
+  }
+}
+
+// --- LOCAL-STORAGE BACKUP ---
+
+/**
+ * Write a compact snapshot of all notes to localStorage.
+ * This acts as a safety-net: if IndexedDB is somehow cleared
+ * (e.g. by the OS reclaiming storage), we can restore from here.
+ */
+function backupNotesToLocalStorage(notes: NoteRecord[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LS_BACKUP_KEY, JSON.stringify(notes));
+  } catch {
+    /* localStorage may be full – silently ignore */
+  }
+}
+
+/**
+ * Debounced helper to re-read all notes from IndexedDB and write them
+ * to the localStorage backup. Called after every write operation.
+ */
+let _backupTimer: ReturnType<typeof setTimeout> | null = null;
+function refreshBackup(): void {
+  if (_backupTimer) clearTimeout(_backupTimer);
+  _backupTimer = setTimeout(async () => {
+    try {
+      const { store } = await tx(STORE_NOTES, "readonly");
+      const all: NoteRecord[] = await reqToPromise(store.getAll());
+      backupNotesToLocalStorage(all);
+    } catch {
+      /* best-effort */
+    }
+  }, 500);
+}
+
+/**
+ * Read the backup from localStorage (returns [] if none exists).
+ */
+function readBackupFromLocalStorage(): NoteRecord[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(LS_BACKUP_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 // --- DB INIT ---
 
 let dbInstance: IDBDatabase | null = null;
+let persistentStorageRequested = false;
 
 function openDB(): Promise<IDBDatabase> {
   if (dbInstance) return Promise.resolve(dbInstance);
@@ -111,6 +182,13 @@ function openDB(): Promise<IDBDatabase> {
         dbInstance?.close();
         dbInstance = null;
       };
+
+      // Request persistent storage once per session
+      if (!persistentStorageRequested) {
+        persistentStorageRequested = true;
+        requestPersistentStorage();
+      }
+
       resolve(dbInstance);
     };
 
@@ -163,6 +241,8 @@ export async function createNote(
 
   const { store } = await tx(STORE_NOTES, "readwrite");
   await reqToPromise(store.put(note));
+  // Keep localStorage backup in sync
+  refreshBackup();
   return note;
 }
 
@@ -170,6 +250,8 @@ export async function createNote(
 export async function putNote(note: NoteRecord): Promise<void> {
   const { store } = await tx(STORE_NOTES, "readwrite");
   await reqToPromise(store.put(note));
+  // Keep localStorage backup in sync
+  refreshBackup();
 }
 
 export async function getNote(id: string): Promise<NoteRecord | undefined> {
@@ -179,13 +261,34 @@ export async function getNote(id: string): Promise<NoteRecord | undefined> {
 
 export async function getAllNotes(): Promise<NoteRecord[]> {
   const { store } = await tx(STORE_NOTES, "readonly");
-  const all: NoteRecord[] = await reqToPromise(store.getAll());
-  return all
+  let all: NoteRecord[] = await reqToPromise(store.getAll());
+
+  // --- RECOVERY: if IndexedDB is empty, try restoring from localStorage backup ---
+  if (all.length === 0) {
+    const backup = readBackupFromLocalStorage();
+    if (backup.length > 0) {
+      // Restore all backed-up notes into IndexedDB
+      for (const note of backup) {
+        const { store: wStore } = await tx(STORE_NOTES, "readwrite");
+        await reqToPromise(wStore.put(note));
+      }
+      // Re-read after recovery
+      const { store: freshStore } = await tx(STORE_NOTES, "readonly");
+      all = await reqToPromise(freshStore.getAll());
+    }
+  }
+
+  const active = all
     .filter((n) => !n.deleted)
     .sort((a, b) => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       return b.updatedAt - a.updatedAt;
     });
+
+  // Keep localStorage backup in sync (includes deleted notes for full recovery)
+  backupNotesToLocalStorage(all);
+
+  return active;
 }
 
 export async function getTrashNotes(): Promise<NoteRecord[]> {
@@ -204,6 +307,8 @@ export async function updateNote(
 
   const updated = { ...existing, ...patch, updatedAt: Date.now() };
   await reqToPromise(store.put(updated));
+  // Keep localStorage backup in sync
+  refreshBackup();
   return updated;
 }
 
@@ -220,6 +325,8 @@ export async function permanentDeleteNote(id: string): Promise<void> {
   await reqToPromise(store.delete(id));
   // Also delete versions
   await deleteVersionsForNote(id);
+  // Keep localStorage backup in sync
+  refreshBackup();
 }
 
 export async function purgeOldTrash(retentionDays: number): Promise<void> {

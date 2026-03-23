@@ -27,6 +27,7 @@ import { sanitizeHtml, stripHtml, htmlToMarkdown } from "../lib/sanitize";
 import { usePWAInstall } from "../lib/usePWAInstall";
 import { useAuth } from "../context/AuthContext";
 import { syncNotes, pushNoteToCloud, fetchAllCloudNotes, pushAllNotesToCloud } from "../lib/syncNotes";
+import { saveAIShare } from "../lib/firestore";
 
 const RichEditor = dynamic(() => import("../components/RichEditor"), { ssr: false });
 const NoteTable = dynamic(() => import("../components/NoteTable"), { ssr: false });
@@ -42,6 +43,62 @@ import { createEmptyTable } from "../components/NoteTable";
 const COLORS = ["#fef3c7", "#e0f2fe", "#fce7f3", "#dcfce7", "#f1f5f9", "#fde68a", "#e9d5ff", "#fed7aa"];
 const AUTO_SAVE_MS = 2000;
 const VERSION_SAVE_MS = 60000;
+
+/* ─── Auto-correct dictionary ─── */
+const AUTO_CORRECT_MAP: Record<string, string> = {
+  // Common typos
+  "teh": "the", "hte": "the", "thier": "their", "adn": "and", "nad": "and",
+  "hwo": "who", "waht": "what", "taht": "that", "wiht": "with", "becuase": "because",
+  "becasue": "because", "beacuse": "because", "recieve": "receive", "reciept": "receipt",
+  "seperate": "separate", "occured": "occurred", "occurence": "occurrence",
+  "definately": "definitely", "definetly": "definitely", "defintely": "definitely",
+  "accomodate": "accommodate", "acommodate": "accommodate",
+  "apparantly": "apparently", "apparantely": "apparently",
+  "calender": "calendar", "catagory": "category", "cemetary": "cemetery",
+  "changable": "changeable", "collegue": "colleague", "comming": "coming",
+  "commited": "committed", "commitee": "committee",
+  "comparision": "comparison", "concious": "conscious", "copywrite": "copyright",
+  "desireable": "desirable", "developement": "development",
+  "diffrent": "different", "dissapear": "disappear", "dissapoint": "disappoint",
+  "embarass": "embarrass", "enviroment": "environment", "exagerate": "exaggerate",
+  "excercise": "exercise", "existance": "existence", "experiance": "experience",
+  "familar": "familiar", "finaly": "finally", "foriegn": "foreign",
+  "fourty": "forty", "freind": "friend", "goverment": "government",
+  "gaurd": "guard", "happend": "happened", "harrass": "harass",
+  "immediatly": "immediately", "independant": "independent",
+  "intresting": "interesting", "knowlege": "knowledge", "libary": "library",
+  "lisence": "licence", "maintainance": "maintenance", "millenium": "millennium",
+  "neccessary": "necessary", "noticable": "noticeable",
+  "occassion": "occasion", "occassionally": "occasionally",
+  "paralel": "parallel", "parliment": "parliament", "persistant": "persistent",
+  "posession": "possession", "prefered": "preferred", "priveledge": "privilege",
+  "profesional": "professional", "publically": "publicly",
+  "realy": "really", "refered": "referred", "relavant": "relevant",
+  "religous": "religious", "rember": "remember", "remeber": "remember",
+  "repitition": "repetition", "resistence": "resistance", "shedule": "schedule",
+  "sieze": "seize", "sence": "sense", "sentance": "sentence",
+  "succesful": "successful", "suprise": "surprise", "temperture": "temperature",
+  "therefor": "therefore", "tommorow": "tomorrow", "tomorro": "tomorrow",
+  "tounge": "tongue", "truely": "truly", "untill": "until",
+  "usally": "usually", "vaccum": "vacuum", "vegatable": "vegetable",
+  "wether": "whether", "wich": "which", "writting": "writing",
+  // Common abbreviation expansions
+  "dont": "don't", "doesnt": "doesn't", "didnt": "didn't",
+  "cant": "can't", "wont": "won't", "wouldnt": "wouldn't",
+  "shouldnt": "shouldn't", "couldnt": "couldn't", "isnt": "isn't",
+  "arent": "aren't", "wasnt": "wasn't", "werent": "weren't",
+  "hasnt": "hasn't", "havent": "haven't", "hadnt": "hadn't",
+  "im": "I'm", "ive": "I've", "ill": "I'll", "id": "I'd",
+  "youre": "you're", "youve": "you've", "youll": "you'll",
+  "theyre": "they're", "theyve": "they've", "theyll": "they'll",
+  "weve": "we've", "were": "we're", "well": "we'll",
+  "hes": "he's", "shes": "she's", "its": "it's",
+  "thats": "that's", "whats": "what's", "whos": "who's",
+  "wheres": "where's", "heres": "here's", "theres": "there's",
+  "lets": "let's",
+  // Capitalization
+  "i": "I",
+};
 
 const PRIORITIES: { value: NotePriority; label: string; color: string; icon: string }[] = [
   { value: "none", label: "None", color: "#94a3b8", icon: "" },
@@ -108,6 +165,18 @@ const TEMPLATES = [
   },
 ];
 
+const AI_SHARE_SERVICES = [
+  { key: "chatgpt", name: "ChatGPT", color: "#10a37f", url: (text: string) => `https://chat.openai.com/?q=${encodeURIComponent(text)}` },
+  { key: "gemini", name: "Gemini", color: "#4285f4", url: (text: string) => `https://gemini.google.com/app?q=${encodeURIComponent(text)}` },
+  { key: "claude", name: "Claude", color: "#d97706", url: (text: string) => `https://claude.ai/new?q=${encodeURIComponent(text)}` },
+  { key: "copilot", name: "Copilot", color: "#7c3aed", url: (text: string) => `https://copilot.microsoft.com/?q=${encodeURIComponent(text)}` },
+  { key: "perplexity", name: "Perplexity", color: "#1fb8cd", url: (text: string) => `https://www.perplexity.ai/?q=${encodeURIComponent(text)}` },
+  { key: "deepseek", name: "DeepSeek", color: "#536af6", url: (text: string) => `https://chat.deepseek.com/?q=${encodeURIComponent(text)}` },
+  { key: "grok", name: "Grok", color: "#000000", url: (text: string) => `https://grok.com/?q=${encodeURIComponent(text)}` },
+  { key: "native", name: "Share (OS)", color: "#64748b", url: null },
+  { key: "clipboard", name: "Copy to Clipboard", color: "#475569", url: null },
+];
+
 const FREE_TRIAL_LIMIT = 5;
 
 export default function NotesPage() {
@@ -164,10 +233,14 @@ export default function NotesPage() {
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [showAiMenu, setShowAiMenu] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [autoCorrectEnabled, setAutoCorrectEnabled] = useState(true);
   const [showUpgradePopup, setShowUpgradePopup] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+
+  // Auto-correct setting
+  const [autoCorrectEnabled, setAutoCorrectEnabled] = useState(false);
 
   // PWA install
   const pwa = usePWAInstall();
@@ -489,13 +562,69 @@ export default function NotesPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- HANDLERS ---
+  // Auto-correct: runs after each content change to fix the last typed word
+  const autoCorrectRef = useRef(autoCorrectEnabled);
+  autoCorrectRef.current = autoCorrectEnabled;
+
+  const runAutoCorrect = useCallback(() => {
+    if (!autoCorrectRef.current) return;
+    const el = editorDivRef.current?.querySelector("[contenteditable]") as HTMLElement | null;
+    if (!el) return;
+
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return;
+
+    const range = sel.getRangeAt(0);
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE) return;
+
+    const textNode = node as Text;
+    const text = textNode.textContent || "";
+    const cursorPos = range.startOffset;
+
+    // Find the word just before the cursor (triggered on space, enter, punctuation)
+    const beforeCursor = text.slice(0, cursorPos);
+    // Match the last word before a trailing space/punctuation
+    const match = beforeCursor.match(/(\S+)([\s.,;:!?\u00A0])$/);
+    if (!match) return;
+
+    const word = match[1];
+    const trailing = match[2];
+    const lowerWord = word.toLowerCase();
+    const replacement = AUTO_CORRECT_MAP[lowerWord];
+    if (!replacement) return;
+
+    // Preserve original case pattern
+    let corrected = replacement;
+    if (word[0] === word[0].toUpperCase() && word.length > 1 && replacement !== "I'm" && replacement !== "I've" && replacement !== "I'll" && replacement !== "I'd" && replacement !== "I") {
+      corrected = replacement[0].toUpperCase() + replacement.slice(1);
+    }
+    if (word === word.toUpperCase() && word.length > 1) {
+      corrected = replacement.toUpperCase();
+    }
+
+    // Replace the word in the text node
+    const wordStart = cursorPos - word.length - trailing.length;
+    const newText = text.slice(0, wordStart) + corrected + trailing + text.slice(cursorPos);
+    textNode.textContent = newText;
+
+    // Restore cursor position
+    const newCursorPos = wordStart + corrected.length + trailing.length;
+    const newRange = document.createRange();
+    newRange.setStart(textNode, Math.min(newCursorPos, newText.length));
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+  }, []);
+
   const handleContentChange = useCallback(
     (html: string) => {
       setEditContent(html);
+      runAutoCorrect();
       scheduleAutoSave();
       scheduleVersionSave();
     },
-    [scheduleAutoSave, scheduleVersionSave]
+    [scheduleAutoSave, scheduleVersionSave, runAutoCorrect]
   );
 
   const handleTitleChange = useCallback(
@@ -709,62 +838,53 @@ export default function NotesPage() {
     [aiLoading, scheduleAutoSave]
   );
 
-  // Share with AI services
-  const AI_SHARE_TARGETS = [
-    { id: "chatgpt", label: "ChatGPT", url: "https://chatgpt.com/?q=", color: "#10a37f" },
-    { id: "gemini", label: "Gemini", url: "https://gemini.google.com/app?q=", color: "#4285f4" },
-    { id: "claude", label: "Claude", url: "https://claude.ai/new?q=", color: "#d97706" },
-    { id: "copilot", label: "Copilot", url: "https://copilot.microsoft.com/?q=", color: "#0078d4" },
-    { id: "perplexity", label: "Perplexity", url: "https://www.perplexity.ai/search?q=", color: "#20808d" },
-    { id: "deepseek", label: "DeepSeek", url: "https://chat.deepseek.com/?q=", color: "#4f46e5" },
-  ];
-
-  const saveShareToFirestore = useCallback(async (noteId: string, target: string, noteTitle: string) => {
-    if (!user) return;
-    try {
-      const { doc, setDoc, collection } = await import("firebase/firestore");
-      const { getFirebaseDb } = await import("../utils/firebaseClient");
-      const db = getFirebaseDb();
-      if (!db) return;
-      const shareId = `${user.uid}_${noteId}_${Date.now()}`;
-      await setDoc(doc(collection(db, "sharedNotes"), shareId), {
-        userId: user.uid,
-        noteId,
-        noteTitle,
-        sharedWith: target,
-        sharedAt: Date.now(),
-      });
-    } catch (err) {
-      console.error("[share] Failed to save share to Firestore:", err);
-    }
-  }, [user]);
-
-  const handleShareWith = useCallback(async (target: { id: string; label: string; url: string }) => {
+  const handleShareToAI = useCallback(async (serviceKey: string) => {
     if (!activeNote) return;
     const text = stripHtml(editContent);
-    const noteText = `${editTitle}\n\n${text}`.slice(0, 4000);
-    const encoded = encodeURIComponent(noteText);
-    window.open(`${target.url}${encoded}`, "_blank", "noopener,noreferrer");
+    const service = AI_SHARE_SERVICES.find((s) => s.key === serviceKey);
+    if (!service) return;
+
     setShowShareMenu(false);
-    // Save to Firestore
-    saveShareToFirestore(activeNote.id, target.id, editTitle);
-  }, [activeNote, editTitle, editContent, saveShareToFirestore]);
 
-  const handleNativeShare = useCallback(async () => {
-    if (!activeNote) return;
-    const text = stripHtml(editContent);
-    if (navigator.share) {
+    const noteText = `${editTitle}\n\n${text}`;
+
+    if (serviceKey === "native") {
+      // Use OS native share
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: editTitle, text: text.slice(0, 1000) });
+        } catch { /* user cancelled */ }
+      } else {
+        alert("Native sharing is not supported in this browser.");
+      }
+    } else if (serviceKey === "clipboard") {
+      // Copy to clipboard
       try {
-        await navigator.share({ title: editTitle, text: text.slice(0, 1000) });
-        saveShareToFirestore(activeNote.id, "native", editTitle);
-      } catch { /* cancelled */ }
-    } else {
-      try {
-        await navigator.clipboard.writeText(`${editTitle}\n\n${text}`);
+        await navigator.clipboard.writeText(noteText);
         alert("Note copied to clipboard!");
         saveShareToFirestore(activeNote.id, "clipboard", editTitle);
       } catch {
-        alert("Could not share or copy note.");
+        alert("Could not copy note to clipboard.");
+      }
+    } else if (service.url) {
+      // Open AI service in new tab with note content
+      const shareText = noteText.slice(0, 4000); // Limit for URL safety
+      window.open(service.url(shareText), "_blank", "noopener,noreferrer");
+    }
+
+    // Save share record to Firestore
+    if (latestUser.current) {
+      try {
+        await saveAIShare({
+          userId: latestUser.current.uid,
+          noteId: activeNote.id,
+          noteTitle: editTitle,
+          service: service.name,
+          sharedContent: text.slice(0, 500),
+          createdAt: Date.now(),
+        });
+      } catch (err) {
+        console.error("[share] Failed to save share record to Firestore:", err);
       }
     }
     setShowShareMenu(false);
@@ -1685,20 +1805,20 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   )}
                 </div>
 
-                {/* Share dropdown */}
+                {/* Share with AI services dropdown */}
                 <div style={{ position: "relative" }}>
                   <button
                     onClick={(e) => { e.stopPropagation(); setShowShareMenu(!showShareMenu); }}
                     style={{
                       ...(darkMode ? actionBtnDark : actionBtnStyle),
-                      background: darkMode ? "#1e3a5f" : "#f0f9ff",
-                      borderColor: darkMode ? "#2563eb" : "#93c5fd",
+                      background: darkMode ? "#1e1b4b" : "#faf5ff",
+                      borderColor: darkMode ? "#6d28d9" : "#ddd6fe",
                       display: "flex",
                       alignItems: "center",
                       gap: 4,
                     }}
                     type="button"
-                    title="Share note"
+                    title="Share note with AI services"
                   >
                     Share
                   </button>
@@ -1715,39 +1835,36 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                         borderRadius: 8,
                         boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                         zIndex: 50,
-                        minWidth: 180,
+                        minWidth: 200,
                         padding: 4,
                       }}
                     >
-                      <div style={{ padding: "4px 10px", fontSize: 10, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <div style={{ padding: "6px 10px", fontSize: 11, color: "#94a3b8", fontWeight: 600, borderBottom: darkMode ? "1px solid #334155" : "1px solid #f1f5f9", marginBottom: 2 }}>
                         Share with AI
                       </div>
-                      {AI_SHARE_TARGETS.map((t) => (
+                      {AI_SHARE_SERVICES.map((svc) => (
                         <button
-                          key={t.id}
-                          onClick={() => handleShareWith(t)}
-                          style={{ ...dropdownBtn, color: darkMode ? "#e2e8f0" : undefined, display: "flex", alignItems: "center", gap: 8 }}
+                          key={svc.key}
+                          onClick={() => handleShareToAI(svc.key)}
+                          style={{
+                            ...dropdownBtn,
+                            color: darkMode ? "#e2e8f0" : undefined,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
                           type="button"
                         >
-                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: t.color, flexShrink: 0 }} />
-                          {t.label}
+                          <span style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            background: svc.color,
+                            flexShrink: 0,
+                          }} />
+                          {svc.name}
                         </button>
                       ))}
-                      <div style={{ height: 1, background: darkMode ? "#475569" : "#e2e8f0", margin: "4px 0" }} />
-                      <button
-                        onClick={handleCopyToClipboard}
-                        style={{ ...dropdownBtn, color: darkMode ? "#e2e8f0" : undefined }}
-                        type="button"
-                      >
-                        Copy to Clipboard
-                      </button>
-                      <button
-                        onClick={handleNativeShare}
-                        style={{ ...dropdownBtn, color: darkMode ? "#e2e8f0" : undefined }}
-                        type="button"
-                      >
-                        Share via Device...
-                      </button>
                     </div>
                   )}
                 </div>
@@ -1784,6 +1901,25 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                     </div>
                   )}
                 </div>
+
+                <button
+                  onClick={() => {
+                    const el = editorDivRef.current?.querySelector("[contenteditable]") as HTMLElement | null;
+                    if (el) {
+                      el.focus();
+                      document.execCommand("removeFormat", false);
+                      document.execCommand("formatBlock", false, "p");
+                      const html = el.innerHTML;
+                      setEditContent(html);
+                      scheduleAutoSave();
+                    }
+                  }}
+                  style={{ ...(darkMode ? actionBtnDark : actionBtnStyle), display: "flex", alignItems: "center", gap: 4 }}
+                  type="button"
+                  title="Remove all formatting from selected text (Ctrl+\\)"
+                >
+                  Remove Format
+                </button>
 
                 <button onClick={handleAddTable} style={{ ...(darkMode ? actionBtnDark : actionBtnStyle), background: darkMode ? "#064e3b" : "#f0fdf4", borderColor: darkMode ? "#065f46" : "#bbf7d0" }} type="button" title="Insert spreadsheet table">
                   + Table
@@ -2076,13 +2212,12 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
           />
         )}
         {showSettings && (
-          <SettingsDialog
-            onClose={() => setShowSettings(false)}
-            onSettingsChange={(s) => {
-              setDarkMode(s.darkMode || false);
-              setAutoCorrectEnabled(s.autoCorrect || false);
-            }}
-          />
+          <SettingsDialog onClose={async () => {
+            setShowSettings(false);
+            // Reload auto-correct setting in case user toggled it
+            const s = await getSettings();
+            setAutoCorrectEnabled(s.autoCorrect || false);
+          }} />
         )}
 
         {/* Templates modal */}

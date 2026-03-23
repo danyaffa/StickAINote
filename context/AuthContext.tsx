@@ -8,8 +8,7 @@ import {
   onAuthStateChanged,
   updateProfile,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { getFirebaseAuth, getFirebaseDb, isFirebaseClientConfigured } from "../utils/firebaseClient";
+import { getFirebaseAuth, isFirebaseClientConfigured } from "../utils/firebaseClient";
 
 type AuthContextValue = {
   user: User | null;
@@ -58,9 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register: AuthContextValue["register"] = async ({ email, password, displayName }) => {
     const auth = getFirebaseAuth();
-    const db = getFirebaseDb();
 
-    if (!auth || !db) {
+    if (!auth) {
       throw new Error("Firebase is not configured. Please set NEXT_PUBLIC_FIREBASE_* in Vercel.");
     }
 
@@ -70,18 +68,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await updateProfile(cred.user, { displayName });
     }
 
-    const userRef = doc(db, "users", cred.user.uid);
-    await setDoc(
-      userRef,
-      {
-        email,
-        displayName: displayName || "",
-        createdAt: new Date().toISOString(),
-        subscriptionStatus: "none",
-        plan: null,
-      },
-      { merge: true }
-    );
+    // Create user profile via server-side API (uses Firebase Admin to bypass Firestore rules).
+    // If this fails we still let the user proceed – the account exists in Firebase Auth
+    // and the profile can be created on next login.
+    try {
+      const idToken = await cred.user.getIdToken();
+      const resp = await fetch("/api/create-user-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ email, displayName: displayName || "" }),
+      });
+
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        console.warn("Profile creation returned error (non-blocking):", data.error);
+      }
+    } catch (profileErr) {
+      console.warn("Profile creation failed (non-blocking):", profileErr);
+    }
   };
 
   const login: AuthContextValue["login"] = async (email, password) => {
@@ -89,7 +96,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!auth) {
       throw new Error("Firebase is not configured. Please set NEXT_PUBLIC_FIREBASE_* in Vercel.");
     }
-    await signInWithEmailAndPassword(auth, email, password);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+
+    // Ensure user profile exists (covers case where profile creation failed during registration)
+    try {
+      const idToken = await cred.user.getIdToken();
+      await fetch("/api/create-user-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          email,
+          displayName: cred.user.displayName || "",
+        }),
+      });
+    } catch {
+      // Non-blocking – profile may already exist or Admin SDK may be unavailable
+    }
   };
 
   const logout = async () => {
