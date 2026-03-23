@@ -1,5 +1,6 @@
 // FILE: pages/api/ai-draw.ts
 import type { NextApiRequest, NextApiResponse } from "next";
+import { verifyAuth } from "../../lib/apiAuth";
 
 type Data = { imageData: string; usedPrompt: string } | { error: string };
 
@@ -11,6 +12,11 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const auth = await verifyAuth(req);
+  if (!auth) {
+    return res.status(401).json({ error: "Authentication required." });
+  }
+
   const { prompt, previousPrompt } = req.body as { prompt: string; previousPrompt?: string };
 
   if (!prompt || !prompt.trim()) {
@@ -19,7 +25,7 @@ export default async function handler(
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: "OPENAI_API_KEY is not set" });
+    return res.status(500).json({ error: "AI service is not available." });
   }
 
   try {
@@ -27,31 +33,37 @@ export default async function handler(
 
     // Conversational Logic: Refine prompt if previous context exists
     if (previousPrompt) {
-      const refineRes = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content: "You are an AI prompt engineer. Merge the OLD prompt and NEW instruction into a single, detailed DALL-E prompt. Output ONLY the raw prompt text."
-            },
-            {
-              role: "user",
-              content: `OLD PROMPT: ${previousPrompt}\nNEW INSTRUCTION: ${prompt}`
-            }
-          ]
-        })
-      });
+      try {
+        const refineRes = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o",
+            messages: [
+              {
+                role: "system",
+                content: "You are an AI prompt engineer. Merge the OLD prompt and NEW instruction into a single, detailed DALL-E prompt. Output ONLY the raw prompt text."
+              },
+              {
+                role: "user",
+                content: `OLD PROMPT: ${previousPrompt}\nNEW INSTRUCTION: ${prompt}`
+              }
+            ]
+          })
+        });
 
-      const refineJson = await refineRes.json();
-      const refinedText = refineJson.choices?.[0]?.message?.content;
-      if (refinedText) {
-        finalPrompt = refinedText;
+        if (refineRes.ok) {
+          const refineJson = await refineRes.json();
+          const refinedText = refineJson.choices?.[0]?.message?.content;
+          if (refinedText) {
+            finalPrompt = refinedText;
+          }
+        }
+      } catch (refineErr) {
+        console.warn("Prompt refinement failed, using original prompt:", refineErr);
       }
     }
 
@@ -90,6 +102,6 @@ export default async function handler(
 
   } catch (err: any) {
     console.error("Server Error:", err);
-    res.status(500).json({ error: err.message || "Internal server error" });
+    res.status(500).json({ error: "Image generation failed. Please try again." });
   }
 }

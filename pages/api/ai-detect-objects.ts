@@ -1,5 +1,6 @@
 // FILE: pages/api/ai-detect-objects.ts
 import type { NextApiRequest, NextApiResponse } from "next";
+import { verifyAuth } from "../../lib/apiAuth";
 
 type DetectedObject = {
   label: string;
@@ -19,6 +20,12 @@ export default async function handler(
     return;
   }
 
+  const auth = await verifyAuth(req);
+  if (!auth) {
+    res.status(401).json({ error: "Authentication required." });
+    return;
+  }
+
   const { imageData } = req.body as { imageData?: string };
   if (!imageData) {
     res.status(400).json({ error: "Missing imageData" });
@@ -27,7 +34,7 @@ export default async function handler(
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: "OPENAI_API_KEY is not set" });
+    res.status(500).json({ error: "AI service is not available." });
     return;
   }
 
@@ -117,6 +124,6 @@ export default async function handler(
     console.error(err);
     res
       .status(500)
-      .json({ error: err?.message || "Failed to detect objects" });
+      .json({ error: "Failed to detect objects. Please try again." });
   }
 }

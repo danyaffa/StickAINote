@@ -49,7 +49,11 @@ export default async function handler(
     return;
   }
 
-  const { plan } = req.body as { plan?: "monthly" | "yearly" };
+  const { plan } = req.body as { plan?: string };
+  if (plan && plan !== "monthly" && plan !== "yearly") {
+    res.status(400).json({ error: "Invalid plan. Must be 'monthly' or 'yearly'." });
+    return;
+  }
   const amount = plan === "yearly" ? "60.00" : "5.00";
   const description =
     plan === "yearly"
@@ -106,6 +110,6 @@ export default async function handler(
     res.status(200).json({ id: order.id, paypalEnv: IS_LIVE ? "live" : "sandbox" });
   } catch (err: any) {
     console.error(err);
-    res.status(500).json({ error: err?.message || "PayPal error" });
+    res.status(500).json({ error: "Payment service error. Please try again." });
   }
 }

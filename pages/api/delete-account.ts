@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminAuth } from "../../utils/firebaseAdmin";
+import { adminAuth, adminDb } from "../../utils/firebaseAdmin";
 
 type Data = {
   success: boolean;
@@ -35,6 +35,26 @@ export default async function handler(
     // Verify the Firebase ID token to get the user's UID
     const decoded = await adminAuth.verifyIdToken(idToken);
     const uid = decoded.uid;
+
+    // Delete user data from Firestore before deleting the auth account
+    if (adminDb) {
+      // Delete user profile
+      try { await adminDb.collection("users").doc(uid).delete(); } catch {}
+      // Delete user notes
+      try {
+        const notesSnap = await adminDb.collection("userNotes").where("userId", "==", uid).get();
+        const batch = adminDb.batch();
+        notesSnap.forEach((d) => batch.delete(d.ref));
+        if (!notesSnap.empty) await batch.commit();
+      } catch {}
+      // Delete user reviews
+      try {
+        const reviewsSnap = await adminDb.collection("reviews").where("email", "==", decoded.email || "").get();
+        const rBatch = adminDb.batch();
+        reviewsSnap.forEach((d) => rBatch.delete(d.ref));
+        if (!reviewsSnap.empty) await rBatch.commit();
+      } catch {}
+    }
 
     // Delete the user from Firebase Authentication
     await adminAuth.deleteUser(uid);

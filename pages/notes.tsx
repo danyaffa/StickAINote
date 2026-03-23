@@ -28,6 +28,7 @@ import { usePWAInstall } from "../lib/usePWAInstall";
 import { useAuth } from "../context/AuthContext";
 import { syncNotes, pushNoteToCloud, fetchAllCloudNotes, pushAllNotesToCloud } from "../lib/syncNotes";
 import { saveAIShare } from "../lib/firestore";
+import { getAuthHeaders } from "../lib/getAuthHeaders";
 
 const RichEditor = dynamic(() => import("../components/RichEditor"), { ssr: false });
 const NoteTable = dynamic(() => import("../components/NoteTable"), { ssr: false });
@@ -823,9 +824,10 @@ export default function NotesPage() {
           await saveVersion({ ...currentNote, content: currentContent, title: latestEditTitle.current });
         }
 
+        const authHeaders = await getAuthHeaders();
         const res = await fetch("/api/ai-note", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders },
           body: JSON.stringify({ action, text }),
         });
 
