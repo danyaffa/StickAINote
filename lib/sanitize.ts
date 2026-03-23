@@ -33,10 +33,22 @@ const ALLOWED_ATTRS: Record<string, Set<string>> = {
 
 export function sanitizeHtml(html: string): string {
   if (!html) return "";
+  if (typeof DOMParser === "undefined") return html; // SSR fallback
 
   const doc = new DOMParser().parseFromString(html, "text/html");
   sanitizeNode(doc.body);
   return doc.body.innerHTML;
+}
+
+/** Strip dangerous CSS properties from a style attribute value. */
+function sanitizeStyle(style: string): string {
+  // Remove anything that could execute JS or exfiltrate data
+  return style
+    .replace(/expression\s*\(/gi, "")
+    .replace(/javascript\s*:/gi, "")
+    .replace(/url\s*\(/gi, "")
+    .replace(/-moz-binding\s*:/gi, "")
+    .replace(/behavior\s*:/gi, "");
 }
 
 function sanitizeNode(node: Node): void {
@@ -66,6 +78,16 @@ function sanitizeNode(node: Node): void {
       for (const attr of attrs) {
         if (!allowed.has(attr.name)) {
           el.removeAttribute(attr.name);
+        }
+      }
+
+      // Sanitize style attribute to prevent CSS-based XSS
+      if (el.hasAttribute("style")) {
+        const cleaned = sanitizeStyle(el.getAttribute("style") || "");
+        if (cleaned.trim()) {
+          el.setAttribute("style", cleaned);
+        } else {
+          el.removeAttribute("style");
         }
       }
 
@@ -110,6 +132,7 @@ function sanitizeNode(node: Node): void {
  */
 export function stripHtml(html: string): string {
   if (!html) return "";
+  if (typeof DOMParser === "undefined") return html.replace(/<[^>]+>/g, ""); // SSR fallback
   const doc = new DOMParser().parseFromString(html, "text/html");
   return doc.body.textContent || "";
 }

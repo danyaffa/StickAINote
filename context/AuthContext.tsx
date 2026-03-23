@@ -1,5 +1,5 @@
 // FILE: /context/AuthContext.tsx
-import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import {
   User,
   createUserWithEmailAndPassword,
@@ -9,6 +9,7 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { getFirebaseAuth, isFirebaseClientConfigured } from "../utils/firebaseClient";
+import { apiUrl } from "../lib/apiBase";
 
 type AuthContextValue = {
   user: User | null;
@@ -26,15 +27,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const firebaseConfigMissing = useMemo(() => {
-    // Client-only check. On SSR it will be false, then re-evaluated in browser.
-    if (typeof window === "undefined") return false;
-    return !isFirebaseClientConfigured();
-  }, []);
+  const [firebaseConfigMissing, setFirebaseConfigMissing] = useState(false);
+  const [firebaseReady, setFirebaseReady] = useState(false);
 
-  const firebaseReady = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    return isFirebaseClientConfigured();
+  useEffect(() => {
+    const configured = isFirebaseClientConfigured();
+    setFirebaseConfigMissing(!configured);
+    setFirebaseReady(configured);
   }, []);
 
   useEffect(() => {
@@ -73,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // and the profile can be created on next login.
     try {
       const idToken = await cred.user.getIdToken();
-      const resp = await fetch("/api/create-user-profile", {
+      const resp = await fetch(apiUrl("/api/create-user-profile"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -101,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Ensure user profile exists (covers case where profile creation failed during registration)
     try {
       const idToken = await cred.user.getIdToken();
-      await fetch("/api/create-user-profile", {
+      await fetch(apiUrl("/api/create-user-profile"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
