@@ -235,10 +235,8 @@ export default function NotesPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [autoCorrectEnabled, setAutoCorrectEnabled] = useState(true);
   const [showUpgradePopup, setShowUpgradePopup] = useState(false);
-
-  // Auto-correct setting
-  const [autoCorrectEnabled, setAutoCorrectEnabled] = useState(false);
 
   // PWA install
   const pwa = usePWAInstall();
@@ -897,6 +895,7 @@ export default function NotesPage() {
         console.error("[share] Failed to save share record to Firestore:", err);
       }
     }
+    setShowShareMenu(false);
   }, [activeNote, editTitle, editContent]);
 
   const reloadNotes = useCallback(async () => {
@@ -2074,6 +2073,7 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                   content={editContent}
                   onChange={handleContentChange}
                   spellCheck={true}
+                  autoCorrect={autoCorrectEnabled}
                   placeholder="Start writing your note..."
                 />
 

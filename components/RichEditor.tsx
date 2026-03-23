@@ -11,6 +11,7 @@ export interface RichEditorProps {
   onImagePaste?: (dataUrl: string) => void;
   placeholder?: string;
   spellCheck?: boolean;
+  autoCorrect?: boolean;
   readOnly?: boolean;
 }
 
@@ -75,6 +76,7 @@ export default function RichEditor({
   onImagePaste,
   placeholder = "Start typing...",
   spellCheck = true,
+  autoCorrect = true,
   readOnly = false,
 }: RichEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -999,6 +1001,7 @@ export default function RichEditor({
         contentEditable={readOnly ? "false" : "true"}
         suppressContentEditableWarning
         spellCheck={spellCheck}
+        autoCorrect={autoCorrect ? "on" : "off"}
         role="textbox"
         aria-label="Note editor"
         aria-multiline="true"
