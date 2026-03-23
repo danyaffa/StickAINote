@@ -515,8 +515,24 @@ export async function importNotes(json: string): Promise<number> {
 
   if (data.versions && Array.isArray(data.versions)) {
     for (const v of data.versions) {
-      const { store } = await tx(STORE_VERSIONS, "readwrite");
-      await reqToPromise(store.put(v));
+      // Validate version records before writing
+      if (
+        v &&
+        typeof v.id === "string" &&
+        typeof v.noteId === "string" &&
+        typeof v.createdAt === "number"
+      ) {
+        const sanitizedVersion: NoteVersion = {
+          id: v.id,
+          noteId: v.noteId,
+          title: String(v.title ?? ""),
+          content: String(v.content ?? ""),
+          tables: Array.isArray(v.tables) ? v.tables : [],
+          createdAt: v.createdAt,
+        };
+        const { store } = await tx(STORE_VERSIONS, "readwrite");
+        await reqToPromise(store.put(sanitizedVersion));
+      }
     }
   }
 
