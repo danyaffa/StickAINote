@@ -25,7 +25,7 @@ export default function RegisterPage() {
 
     // Developer bypass → straight to the app
     if (e === DEVELOPER_EMAIL.toLowerCase()) {
-      router.push("/app");
+      router.push("/notes");
       return;
     }
 
