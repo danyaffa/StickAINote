@@ -1064,6 +1064,43 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
     setShowExportMenu(false);
   }, [activeNote, editTitle, editContent]);
 
+  const exportAsExcel = useCallback(() => {
+    if (!activeNote) return;
+    // Excel-compatible HTML table format (.xls)
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:x="urn:schemas-microsoft-com:office:excel"
+xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8">
+<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets>
+<x:ExcelWorksheet><x:Name>${escapeHtml(editTitle)}</x:Name>
+<x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+</head><body>
+<table><tr><th>Title</th><th>Content</th></tr>
+<tr><td>${escapeHtml(editTitle)}</td><td>${sanitizeHtml(editContent)}</td></tr>
+</table></body></html>`;
+    downloadFile(html, `${editTitle}.xls`, "application/vnd.ms-excel");
+    setShowExportMenu(false);
+  }, [activeNote, editTitle, editContent]);
+
+  const exportAsDoc = useCallback(() => {
+    if (!activeNote) return;
+    // Word-compatible HTML format (.doc)
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>${escapeHtml(editTitle)}</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View>
+<w:Zoom>90</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->
+<style>body{font-family:Calibri,sans-serif;font-size:12pt;line-height:1.5;margin:1in;}
+h1,h2,h3{color:#1a1a1a;}table{border-collapse:collapse;width:100%;}
+td,th{border:1px solid #ddd;padding:6pt;}img{max-width:100%;}
+blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}</style>
+</head><body><h1>${escapeHtml(editTitle)}</h1>${sanitizeHtml(editContent)}</body></html>`;
+    downloadFile(html, `${editTitle}.doc`, "application/msword");
+    setShowExportMenu(false);
+  }, [activeNote, editTitle, editContent]);
+
   const handleImportJson = useCallback(async () => {
     if (!isPaidUser && notes.length >= FREE_TRIAL_LIMIT) {
       setShowUpgradePopup(true);
@@ -1905,6 +1942,8 @@ td,th{border:1px solid #ddd;padding:8px;text-align:left;}</style></head>
                       <button onClick={exportAsPdf} style={{ ...dropdownBtn, color: darkMode ? "#e2e8f0" : undefined }} type="button">PDF (Print)</button>
                       <button onClick={exportAsMarkdown} style={{ ...dropdownBtn, color: darkMode ? "#e2e8f0" : undefined }} type="button">Markdown</button>
                       <button onClick={exportAsHtml} style={{ ...dropdownBtn, color: darkMode ? "#e2e8f0" : undefined }} type="button">HTML</button>
+                      <button onClick={exportAsExcel} style={{ ...dropdownBtn, color: darkMode ? "#e2e8f0" : undefined }} type="button">Excel (.xls)</button>
+                      <button onClick={exportAsDoc} style={{ ...dropdownBtn, color: darkMode ? "#e2e8f0" : undefined }} type="button">Word (.doc)</button>
                     </div>
                   )}
                 </div>
