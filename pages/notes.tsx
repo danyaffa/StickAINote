@@ -1965,8 +1965,23 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
                     const el = editorDivRef.current?.querySelector("[contenteditable]") as HTMLElement | null;
                     if (el) {
                       el.focus();
+                      // If nothing is selected inside the editor, clean the
+                      // whole note instead of silently doing nothing
+                      const sel = window.getSelection();
+                      const hasSelection =
+                        !!sel &&
+                        sel.rangeCount > 0 &&
+                        !sel.isCollapsed &&
+                        el.contains(sel.anchorNode);
+                      if (!hasSelection && sel) {
+                        const range = document.createRange();
+                        range.selectNodeContents(el);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                      }
                       document.execCommand("removeFormat", false);
                       document.execCommand("formatBlock", false, "p");
+                      if (!hasSelection) sel?.collapseToEnd();
                       const html = el.innerHTML;
                       setEditContent(html);
                       scheduleAutoSave();
@@ -1974,7 +1989,7 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
                   }}
                   style={{ ...(darkMode ? actionBtnDark : actionBtnStyle), display: "flex", alignItems: "center", gap: 4 }}
                   type="button"
-                  title="Remove all formatting from selected text (Ctrl+\\)"
+                  title="Remove formatting — from the selection, or the whole note if nothing is selected (Ctrl+\\)"
                 >
                   Remove Format
                 </button>
@@ -2081,6 +2096,9 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
                   display: "flex",
                   flexDirection: "column",
                   background: editColor,
+                  // Note paper is always a light pastel — force dark ink so
+                  // text stays readable when the app is in dark mode
+                  color: "#1e293b",
                   position: "relative",
                   minHeight: 0,
                   overflow: "auto",
@@ -2115,7 +2133,9 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
                     outline: "none",
                     background: "transparent",
                     width: "100%",
-                    color: darkMode ? "#e2e8f0" : "#1e293b",
+                    // Note paper is always a light pastel, so the title must
+                    // always use dark ink — even in dark mode
+                    color: "#1e293b",
                     letterSpacing: "-0.01em",
                   }}
                   placeholder="Note title..."

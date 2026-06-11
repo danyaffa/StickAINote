@@ -253,9 +253,22 @@ export default function RichEditor({
 
   const removeFormatting = useCallback(() => {
     if (readOnly) return;
-    editorRef.current?.focus();
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    // If nothing is selected, clean the whole note instead of doing nothing
+    const sel = window.getSelection();
+    const hasSelection =
+      !!sel && sel.rangeCount > 0 && !sel.isCollapsed && el.contains(sel.anchorNode);
+    if (!hasSelection && sel) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
     document.execCommand("removeFormat", false);
     document.execCommand("formatBlock", false, "p");
+    if (!hasSelection) sel?.collapseToEnd();
     handleInput();
     updateActiveFormats();
   }, [readOnly, handleInput, updateActiveFormats]);
