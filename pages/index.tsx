@@ -45,29 +45,6 @@ export default function HomePage() {
           position: "relative"
         }}
       >
-        {/* 1. FLOATING REVIEWS BADGE */}
-        <div style={{
-            position: "fixed",
-            bottom: 24,
-            right: 24,
-            zIndex: 50,
-            background: "white",
-            color: "black",
-            padding: "8px 16px",
-            borderRadius: 999,
-            boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
-            fontWeight: "bold",
-            fontSize: 14,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            cursor: "pointer",
-            border: "1px solid #e2e8f0"
-        }}>
-            <span style={{color: "#eab308"}}>★★★★★</span>
-            <span>4.9/5 Reviews</span>
-        </div>
-
         <div
           style={{
             width: "100%",

@@ -234,6 +234,23 @@ export default function RichEditor({
     [execCmd, readOnly]
   );
 
+  const applyHighlight = useCallback(
+    (color: string) => {
+      if (readOnly) return;
+      editorRef.current?.focus();
+      // styleWithCSS makes browsers emit <span style="background-color">
+      // instead of deprecated markup; backColor is the fallback where
+      // hiliteColor is unsupported
+      try { document.execCommand("styleWithCSS", false, "true"); } catch { /* ignore */ }
+      const ok = document.execCommand("hiliteColor", false, color);
+      if (!ok) document.execCommand("backColor", false, color);
+      try { document.execCommand("styleWithCSS", false, "false"); } catch { /* ignore */ }
+      handleInput();
+      updateActiveFormats();
+    },
+    [readOnly, handleInput] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   const removeFormatting = useCallback(() => {
     if (readOnly) return;
     editorRef.current?.focus();
@@ -659,11 +676,7 @@ export default function RichEditor({
                       type="button"
                       title={c === "transparent" ? "None" : c}
                       onClick={() => {
-                        if (c === "transparent") {
-                          execCmd("hiliteColor", "transparent");
-                        } else {
-                          execCmd("hiliteColor", c);
-                        }
+                        applyHighlight(c);
                         setShowHighlight(false);
                       }}
                       style={{
