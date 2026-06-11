@@ -1701,7 +1701,8 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
                         height: 16,
                         borderRadius: "50%",
                         background: c,
-                        border: editColor === c ? "2px solid #333" : "1px solid rgba(0,0,0,0.15)",
+                        // Blue ring stays visible on every pastel and in dark mode
+                        border: editColor === c ? "2px solid #2563eb" : "1px solid rgba(0,0,0,0.15)",
                         cursor: "pointer",
                         padding: 0,
                       }}
@@ -2284,7 +2285,15 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
             fullContent={stripHtml(editContent)}
             onClose={() => setShowTranslate(false)}
             onReplace={(text) => {
+              // Refocus the editor first — while the dialog is open, focus is
+              // outside the editor and insertText would silently do nothing
+              const editor = editorDivRef.current?.querySelector("[contenteditable]") as HTMLElement | null;
+              editor?.focus();
               document.execCommand("insertText", false, text);
+              if (editor) {
+                setEditContent(editor.innerHTML);
+                scheduleAutoSave();
+              }
             }}
             onNewNote={handleNewNoteWithContent}
           />

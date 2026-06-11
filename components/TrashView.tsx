@@ -24,9 +24,15 @@ export default function TrashView({ onClose, onRestored }: TrashViewProps) {
 
   const loadTrash = useCallback(async () => {
     setLoading(true);
-    const trash = await getTrashNotes();
-    setNotes(trash);
-    setLoading(false);
+    try {
+      const trash = await getTrashNotes();
+      setNotes(trash);
+    } catch (err) {
+      console.error("Failed to load trash:", err);
+      setNotes([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
