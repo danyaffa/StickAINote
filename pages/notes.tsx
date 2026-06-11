@@ -231,6 +231,7 @@ export default function NotesPage() {
   const [loaded, setLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "idle">("idle");
+  const [refreshing, setRefreshing] = useState(false);
 
   // Dialogs
   const [showTrash, setShowTrash] = useState(false);
@@ -1266,25 +1267,64 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
 
           <button
             onClick={async () => {
-              const refreshed = await getAllNotes();
-              setNotes(refreshed);
-              if (user) {
-                try {
-                  const { toLocal } = await syncNotes(user.uid);
-                  if (toLocal.length > 0) {
-                    for (const note of toLocal) await putNote(note);
-                    setNotes(await getAllNotes());
+              if (refreshing) return;
+              setRefreshing(true);
+              try {
+                // Flush any pending edit first so the refresh can't clobber it
+                if (autoSaveTimer.current) {
+                  clearTimeout(autoSaveTimer.current);
+                  autoSaveTimer.current = null;
+                  const flushId = latestActiveId.current;
+                  if (flushId) {
+                    try {
+                      await dbUpdateNote(flushId, {
+                        title: latestEditTitle.current,
+                        content: sanitizeHtml(latestEditContent.current),
+                        tables: latestEditTables.current,
+                        color: latestEditColor.current,
+                      });
+                    } catch (err) {
+                      console.error("[refresh] Failed to flush pending edit:", err);
+                    }
                   }
-                } catch (err) {
-                  console.error("[cloud] Refresh sync failed:", err);
                 }
+                let refreshed = await getAllNotes();
+                setNotes(refreshed);
+                if (user) {
+                  try {
+                    const { toLocal } = await syncNotes(user.uid);
+                    if (toLocal.length > 0) {
+                      for (const note of toLocal) await putNote(note);
+                      refreshed = await getAllNotes();
+                      setNotes(refreshed);
+                    }
+                  } catch (err) {
+                    console.error("[cloud] Refresh sync failed:", err);
+                  }
+                }
+                // Also refresh the note currently open in the editor —
+                // previously only the list updated, so with a note open
+                // Refresh appeared to do nothing
+                const id = latestActiveId.current;
+                if (id) {
+                  const fresh = refreshed.find((n) => n.id === id);
+                  if (fresh) {
+                    if (fresh.content !== latestEditContent.current) setEditContent(fresh.content);
+                    if (fresh.title !== latestEditTitle.current) setEditTitle(fresh.title);
+                    setEditTables(fresh.tables || []);
+                    setEditColor(fresh.color);
+                  }
+                }
+              } finally {
+                setRefreshing(false);
               }
             }}
-            style={headerBtn}
+            style={{ ...headerBtn, opacity: refreshing ? 0.6 : 1 }}
+            disabled={refreshing}
             type="button"
             title="Refresh notes from local storage and cloud"
           >
-            Refresh
+            {refreshing ? "Refreshing…" : "Refresh"}
           </button>
           <button onClick={() => setShowTemplates(true)} style={headerBtn} type="button" title="Create from template">
             Templates
