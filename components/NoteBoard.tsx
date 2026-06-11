@@ -318,6 +318,8 @@ export default function NoteBoard() {
       position: "absolute",
       left: note.x, top: note.y, width: note.width, height: note.height,
       background: note.color, borderRadius: 18,
+      // Pastel card — force dark ink so text stays readable in dark mode
+      color: "#1e293b",
       boxShadow: "0 20px 50px rgba(0,0,0,0.3)",
       display: "flex", flexDirection: "column", padding: 16,
       boxSizing: "border-box", zIndex: 50
@@ -332,7 +334,7 @@ export default function NoteBoard() {
          <input 
             value={note.title} 
             onChange={e => updateNote({ title: e.target.value })} 
-            style={{ background: "transparent", border: "none", fontSize: 18, fontWeight: "bold", outline: "none", width: "70%", cursor: "text" }} 
+            style={{ background: "transparent", border: "none", fontSize: 18, fontWeight: "bold", outline: "none", width: "70%", cursor: "text", color: "#1e293b" }}
             onMouseDown={e => e.stopPropagation()} 
          />
          <div style={{ display: "flex", gap: 5 }} onMouseDown={e => e.stopPropagation()}>

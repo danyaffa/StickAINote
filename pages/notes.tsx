@@ -1701,7 +1701,8 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
                         height: 16,
                         borderRadius: "50%",
                         background: c,
-                        border: editColor === c ? "2px solid #333" : "1px solid rgba(0,0,0,0.15)",
+                        // Blue ring stays visible on every pastel and in dark mode
+                        border: editColor === c ? "2px solid #2563eb" : "1px solid rgba(0,0,0,0.15)",
                         cursor: "pointer",
                         padding: 0,
                       }}
@@ -1965,8 +1966,23 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
                     const el = editorDivRef.current?.querySelector("[contenteditable]") as HTMLElement | null;
                     if (el) {
                       el.focus();
+                      // If nothing is selected inside the editor, clean the
+                      // whole note instead of silently doing nothing
+                      const sel = window.getSelection();
+                      const hasSelection =
+                        !!sel &&
+                        sel.rangeCount > 0 &&
+                        !sel.isCollapsed &&
+                        el.contains(sel.anchorNode);
+                      if (!hasSelection && sel) {
+                        const range = document.createRange();
+                        range.selectNodeContents(el);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                      }
                       document.execCommand("removeFormat", false);
                       document.execCommand("formatBlock", false, "p");
+                      if (!hasSelection) sel?.collapseToEnd();
                       const html = el.innerHTML;
                       setEditContent(html);
                       scheduleAutoSave();
@@ -1974,7 +1990,7 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
                   }}
                   style={{ ...(darkMode ? actionBtnDark : actionBtnStyle), display: "flex", alignItems: "center", gap: 4 }}
                   type="button"
-                  title="Remove all formatting from selected text (Ctrl+\\)"
+                  title="Remove formatting — from the selection, or the whole note if nothing is selected (Ctrl+\\)"
                 >
                   Remove Format
                 </button>
@@ -2081,6 +2097,9 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
                   display: "flex",
                   flexDirection: "column",
                   background: editColor,
+                  // Note paper is always a light pastel — force dark ink so
+                  // text stays readable when the app is in dark mode
+                  color: "#1e293b",
                   position: "relative",
                   minHeight: 0,
                   overflow: "auto",
@@ -2115,7 +2134,9 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
                     outline: "none",
                     background: "transparent",
                     width: "100%",
-                    color: darkMode ? "#e2e8f0" : "#1e293b",
+                    // Note paper is always a light pastel, so the title must
+                    // always use dark ink — even in dark mode
+                    color: "#1e293b",
                     letterSpacing: "-0.01em",
                   }}
                   placeholder="Note title..."
@@ -2264,7 +2285,15 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
             fullContent={stripHtml(editContent)}
             onClose={() => setShowTranslate(false)}
             onReplace={(text) => {
+              // Refocus the editor first — while the dialog is open, focus is
+              // outside the editor and insertText would silently do nothing
+              const editor = editorDivRef.current?.querySelector("[contenteditable]") as HTMLElement | null;
+              editor?.focus();
               document.execCommand("insertText", false, text);
+              if (editor) {
+                setEditContent(editor.innerHTML);
+                scheduleAutoSave();
+              }
             }}
             onNewNote={handleNewNoteWithContent}
           />
