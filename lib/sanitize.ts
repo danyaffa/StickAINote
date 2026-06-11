@@ -31,13 +31,29 @@ const ALLOWED_ATTRS: Record<string, Set<string>> = {
   blockquote: new Set(["style"]),
 };
 
+// Tags whose content must be dropped entirely (never unwrapped into text)
+const DROP_CONTENT_TAGS = new Set([
+  "script", "style", "iframe", "object", "embed", "link", "meta",
+  "title", "noscript", "svg", "math", "template", "form", "input",
+  "button", "select", "textarea",
+]);
+
 export function sanitizeHtml(html: string): string {
   if (!html) return "";
   if (typeof DOMParser === "undefined") return html; // SSR fallback
 
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  sanitizeNode(doc.body);
-  return doc.body.innerHTML;
+  try {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    sanitizeNode(doc.body);
+    return doc.body.innerHTML;
+  } catch (err) {
+    // Never let sanitization break saving — fall back to regex-based cleanup
+    console.error("sanitizeHtml failed, using fallback:", err);
+    return html
+      .replace(/<(script|style|iframe|object|embed|noscript)\b[\s\S]*?<\/\1>/gi, "")
+      .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+      .replace(/(href|src)\s*=\s*["']?\s*javascript:[^"'\s>]*["']?/gi, "");
+  }
 }
 
 /** Strip dangerous CSS properties from a style attribute value. */
@@ -52,78 +68,86 @@ function sanitizeStyle(style: string): string {
 }
 
 function sanitizeNode(node: Node): void {
-  const toRemove: Node[] = [];
+  let child = node.firstChild;
+  while (child) {
+    const next = child.nextSibling;
 
-  // Snapshot childNodes to avoid issues with live NodeList mutation
-  const children = Array.from(node.childNodes);
-  for (const child of children) {
-    if (child.nodeType === Node.ELEMENT_NODE) {
-      const el = child as Element;
-      const tag = el.tagName.toLowerCase();
-
-      if (!ALLOWED_TAGS.has(tag)) {
-        // Keep children but remove the tag
-        const fragment = document.createDocumentFragment();
-        while (el.firstChild) fragment.appendChild(el.firstChild);
-        node.insertBefore(fragment, el);
-        toRemove.push(el);
-        // Re-sanitize the inserted children
-        sanitizeNode(node);
-        return;
-      }
-
-      // Remove disallowed attributes
-      const allowed = ALLOWED_ATTRS[tag] || new Set();
-      const attrs = Array.from(el.attributes);
-      for (const attr of attrs) {
-        if (!allowed.has(attr.name)) {
-          el.removeAttribute(attr.name);
-        }
-      }
-
-      // Sanitize style attribute to prevent CSS-based XSS
-      if (el.hasAttribute("style")) {
-        const cleaned = sanitizeStyle(el.getAttribute("style") || "");
-        if (cleaned.trim()) {
-          el.setAttribute("style", cleaned);
-        } else {
-          el.removeAttribute("style");
-        }
-      }
-
-      // Sanitize href to prevent dangerous URL schemes
-      if (tag === "a") {
-        const href = (el.getAttribute("href") || "").trim().toLowerCase();
-        if (
-          href.startsWith("javascript:") ||
-          href.startsWith("data:") ||
-          href.startsWith("vbscript:")
-        ) {
-          el.setAttribute("href", "#");
-        }
-        el.setAttribute("rel", "noopener noreferrer");
-      }
-
-      // Sanitize img src (allow data: and https: only)
-      if (tag === "img") {
-        const src = el.getAttribute("src") || "";
-        if (
-          !src.startsWith("data:image/") &&
-          !src.startsWith("https://") &&
-          !src.startsWith("blob:")
-        ) {
-          el.setAttribute("src", "");
-        }
-      }
-
-      sanitizeNode(el);
-    } else if (child.nodeType === Node.COMMENT_NODE) {
-      toRemove.push(child);
+    if (child.nodeType === Node.COMMENT_NODE) {
+      node.removeChild(child);
+      child = next;
+      continue;
     }
-  }
 
-  for (const rm of toRemove) {
-    node.removeChild(rm);
+    if (child.nodeType !== Node.ELEMENT_NODE) {
+      child = next;
+      continue;
+    }
+
+    const el = child as Element;
+    const tag = el.tagName.toLowerCase();
+
+    if (!ALLOWED_TAGS.has(tag)) {
+      if (DROP_CONTENT_TAGS.has(tag)) {
+        // Dangerous container — drop it and its content entirely
+        node.removeChild(el);
+        child = next;
+        continue;
+      }
+      // Unknown formatting tag — unwrap: hoist children into its place,
+      // then continue from the first hoisted node so they get sanitized too
+      const firstHoisted = el.firstChild;
+      while (el.firstChild) node.insertBefore(el.firstChild, el);
+      node.removeChild(el);
+      child = firstHoisted ?? next;
+      continue;
+    }
+
+    // Remove disallowed attributes
+    const allowed = ALLOWED_ATTRS[tag] || new Set();
+    const attrs = Array.from(el.attributes);
+    for (const attr of attrs) {
+      if (!allowed.has(attr.name)) {
+        el.removeAttribute(attr.name);
+      }
+    }
+
+    // Sanitize style attribute to prevent CSS-based XSS
+    if (el.hasAttribute("style")) {
+      const cleaned = sanitizeStyle(el.getAttribute("style") || "");
+      if (cleaned.trim()) {
+        el.setAttribute("style", cleaned);
+      } else {
+        el.removeAttribute("style");
+      }
+    }
+
+    // Sanitize href to prevent dangerous URL schemes
+    if (tag === "a") {
+      const href = (el.getAttribute("href") || "").trim().toLowerCase();
+      if (
+        href.startsWith("javascript:") ||
+        href.startsWith("data:") ||
+        href.startsWith("vbscript:")
+      ) {
+        el.setAttribute("href", "#");
+      }
+      el.setAttribute("rel", "noopener noreferrer");
+    }
+
+    // Sanitize img src (allow data: and https: only)
+    if (tag === "img") {
+      const src = el.getAttribute("src") || "";
+      if (
+        !src.startsWith("data:image/") &&
+        !src.startsWith("https://") &&
+        !src.startsWith("blob:")
+      ) {
+        el.setAttribute("src", "");
+      }
+    }
+
+    sanitizeNode(el);
+    child = next;
   }
 }
 

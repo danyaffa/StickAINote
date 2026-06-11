@@ -164,13 +164,19 @@ export async function getAIShares(userId: string): Promise<AIShareRecord[]> {
 export async function addReview(
   userId: string,
   rating: number,
-  comment: string
+  comment: string,
+  appName?: string,
+  email?: string
 ) {
   const db = getDb();
+  // appName is required for /api/review-stats, which filters reviews by app
   await addDoc(collection(db, "reviews"), {
     userId,
     rating,
     comment,
+    text: comment,
+    appName: appName ?? null,
+    email: email ?? null,
     createdAt: serverTimestamp(),
   });
 }

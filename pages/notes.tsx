@@ -202,7 +202,17 @@ export default function NotesPage() {
           content: sanitized,
           tables: latestEditTables.current,
           color: latestEditColor.current,
-        }).catch(() => {});
+        })
+          .then((updated) => {
+            // Also push the flushed note to Firestore so no edit is lost in the cloud
+            const u = latestUser.current;
+            if (u && updated) {
+              pushNoteToCloud(u.uid, updated).catch((err) =>
+                console.error("[cloud] Failed to push flushed note:", err)
+              );
+            }
+          })
+          .catch((err) => console.error("[auto-save] Flush on note switch failed:", err));
       }
     }
     openedAtRef.current = Date.now();
@@ -504,11 +514,11 @@ export default function NotesPage() {
         setSaveStatus("idle");
         return;
       }
-      const sanitized = sanitizeHtml(latestEditContent.current);
       const title = latestEditTitle.current;
       const tables = latestEditTables.current;
       const color = latestEditColor.current;
       try {
+        const sanitized = sanitizeHtml(latestEditContent.current);
         const updated = await dbUpdateNote(id, { title, content: sanitized, tables, color });
         if (!updated) {
           // Note was deleted or not found — reset status
@@ -540,7 +550,8 @@ export default function NotesPage() {
             }
           });
         }
-      } catch {
+      } catch (err) {
+        console.error("[auto-save] Failed to save note:", err);
         setSaveStatus("idle");
       }
     }, AUTO_SAVE_MS);
@@ -959,11 +970,11 @@ export default function NotesPage() {
       autoSaveTimer.current = null;
     }
     setSaveStatus("saving");
-    const sanitized = sanitizeHtml(latestEditContent.current);
     const title = latestEditTitle.current;
     const tables = latestEditTables.current;
     const color = latestEditColor.current;
     try {
+      const sanitized = sanitizeHtml(latestEditContent.current);
       const updated = await dbUpdateNote(id, { title, content: sanitized, tables, color });
       if (!updated) {
         setSaveStatus("idle");
@@ -985,7 +996,8 @@ export default function NotesPage() {
           console.error("[cloud] Manual save push failed:", err);
         });
       }
-    } catch {
+    } catch (err) {
+      console.error("[manual-save] Failed to save note:", err);
       setSaveStatus("idle");
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

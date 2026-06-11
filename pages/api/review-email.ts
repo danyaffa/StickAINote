@@ -36,7 +36,8 @@ export default async function handler(
     }
 
     // Basic email format validation
-    const safeEmail = typeof email === "string" ? email.slice(0, 254) : "";
+    const rawEmail = typeof email === "string" ? email.trim().slice(0, 254) : "";
+    const safeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail) ? rawEmail : "";
 
     const appLabel = appName || APP_NAME;
     const createdAt = new Date().toISOString();
@@ -88,7 +89,35 @@ export default async function handler(
       );
     }
 
-    return res.status(200).json({ success: true });
+    // Optional confirmation email to the reviewer
+    if (process.env.RESEND_API_KEY && safeEmail) {
+      try {
+        await resend.emails.send({
+          from: "Reviews <onboarding@resend.dev>",
+          to: safeEmail,
+          subject: `Thanks for reviewing ${appLabel}!`,
+          text: [
+            `Hi,`,
+            "",
+            `Thank you for taking the time to review ${appLabel}.`,
+            safeRating != null ? `Your rating: ${safeRating} star${safeRating === 1 ? "" : "s"}` : "",
+            "",
+            "Your feedback:",
+            bodyText,
+            "",
+            `— The ${appLabel} team`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        });
+      } catch (err) {
+        console.error("Reviewer confirmation email error:", err);
+      }
+    }
+
+    // "saved" tells the client whether the review reached Firestore,
+    // so it can fall back to a client-side write if not
+    return res.status(200).json({ success: true, saved: docId != null });
   } catch (err) {
     console.error("Review error:", err);
     return res.status(500).json({ error: "Failed to submit review" });
