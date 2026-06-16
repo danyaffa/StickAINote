@@ -2,6 +2,7 @@
 
 import React, { useRef, useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { correctWord, findIssues, type TextIssue } from "../lib/textCorrect";
 
 const EmojiPicker = dynamic(() => import("./EmojiPicker"), { ssr: false });
 
@@ -12,6 +13,7 @@ export interface RichEditorProps {
   placeholder?: string;
   spellCheck?: boolean;
   autoCorrect?: boolean;
+  inlineSuggestions?: boolean;
   readOnly?: boolean;
 }
 
@@ -70,56 +72,8 @@ const LINE_SPACINGS = [
   { label: "3.0", value: "3" },
 ];
 
-/* ─── Local auto-correct used while typing.
-   This is instant browser-side correction, not AI. */
-const LOCAL_AUTO_CORRECT: Record<string, string> = {
-  i: "I",
-  im: "I'm",
-  iam: "I am",
-  amm: "am",
-  amn: "am",
-  dont: "don't",
-  doen: "does",
-  doent: "doesn't",
-  "doen't": "doesn't",
-  doesnt: "doesn't",
-  cant: "can't",
-  wont: "won't",
-  shouldnt: "shouldn't",
-  wouldnt: "wouldn't",
-  couldnt: "couldn't",
-  teh: "the",
-  hte: "the",
-  thee: "the",
-  thhe: "the",
-  taht: "that",
-  adn: "and",
-  wrritting: "writing",
-  writting: "writing",
-  writeing: "writing",
-  spellling: "spelling",
-  speling: "spelling",
-  recieve: "receive",
-  seperate: "separate",
-  becuase: "because",
-  becasue: "because",
-  calender: "calendar",
-  definately: "definitely",
-  definetly: "definitely",
-  goverment: "government",
-  enviroment: "environment",
-  neccessary: "necessary",
-};
-
-function preserveCase(original: string, replacement: string): string {
-  if (!original) return replacement;
-  if (original === original.toUpperCase() && original.length > 1) return replacement.toUpperCase();
-  if (original[0] === original[0].toUpperCase() && replacement.length > 1) {
-    return replacement[0].toUpperCase() + replacement.slice(1);
-  }
-  return replacement;
-}
-
+/* ─── Local auto-correct used while typing. Instant, offline, no AI.
+   Dictionary + rules live in lib/textCorrect.ts (single source of truth). */
 function applyLocalAutoCorrectAtCursor(editor: HTMLDivElement): boolean {
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return false;
@@ -133,16 +87,16 @@ function applyLocalAutoCorrectAtCursor(editor: HTMLDivElement): boolean {
   const cursor = range.startOffset;
   const beforeCursor = text.slice(0, cursor);
 
-  const match = beforeCursor.match(/([A-Za-z][A-Za-z']*)([\s.,;:!?)]*)$/);
+  // Only correct once a word boundary (space / punctuation) is typed.
+  const match = beforeCursor.match(/([A-Za-z][A-Za-z']*)([\s.,;:!?)]+)$/);
   if (!match || !match[2]) return false;
 
   const typedWord = match[1];
   const trailing = match[2];
-  const replacement = LOCAL_AUTO_CORRECT[typedWord.toLowerCase()];
-  if (!replacement || replacement === typedWord) return false;
+  const corrected = correctWord(typedWord);
+  if (!corrected) return false;
 
   const wordStart = cursor - typedWord.length - trailing.length;
-  const corrected = preserveCase(typedWord, replacement);
   const nextText = text.slice(0, wordStart) + corrected + trailing + text.slice(cursor);
   textNode.textContent = nextText;
 
@@ -155,6 +109,74 @@ function applyLocalAutoCorrectAtCursor(editor: HTMLDivElement): boolean {
   return true;
 }
 
+/* ─── Inline writing suggestions (Google-Docs style blue underline).
+   Computed offline from lib/textCorrect.ts. Rendered as an OVERLAY so it
+   never mutates the note HTML — accepting a suggestion edits only that
+   one word/phrase, never the whole note. ─── */
+type SuggestionMark = {
+  id: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  original: string;
+  suggestion: string;
+  type: TextIssue["type"];
+  // location to apply the fix without re-scanning the whole doc
+  node: Text;
+  start: number;
+  end: number;
+};
+
+function getEditorTextNodes(editor: HTMLElement): Text[] {
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  let n = walker.nextNode();
+  while (n) {
+    nodes.push(n as Text);
+    n = walker.nextNode();
+  }
+  return nodes;
+}
+
+function computeSuggestionMarks(editor: HTMLElement): SuggestionMark[] {
+  const marks: SuggestionMark[] = [];
+  const editorRect = editor.getBoundingClientRect();
+  const nodes = getEditorTextNodes(editor);
+
+  let idx = 0;
+  for (const node of nodes) {
+    const text = node.textContent || "";
+    if (!text.trim()) continue;
+    const issues = findIssues(text);
+    for (const issue of issues) {
+      try {
+        const range = document.createRange();
+        range.setStart(node, issue.index);
+        range.setEnd(node, issue.index + issue.length);
+        const rect = range.getBoundingClientRect();
+        if (rect.width === 0 && rect.height === 0) continue;
+        marks.push({
+          id: `s${idx++}`,
+          left: rect.left - editorRect.left,
+          top: rect.top - editorRect.top,
+          width: rect.width,
+          height: rect.height,
+          original: issue.original,
+          suggestion: issue.suggestion,
+          type: issue.type,
+          node,
+          start: issue.index,
+          end: issue.index + issue.length,
+        });
+      } catch {
+        // node range failed (node changed) — skip this issue
+      }
+    }
+  }
+  return marks;
+}
+
 export default function RichEditor({
   content,
   onChange,
@@ -162,6 +184,7 @@ export default function RichEditor({
   placeholder = "Start typing...",
   spellCheck = true,
   autoCorrect = true,
+  inlineSuggestions = true,
   readOnly = false,
 }: RichEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -179,6 +202,42 @@ export default function RichEditor({
   const [linkText, setLinkText] = useState("");
   const [currentFont, setCurrentFont] = useState("Arial");
   const [currentSize, setCurrentSize] = useState("3");
+
+  // Inline writing-suggestion marks (blue underlines).
+  const [marks, setMarks] = useState<SuggestionMark[]>([]);
+  const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
+  const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const rescanSuggestions = useCallback(() => {
+    const el = editorRef.current;
+    if (!el || readOnly || !inlineSuggestions) {
+      setMarks([]);
+      return;
+    }
+    try {
+      setMarks(computeSuggestionMarks(el));
+    } catch {
+      setMarks([]);
+    }
+  }, [inlineSuggestions, readOnly]);
+
+  const scheduleScan = useCallback(() => {
+    if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
+    scanTimerRef.current = setTimeout(rescanSuggestions, 600);
+  }, [rescanSuggestions]);
+
+  // Re-measure underline positions on scroll / resize (no content change).
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el || !inlineSuggestions) return;
+    const onScrollOrResize = () => rescanSuggestions();
+    el.addEventListener("scroll", onScrollOrResize);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      el.removeEventListener("scroll", onScrollOrResize);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [inlineSuggestions, rescanSuggestions]);
 
   // Close all dropdowns when clicking outside
   useEffect(() => {
@@ -206,7 +265,8 @@ export default function RichEditor({
         el.innerHTML = content;
       }
     }
-  }, [content]);
+    scheduleScan();
+  }, [content, scheduleScan]);
 
   const handleInput = useCallback(() => {
     const el = editorRef.current;
@@ -219,7 +279,78 @@ export default function RichEditor({
     const html = el.innerHTML;
     lastContentRef.current = html;
     onChange(html);
-  }, [autoCorrect, onChange, readOnly]);
+    setActiveMarkId(null);
+    scheduleScan();
+  }, [autoCorrect, onChange, readOnly, scheduleScan]);
+
+  // Accept a single inline suggestion: replaces ONLY that word/phrase.
+  const acceptMark = useCallback(
+    (mark: SuggestionMark) => {
+      const el = editorRef.current;
+      if (!el || readOnly) return;
+      const node = mark.node;
+      if (!node || !el.contains(node)) {
+        rescanSuggestions();
+        return;
+      }
+      const text = node.textContent || "";
+      // Verify the slice still matches before replacing (text may have moved).
+      if (text.slice(mark.start, mark.end) !== mark.original) {
+        rescanSuggestions();
+        return;
+      }
+      node.textContent =
+        text.slice(0, mark.start) + mark.suggestion + text.slice(mark.end);
+
+      // Put the caret right after the accepted fix.
+      try {
+        const sel = window.getSelection();
+        const range = document.createRange();
+        const pos = Math.min(
+          mark.start + mark.suggestion.length,
+          (node.textContent || "").length
+        );
+        range.setStart(node, pos);
+        range.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      } catch {
+        // caret restore is best-effort
+      }
+
+      const html = el.innerHTML;
+      lastContentRef.current = html;
+      onChange(html);
+      setActiveMarkId(null);
+      // Re-scan after the DOM settles so remaining marks reposition.
+      setTimeout(rescanSuggestions, 0);
+    },
+    [onChange, readOnly, rescanSuggestions]
+  );
+
+  const acceptAllMarks = useCallback(() => {
+    const el = editorRef.current;
+    if (!el || readOnly) return;
+    // Apply per text node, from the END backwards, so earlier offsets stay valid.
+    const nodes = getEditorTextNodes(el);
+    for (const node of nodes) {
+      const text = node.textContent || "";
+      if (!text.trim()) continue;
+      const issues = findIssues(text);
+      if (issues.length === 0) continue;
+      let next = text;
+      for (let i = issues.length - 1; i >= 0; i--) {
+        const it = issues[i];
+        next = next.slice(0, it.index) + it.suggestion + next.slice(it.index + it.length);
+      }
+      node.textContent = next;
+    }
+    const html = el.innerHTML;
+    lastContentRef.current = html;
+    onChange(html);
+    setActiveMarkId(null);
+    setTimeout(rescanSuggestions, 0);
+  }, [onChange, readOnly, rescanSuggestions]);
 
   const execCmd = useCallback(
     (command: string, value?: string) => {
@@ -1116,47 +1247,188 @@ export default function RichEditor({
         </div>
       )}
 
-      {/* Editor area */}
+      {/* Editor area + inline suggestion overlay */}
       <div
-        ref={editorRef}
-        contentEditable={readOnly ? "false" : "true"}
-        suppressContentEditableWarning
-        spellCheck={spellCheck}
-        autoCorrect={autoCorrect ? "on" : "off"}
-        role="textbox"
-        aria-label="Note editor"
-        aria-multiline="true"
-        onInput={handleInput}
-        onKeyDown={handleKeyDown}
-        onKeyUp={updateActiveFormats}
-        onMouseUp={updateActiveFormats}
-        onPaste={handlePaste}
-        onDrop={handleDrop}
-        onDragOver={(e) => e.preventDefault()}
-        onClick={(e) => {
-          const target = e.target as HTMLElement;
-          const anchor = target.closest("a");
-          if (anchor && anchor.href) {
-            e.preventDefault();
-            window.open(anchor.href, "_blank", "noopener,noreferrer");
-          }
-        }}
-        data-placeholder={placeholder}
         style={{
+          position: "relative",
           flex: 1,
-          padding: 12,
-          outline: "none",
-          fontSize: 15,
-          lineHeight: 1.6,
-          overflowY: "auto",
-          minHeight: 100,
-          background: "transparent",
-          wordBreak: "break-word",
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
         }}
-        dangerouslySetInnerHTML={
-          editorRef.current ? undefined : { __html: content }
-        }
-      />
+      >
+        <div
+          ref={editorRef}
+          contentEditable={readOnly ? "false" : "true"}
+          suppressContentEditableWarning
+          spellCheck={spellCheck}
+          autoCorrect={autoCorrect ? "on" : "off"}
+          role="textbox"
+          aria-label="Note editor"
+          aria-multiline="true"
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          onKeyUp={updateActiveFormats}
+          onMouseUp={updateActiveFormats}
+          onPaste={handlePaste}
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+          onClick={(e) => {
+            const target = e.target as HTMLElement;
+            const anchor = target.closest("a");
+            if (anchor && anchor.href) {
+              e.preventDefault();
+              window.open(anchor.href, "_blank", "noopener,noreferrer");
+            }
+          }}
+          data-placeholder={placeholder}
+          style={{
+            flex: 1,
+            padding: 12,
+            outline: "none",
+            fontSize: 15,
+            lineHeight: 1.6,
+            overflowY: "auto",
+            minHeight: 100,
+            background: "transparent",
+            wordBreak: "break-word",
+          }}
+          dangerouslySetInnerHTML={
+            editorRef.current ? undefined : { __html: content }
+          }
+        />
+
+        {/* Suggestion underlines (overlay — never edits note HTML directly) */}
+        {!readOnly && inlineSuggestions && marks.length > 0 && (
+          <div
+            aria-hidden="false"
+            style={{
+              position: "absolute",
+              inset: 0,
+              overflow: "hidden",
+              pointerEvents: "none",
+            }}
+          >
+            {marks.map((mark) => (
+              <div key={mark.id} style={{ position: "absolute", left: mark.left, top: mark.top }}>
+                <button
+                  type="button"
+                  title={`Suggestion: ${mark.suggestion}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() =>
+                    setActiveMarkId((prev) => (prev === mark.id ? null : mark.id))
+                  }
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    width: Math.max(mark.width, 6),
+                    height: mark.height,
+                    padding: 0,
+                    margin: 0,
+                    border: "none",
+                    borderBottom: "2px solid #2563eb",
+                    background: "rgba(37,99,235,0.08)",
+                    cursor: "pointer",
+                    pointerEvents: "auto",
+                    borderRadius: 2,
+                  }}
+                />
+                {activeMarkId === mark.id && (
+                  <div
+                    onMouseDown={(e) => e.preventDefault()}
+                    style={{
+                      position: "absolute",
+                      top: mark.height + 4,
+                      left: 0,
+                      zIndex: 60,
+                      background: "white",
+                      border: "1px solid #c7d2fe",
+                      borderRadius: 8,
+                      boxShadow: "0 6px 18px rgba(0,0,0,0.18)",
+                      padding: 8,
+                      minWidth: 150,
+                      pointerEvents: "auto",
+                    }}
+                  >
+                    <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4 }}>
+                      Suggested fix
+                    </div>
+                    <div style={{ fontSize: 13, color: "#1e293b", marginBottom: 8 }}>
+                      <span style={{ textDecoration: "line-through", color: "#94a3b8" }}>
+                        {mark.original}
+                      </span>{" "}
+                      &rarr;{" "}
+                      <strong style={{ color: "#2563eb" }}>{mark.suggestion}</strong>
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        type="button"
+                        onClick={() => acceptMark(mark)}
+                        style={{
+                          flex: 1,
+                          padding: "5px 8px",
+                          border: "none",
+                          borderRadius: 6,
+                          background: "#2563eb",
+                          color: "white",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveMarkId(null)}
+                        style={{
+                          padding: "5px 8px",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 6,
+                          background: "#f8fafc",
+                          color: "#475569",
+                          fontSize: 12,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Accept-all chip */}
+        {!readOnly && inlineSuggestions && marks.length > 0 && (
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={acceptAllMarks}
+            title="Apply every writing suggestion"
+            style={{
+              position: "absolute",
+              right: 10,
+              bottom: 10,
+              zIndex: 61,
+              padding: "6px 12px",
+              borderRadius: 999,
+              border: "1px solid #c7d2fe",
+              background: "#eef2ff",
+              color: "#2563eb",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(37,99,235,0.18)",
+            }}
+          >
+            Fix {marks.length} suggestion{marks.length === 1 ? "" : "s"}
+          </button>
+        )}
+      </div>
 
       <style jsx global>{`
         [data-placeholder]:empty::before {
