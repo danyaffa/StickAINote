@@ -70,6 +70,91 @@ const LINE_SPACINGS = [
   { label: "3.0", value: "3" },
 ];
 
+/* ─── Local auto-correct used while typing.
+   This is instant browser-side correction, not AI. */
+const LOCAL_AUTO_CORRECT: Record<string, string> = {
+  i: "I",
+  im: "I'm",
+  iam: "I am",
+  amm: "am",
+  amn: "am",
+  dont: "don't",
+  doen: "does",
+  doent: "doesn't",
+  "doen't": "doesn't",
+  doesnt: "doesn't",
+  cant: "can't",
+  wont: "won't",
+  shouldnt: "shouldn't",
+  wouldnt: "wouldn't",
+  couldnt: "couldn't",
+  teh: "the",
+  hte: "the",
+  thee: "the",
+  thhe: "the",
+  taht: "that",
+  adn: "and",
+  wrritting: "writing",
+  writting: "writing",
+  writeing: "writing",
+  spellling: "spelling",
+  speling: "spelling",
+  recieve: "receive",
+  seperate: "separate",
+  becuase: "because",
+  becasue: "because",
+  calender: "calendar",
+  definately: "definitely",
+  definetly: "definitely",
+  goverment: "government",
+  enviroment: "environment",
+  neccessary: "necessary",
+};
+
+function preserveCase(original: string, replacement: string): string {
+  if (!original) return replacement;
+  if (original === original.toUpperCase() && original.length > 1) return replacement.toUpperCase();
+  if (original[0] === original[0].toUpperCase() && replacement.length > 1) {
+    return replacement[0].toUpperCase() + replacement.slice(1);
+  }
+  return replacement;
+}
+
+function applyLocalAutoCorrectAtCursor(editor: HTMLDivElement): boolean {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return false;
+
+  const range = selection.getRangeAt(0);
+  if (!editor.contains(range.startContainer)) return false;
+  if (range.startContainer.nodeType !== Node.TEXT_NODE) return false;
+
+  const textNode = range.startContainer as Text;
+  const text = textNode.textContent || "";
+  const cursor = range.startOffset;
+  const beforeCursor = text.slice(0, cursor);
+
+  const match = beforeCursor.match(/([A-Za-z][A-Za-z']*)([\s.,;:!?)]*)$/);
+  if (!match || !match[2]) return false;
+
+  const typedWord = match[1];
+  const trailing = match[2];
+  const replacement = LOCAL_AUTO_CORRECT[typedWord.toLowerCase()];
+  if (!replacement || replacement === typedWord) return false;
+
+  const wordStart = cursor - typedWord.length - trailing.length;
+  const corrected = preserveCase(typedWord, replacement);
+  const nextText = text.slice(0, wordStart) + corrected + trailing + text.slice(cursor);
+  textNode.textContent = nextText;
+
+  const nextCursor = wordStart + corrected.length + trailing.length;
+  const nextRange = document.createRange();
+  nextRange.setStart(textNode, Math.min(nextCursor, nextText.length));
+  nextRange.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(nextRange);
+  return true;
+}
+
 export default function RichEditor({
   content,
   onChange,
@@ -126,10 +211,15 @@ export default function RichEditor({
   const handleInput = useCallback(() => {
     const el = editorRef.current;
     if (!el) return;
+
+    if (!readOnly && autoCorrect) {
+      applyLocalAutoCorrectAtCursor(el);
+    }
+
     const html = el.innerHTML;
     lastContentRef.current = html;
     onChange(html);
-  }, [onChange]);
+  }, [autoCorrect, onChange, readOnly]);
 
   const execCmd = useCallback(
     (command: string, value?: string) => {
