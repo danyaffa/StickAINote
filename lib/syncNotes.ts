@@ -16,6 +16,7 @@ import {
   deleteDoc,
   query,
   where,
+  documentId,
 } from "firebase/firestore";
 import { getFirebaseDb } from "../utils/firebaseClient";
 import {
@@ -54,25 +55,63 @@ function toFirestore(note: NoteRecord, userId: string): Record<string, any> {
   };
 }
 
+function noteIdFromFirestoreDocId(docId: string): string {
+  if (docId.includes("$")) {
+    const afterUid = docId.split("$").slice(1).join("$").trim();
+    if (afterUid) return afterUid;
+  }
+
+  if (docId.includes("_")) {
+    const afterUid = docId.split("_").slice(1).join("_").trim();
+    if (afterUid) return afterUid;
+  }
+
+  return docId;
+}
+
+function timestampToMillis(value: unknown): number {
+  if (!value) return Date.now();
+  if (typeof value === "number") return value;
+  if (value instanceof Date) return value.getTime();
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toMillis" in value &&
+    typeof (value as { toMillis: () => number }).toMillis === "function"
+  ) {
+    return (value as { toMillis: () => number }).toMillis();
+  }
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "seconds" in value &&
+    typeof (value as { seconds: number }).seconds === "number"
+  ) {
+    return (value as { seconds: number }).seconds * 1000;
+  }
+  return Date.now();
+}
+
 /** Convert Firestore document data back to NoteRecord */
-function fromFirestore(data: Record<string, any>): NoteRecord {
+function fromFirestore(data: Record<string, any>, docId: string): NoteRecord {
   let tables = [];
   try {
     tables = typeof data.tables === "string" ? JSON.parse(data.tables) : (data.tables ?? []);
   } catch {
     tables = [];
   }
+
   return {
-    id: data.id,
-    title: data.title ?? "",
-    content: data.content ?? "",
-    color: data.color ?? "#fef3c7",
-    pinned: data.pinned ?? false,
+    id: String(data.id || data.noteId || noteIdFromFirestoreDocId(docId)),
+    title: String(data.title ?? ""),
+    content: String(data.content ?? ""),
+    color: String(data.color ?? "#fef3c7"),
+    pinned: Boolean(data.pinned ?? false),
     priority: data.priority ?? "none",
-    deleted: data.deleted ?? false,
+    deleted: Boolean(data.deleted ?? false),
     deletedAt: data.deletedAt ?? null,
-    createdAt: data.createdAt ?? Date.now(),
-    updatedAt: data.updatedAt ?? Date.now(),
+    createdAt: timestampToMillis(data.createdAt),
+    updatedAt: timestampToMillis(data.updatedAt ?? data.savedAt ?? data.lastSavedAt),
     tables,
   };
 }
@@ -80,13 +119,35 @@ function fromFirestore(data: Record<string, any>): NoteRecord {
 /** Fetch all notes for a user from Firestore */
 async function getCloudNotes(userId: string): Promise<NoteRecord[]> {
   const db = getDb();
-  const q = query(collection(db, COLLECTION), where("userId", "==", userId));
-  const snap = await getDocs(q);
-  const notes: NoteRecord[] = [];
-  snap.forEach((d) => {
-    notes.push(fromFirestore(d.data()));
-  });
-  return notes;
+  const userNotes = collection(db, COLLECTION);
+  const notesById = new Map<string, NoteRecord>();
+
+  const addSnapshot = async (q: ReturnType<typeof query>) => {
+    const snap = await getDocs(q);
+    snap.forEach((d) => {
+      const note = fromFirestore(d.data() as Record<string, any>, d.id);
+      if (!note.id) return;
+      const existing = notesById.get(note.id);
+      if (!existing || note.updatedAt > existing.updatedAt) {
+        notesById.set(note.id, note);
+      }
+    });
+  };
+
+  await addSnapshot(query(userNotes, where("userId", "==", userId)));
+
+  for (const separator of ["$", "_"]) {
+    const prefix = `${userId}${separator}`;
+    await addSnapshot(
+      query(
+        userNotes,
+        where(documentId(), ">=", prefix),
+        where(documentId(), "<=", `${prefix}\uf8ff`)
+      )
+    );
+  }
+
+  return Array.from(notesById.values());
 }
 
 /** Save a single note to Firestore */
@@ -95,7 +156,7 @@ export async function pushNoteToCloud(
   note: NoteRecord
 ): Promise<void> {
   const db = getDb();
-  const ref = doc(db, COLLECTION, `${userId}_${note.id}`);
+  const ref = doc(db, COLLECTION, `${userId}$${note.id}`);
   await setDoc(ref, toFirestore(note, userId));
 }
 
@@ -105,8 +166,10 @@ export async function deleteNoteFromCloud(
   noteId: string
 ): Promise<void> {
   const db = getDb();
-  const ref = doc(db, COLLECTION, `${userId}_${noteId}`);
-  await deleteDoc(ref);
+  await Promise.allSettled([
+    deleteDoc(doc(db, COLLECTION, `${userId}$${noteId}`)),
+    deleteDoc(doc(db, COLLECTION, `${userId}_${noteId}`)),
+  ]);
 }
 
 /**
