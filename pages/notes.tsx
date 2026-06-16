@@ -380,6 +380,61 @@ export default function NotesPage() {
     }
   }, [user]);
 
+
+  const restoreLastBrainStormingNote = useCallback(async () => {
+    setCloudRecoveryStatus("recovering");
+    try {
+      const localNotes = await getAllNotes();
+      const trashNotes = await getTrashNotes();
+      const cloudNotes = user ? await fetchAllCloudNotes(user.uid) : [];
+
+      const candidates = [...localNotes, ...trashNotes, ...cloudNotes]
+        .filter((note, index, all) => all.findIndex((n) => n.id === note.id) === index)
+        .filter((note) => {
+          const title = note.title.toLowerCase().replace(/\s+/g, " ").trim();
+          return title.includes("brain storming note") || title.includes("brainstorming note");
+        })
+        .sort((a, b) => b.updatedAt - a.updatedAt);
+
+      const latest = candidates[0];
+
+      if (!latest) {
+        setCloudRecoveryStatus("error");
+        alert("I could not find a Brain Storming Note in local notes, trash, or cloud backup.");
+        setTimeout(() => setCloudRecoveryStatus("idle"), 5000);
+        return;
+      }
+
+      const restored: NoteRecord = {
+        ...latest,
+        deleted: false,
+        deletedAt: null,
+        updatedAt: Date.now(),
+      };
+
+      await putNote(restored);
+      if (user) {
+        await pushNoteToCloud(user.uid, restored);
+      }
+
+      const refreshed = await getAllNotes();
+      setNotes(refreshed);
+      setActiveIdRaw(restored.id);
+      try {
+        window.sessionStorage.setItem("stickanote-active-id", restored.id);
+      } catch {
+        // ignore session storage errors
+      }
+      setCloudRecoveryStatus("done");
+      setTimeout(() => setCloudRecoveryStatus("idle"), 5000);
+    } catch (err) {
+      console.error("[restore-brain-storming-note] Failed:", err);
+      setCloudRecoveryStatus("error");
+      alert("Restore failed. Please try Recover, then History or Trash.");
+      setTimeout(() => setCloudRecoveryStatus("idle"), 5000);
+    }
+  }, [user]);
+
   // Auto-trigger recovery if redirected back from login with ?recover=1
   useEffect(() => {
     if (!loaded || !user) return;
@@ -1310,7 +1365,10 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
 
       <div
         style={{
+          height: "100vh",
+          maxHeight: "100vh",
           minHeight: "100vh",
+          overflow: "hidden",
           background: darkMode ? "#0f172a" : "#f8fafc",
           color: darkMode ? "#e2e8f0" : undefined,
           display: "flex",
@@ -1328,7 +1386,9 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
             display: "flex",
             alignItems: "center",
             gap: 10,
-            zIndex: 100,
+            position: "sticky",
+            top: 0,
+            zIndex: 300,
             flexShrink: 0,
           }}
         >
@@ -1453,6 +1513,21 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
           >
             {cloudRecoveryStatus === "recovering" ? "Recovering..." : cloudRecoveryStatus === "done" ? "Recovered!" : cloudRecoveryStatus === "error" ? "Error" : "Recover"}
           </button>
+          <button
+            onClick={restoreLastBrainStormingNote}
+            disabled={cloudRecoveryStatus === "recovering"}
+            style={{
+              ...headerBtn,
+              background: "rgba(14,165,233,0.18)",
+              borderColor: "rgba(125,211,252,0.55)",
+              color: "#e0f2fe",
+              fontWeight: 700,
+            }}
+            type="button"
+            title="Restore the latest Brain Storming Note from local notes, trash, or cloud"
+          >
+            Restore Brain Note
+          </button>
           <button onClick={handleToggleDarkMode} style={headerBtn} type="button" title="Toggle dark mode">
             {darkMode ? "Light" : "Dark"}
           </button>
@@ -1526,6 +1601,9 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
             display: "flex",
             alignItems: "center",
             gap: 8,
+            position: "sticky",
+            top: 44,
+            zIndex: 280,
             flexShrink: 0,
           }}
         >
@@ -1807,6 +1885,9 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
                   gap: 6,
                   flexWrap: "wrap",
                   background: darkMode ? "#1e293b" : "white",
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 260,
                   flexShrink: 0,
                 }}
               >
