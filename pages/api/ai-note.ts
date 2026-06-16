@@ -139,18 +139,11 @@ export default async function handler(
 
   try {
     const auth = await verifyAuth(req);
-
-    if (!auth) {
-      return res.status(401).json({
-        error: "Authentication required.",
-      });
-    }
-
-    const rateLimitKey = getClientKey(req, auth.uid);
+    const rateLimitKey = getClientKey(req, auth?.uid);
 
     if (isRateLimited(rateLimitKey)) {
       console.warn("[ai-note] Rate limit exceeded", {
-        uid: auth.uid,
+        uid: auth?.uid || "anonymous",
         route: "pages/api/ai-note.ts",
       });
 
@@ -183,7 +176,7 @@ export default async function handler(
 
     if (!apiKey) {
       console.error("[ai-note] Missing OPENAI_API_KEY", {
-        uid: auth.uid,
+        uid: auth?.uid || "anonymous",
         action,
       });
 
@@ -221,7 +214,7 @@ export default async function handler(
       const detail = await openAiResponse.text();
 
       console.error("[ai-note] OpenAI request failed", {
-        uid: auth.uid,
+        uid: auth?.uid || "anonymous",
         action,
         status: openAiResponse.status,
         detail: detail.slice(0, 500),
@@ -237,7 +230,7 @@ export default async function handler(
 
     if (!result) {
       console.error("[ai-note] Empty OpenAI response", {
-        uid: auth.uid,
+        uid: auth?.uid || "anonymous",
         action,
       });
 
