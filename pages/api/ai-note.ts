@@ -24,12 +24,10 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 
 function getClientKey(req: NextApiRequest, uid?: string): string {
   if (uid) return `uid:${uid}`;
-
   const forwardedFor = req.headers["x-forwarded-for"];
   const ip = Array.isArray(forwardedFor)
     ? forwardedFor[0]
     : forwardedFor?.split(",")[0]?.trim() || req.socket.remoteAddress || "unknown";
-
   return `ip:${ip}`;
 }
 
@@ -43,7 +41,6 @@ function isRateLimited(key: string): boolean {
   }
 
   if (current.count >= RATE_LIMIT_MAX_REQUESTS) return true;
-
   current.count += 1;
   return false;
 }
@@ -52,22 +49,16 @@ function getInstruction(action: AiAction | undefined, targetLanguage?: string): 
   switch (action) {
     case "fix":
       return "Fix spelling and grammar. Keep the same meaning and tone. Return only the corrected text.";
-
     case "summarise":
       return "Summarise the note into 2 to 4 clear bullet points. Return only the summary.";
-
     case "translate":
       return `Translate the note into ${targetLanguage || "English"}. Keep meaning and tone. Return only the translated text.`;
-
     case "improve":
       return "Improve clarity and tone. Make the text professional and natural. Keep the same meaning. Return only the improved text.";
-
     case "structure":
       return "Reorganise the note into a professional document with a clear title, section headers, bullet points, and action items. Fix grammar. Return only the polished document.";
-
     case "suggest":
       return "Read the current note and provide one concise improved version of the latest paragraph or sentence only. Do not rewrite the whole note unless it is very short. Return only the suggested replacement text.";
-
     default:
       return "Improve this text slightly while keeping the same meaning and style. Return only the improved text.";
   }
@@ -84,22 +75,14 @@ export default async function handler(
 
   try {
     const auth = await verifyAuth(req);
-
     if (!auth) {
       return res.status(401).json({ error: "Authentication required." });
     }
 
     const rateLimitKey = getClientKey(req, auth.uid);
-
     if (isRateLimited(rateLimitKey)) {
-      console.warn("[ai-note] Rate limit exceeded", {
-        uid: auth.uid,
-        action: req.body?.action || "unknown",
-      });
-
-      return res.status(429).json({
-        error: "Too many AI requests. Please wait a minute and try again.",
-      });
+      console.warn("[ai-note] Rate limit exceeded", { uid: auth.uid, action: req.body?.action || "unknown" });
+      return res.status(429).json({ error: "Too many AI requests. Please wait a minute and try again." });
     }
 
     const { action, text, targetLanguage } = req.body as Body;
@@ -110,22 +93,13 @@ export default async function handler(
     }
 
     if (cleanText.length > MAX_TEXT_CHARS) {
-      return res.status(413).json({
-        error: "Text is too long for one AI request.",
-      });
+      return res.status(413).json({ error: "Text is too long for one AI request." });
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
-
     if (!apiKey) {
-      console.error("[ai-note] Missing OPENAI_API_KEY", {
-        uid: auth.uid,
-        action: action || "unknown",
-      });
-
-      return res.status(500).json({
-        error: "AI service is not available.",
-      });
+      console.error("[ai-note] Missing OPENAI_API_KEY", { uid: auth.uid, action: action || "unknown" });
+      return res.status(500).json({ error: "AI service is not available." });
     }
 
     const instruction = getInstruction(action, targetLanguage);
@@ -141,8 +115,7 @@ export default async function handler(
         messages: [
           {
             role: "system",
-            content:
-              "You help users improve notes. Be concise. Output only the requested final text.",
+            content: "You help users improve notes. Be concise. Output only the requested final text.",
           },
           {
             role: "user",
@@ -155,39 +128,26 @@ export default async function handler(
 
     if (!response.ok) {
       const errText = await response.text();
-
       console.error("[ai-note] OpenAI error", {
         uid: auth.uid,
         action: action || "unknown",
         status: response.status,
         detail: errText.slice(0, 500),
       });
-
-      return res.status(500).json({
-        error: "AI request failed.",
-      });
+      return res.status(500).json({ error: "AI request failed." });
     }
 
     const json = await response.json();
     const result = String(json.choices?.[0]?.message?.content || "").trim();
 
     if (!result) {
-      console.error("[ai-note] Empty AI response", {
-        uid: auth.uid,
-        action: action || "unknown",
-      });
-
-      return res.status(500).json({
-        error: "AI returned no content. Please try again.",
-      });
+      console.error("[ai-note] Empty AI response", { uid: auth.uid, action: action || "unknown" });
+      return res.status(500).json({ error: "AI returned no content. Please try again." });
     }
 
     return res.status(200).json({ text: result });
   } catch (err) {
     console.error("[ai-note] Unhandled failure", err);
-
-    return res.status(500).json({
-      error: "AI request failed. Please try again.",
-    });
+    return res.status(500).json({ error: "AI request failed. Please try again." });
   }
 }
