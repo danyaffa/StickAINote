@@ -40,6 +40,7 @@ const SettingsDialog = dynamic(() => import("../components/SettingsDialog"), { s
 const InstallPrompt = dynamic(() => import("../components/InstallPrompt"), { ssr: false });
 
 import { createEmptyTable } from "../components/NoteTable";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const COLORS = ["#fef3c7", "#e0f2fe", "#fce7f3", "#dcfce7", "#f1f5f9", "#fde68a", "#e9d5ff", "#fed7aa"];
 const AUTO_SAVE_MS = 2000;
@@ -322,7 +323,7 @@ export default function NotesPage() {
       await migrateFromLocalStorage();
       const settings = await getSettings();
       setDarkMode(settings.darkMode || false);
-      setAutoCorrectEnabled(settings.autoCorrect || false);
+      setAutoCorrectEnabled(settings.autoCorrect !== false);
       await purgeOldTrash(settings.trashRetentionDays);
       const loaded = await getAllNotes();
       setNotes(loaded);
@@ -349,6 +350,24 @@ export default function NotesPage() {
   // cache clears, or switching to a new device.
   const [cloudRecoveryStatus, setCloudRecoveryStatus] = useState<"idle" | "recovering" | "done" | "error">("idle");
   const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
+
+  // In-app toast (replaces browser alert for AI / sync / restore messages)
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 4500);
+  }, []);
+
+  // Generic in-app confirmation for destructive / note-changing actions
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    danger?: boolean;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
 
   const recoverFromCloud = useCallback(async () => {
     if (!user) {
@@ -440,9 +459,9 @@ export default function NotesPage() {
 
       if (!latest) {
         setCloudRecoveryStatus("error");
-        alert(user
-          ? "I could not find Brain Storming Note in local notes, trash, or Firestore."
-          : "Please log in first, then click Restore Brain Note again so I can pull it from Firestore.");
+        showToast(user
+          ? "Could not find Brain Storming Note in local notes, trash, or Firestore."
+          : "Please log in first, then click Restore Brain Note again to pull it from Firestore.");
         setTimeout(() => setCloudRecoveryStatus("idle"), 5000);
         return;
       }
@@ -477,14 +496,15 @@ export default function NotesPage() {
       }
 
       setCloudRecoveryStatus("done");
+      showToast(`Restored "${restored.title}". It is back in your notes list.`);
       setTimeout(() => setCloudRecoveryStatus("idle"), 5000);
     } catch (err) {
       console.error("[restore-brain-storming-note] Failed:", err);
       setCloudRecoveryStatus("error");
-      alert(err instanceof Error ? err.message : "Restore failed. Please try Recover, then History or Trash.");
+      showToast(err instanceof Error ? err.message : "Restore failed. Try Recover, then History or Trash.");
       setTimeout(() => setCloudRecoveryStatus("idle"), 5000);
     }
-  }, [user]);
+  }, [user, showToast]);
 
   // Auto-trigger recovery if redirected back from login with ?recover=1
   useEffect(() => {
@@ -771,85 +791,18 @@ export default function NotesPage() {
   autoCorrectRef.current = autoCorrectEnabled;
 
   const runAutoCorrect = useCallback(() => {
-    if (!autoCorrectRef.current) return;
-    const el = editorDivRef.current?.querySelector("[contenteditable]") as HTMLElement | null;
-    if (!el) return;
-
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return;
-
-    const range = sel.getRangeAt(0);
-    const node = range.startContainer;
-    if (node.nodeType !== Node.TEXT_NODE) return;
-
-    const textNode = node as Text;
-    const text = textNode.textContent || "";
-    const cursorPos = range.startOffset;
-
-    // Find the word just before the cursor (triggered on space, enter, punctuation)
-    const beforeCursor = text.slice(0, cursorPos);
-    // Match the last word before a trailing space/punctuation
-    const match = beforeCursor.match(/(\S+)([\s.,;:!?\u00A0])$/);
-    if (!match) return;
-
-    const word = match[1];
-    const trailing = match[2];
-    const lowerWord = word.toLowerCase();
-    const replacement = AUTO_CORRECT_MAP[lowerWord];
-    if (!replacement) return;
-
-    // Preserve original case pattern
-    let corrected = replacement;
-    if (word[0] === word[0].toUpperCase() && word.length > 1 && replacement !== "I'm" && replacement !== "I've" && replacement !== "I'll" && replacement !== "I'd" && replacement !== "I") {
-      corrected = replacement[0].toUpperCase() + replacement.slice(1);
-    }
-    if (word === word.toUpperCase() && word.length > 1) {
-      corrected = replacement.toUpperCase();
-    }
-
-    // Replace the word in the text node
-    const wordStart = cursorPos - word.length - trailing.length;
-    const newText = text.slice(0, wordStart) + corrected + trailing + text.slice(cursorPos);
-    textNode.textContent = newText;
-
-    // Restore cursor position
-    const newCursorPos = wordStart + corrected.length + trailing.length;
-    const newRange = document.createRange();
-    newRange.setStart(textNode, Math.min(newCursorPos, newText.length));
-    newRange.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(newRange);
+    // Auto-correct now runs inside RichEditor (single source of truth in
+    // lib/textCorrect.ts). Kept as a no-op to avoid double-correcting the
+    // same word, which previously caused cursor jumps and missed fixes.
+    return;
   }, []);
 
   const requestDynamicWritingSuggestion = useCallback(() => {
-    if (aiSuggestionTimer.current) clearTimeout(aiSuggestionTimer.current);
-
-    aiSuggestionTimer.current = setTimeout(async () => {
-      const text = stripHtml(latestEditContent.current).trim();
-      if (text.split(/\s+/).filter(Boolean).length < 12) {
-        setAiSuggestion("");
-        return;
-      }
-
-      try {
-        setAiSuggestionLoading(true);
-        const authHeaders = await getAuthHeaders();
-        const res = await fetch("/api/ai-note", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...authHeaders },
-          body: JSON.stringify({ action: "suggest", text }),
-        });
-
-        if (!res.ok) return;
-        const data = await res.json();
-        const suggestion = String(data.result || data.text || "").trim();
-        setAiSuggestion(suggestion);
-      } catch (err) {
-        console.error("[ai-suggestion] Failed:", err);
-      } finally {
-        setAiSuggestionLoading(false);
-      }
-    }, AI_SUGGESTION_DEBOUNCE_MS);
+    // Inline blue-underline suggestions are now rendered directly in the
+    // editor (RichEditor) using the offline engine, so the old debounced
+    // whole-note AI suggestion box is disabled to avoid two competing
+    // suggestion UIs and to stop "AI request failed" noise.
+    return;
   }, []);
 
 
@@ -943,7 +896,7 @@ export default function NotesPage() {
       if (latestActiveId.current === id) {
         const saved = await saveActiveNoteNow("delete");
         if (!saved) {
-          alert("The note was not deleted because the final save failed. Please try Save again first.");
+          showToast("The note was not deleted because the final save failed. Please try Save again first.");
           setConfirmDeleteId(null);
           return;
         }
@@ -966,7 +919,7 @@ export default function NotesPage() {
         });
       }
     },
-    [closeNote, saveActiveNoteNow]
+    [closeNote, saveActiveNoteNow, showToast]
   );
 
   const handlePin = useCallback(
@@ -1046,25 +999,33 @@ export default function NotesPage() {
     [isPaidUser, openNote]
   );
 
-  const handleAiAction = useCallback(
-    async (action: string) => {
+  // Run an AI action. If `selectionRange` is provided, only that selection
+  // is rewritten; otherwise the whole note is rewritten (after confirmation).
+  const runAiAction = useCallback(
+    async (action: string, selectionRange: Range | null) => {
       const id = latestActiveId.current;
-      if (!id || aiLoading) return;
+      if (!id) return;
       setShowAiMenu(false);
       setAiLoading(true);
 
+      const editorEl = editorDivRef.current?.querySelector(
+        "[contenteditable]"
+      ) as HTMLElement | null;
+
+      const wholeContent = latestEditContent.current;
+      const selectedText = selectionRange ? selectionRange.toString() : "";
+      const text = selectionRange ? selectedText : stripHtml(wholeContent);
+
       try {
-        const currentContent = latestEditContent.current;
-        const text = stripHtml(currentContent);
         if (!text.trim()) {
           setAiLoading(false);
           return;
         }
 
-        // Save a version snapshot before AI replaces content
+        // Snapshot to Version History BEFORE any change (lets the user undo).
         const currentNote = latestNotes.current.find((n) => n.id === id);
         if (currentNote) {
-          await saveVersion({ ...currentNote, content: currentContent, title: latestEditTitle.current });
+          await saveVersion({ ...currentNote, content: wholeContent, title: latestEditTitle.current });
         }
 
         const authHeaders = await getAuthHeaders();
@@ -1075,29 +1036,82 @@ export default function NotesPage() {
         });
 
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || "AI request failed");
-        const result = data.result || data.text || "";
+        if (!res.ok) throw new Error(data.error || "AI request failed.");
+        const result = String(data.result || data.text || "");
+        if (!result) throw new Error("AI returned no text.");
 
-        if (result) {
+        if (selectionRange && editorEl) {
+          // Replace ONLY the selected text — never the whole note.
+          const sel = window.getSelection();
+          editorEl.focus();
+          sel?.removeAllRanges();
+          sel?.addRange(selectionRange);
+          document.execCommand("insertText", false, result.replace(/\n/g, " "));
+          const html = editorEl.innerHTML;
+          setEditContent(html);
+        } else {
           const html = result.replace(/\n/g, "<br>");
           setEditContent(html);
-          scheduleAutoSave();
         }
+        scheduleAutoSave();
+        showToast("AI update applied. Use Version History to undo.");
       } catch (err) {
-        alert(err instanceof Error ? err.message : "AI request failed. Please try again.");
+        // No browser popups — show an in-app toast instead.
+        showToast(err instanceof Error ? err.message : "AI request failed. Please try again.");
       } finally {
         setAiLoading(false);
       }
     },
-    [aiLoading, scheduleAutoSave]
+    [scheduleAutoSave, showToast]
+  );
+
+  const handleAiAction = useCallback(
+    (action: string) => {
+      if (aiLoading) return;
+      const editorEl = editorDivRef.current?.querySelector(
+        "[contenteditable]"
+      ) as HTMLElement | null;
+      const sel = window.getSelection();
+      const hasSelection =
+        !!sel &&
+        sel.rangeCount > 0 &&
+        !sel.isCollapsed &&
+        !!editorEl &&
+        editorEl.contains(sel.anchorNode) &&
+        sel.toString().trim().length > 0;
+
+      if (hasSelection && sel) {
+        // Selection present → safe, scoped edit. No confirmation needed.
+        runAiAction(action, sel.getRangeAt(0).cloneRange());
+        return;
+      }
+
+      // No selection → this rewrites the WHOLE note. Confirm first.
+      setShowAiMenu(false);
+      setConfirmAction({
+        title: "Apply AI to the whole note?",
+        message:
+          "No text is selected, so this will rewrite the entire note. A snapshot is saved to Version History first so you can undo. Tip: select text to change only part of the note.",
+        confirmLabel: "Rewrite note",
+        onConfirm: () => runAiAction(action, null),
+      });
+    },
+    [aiLoading, runAiAction]
   );
 
   const applyAiSuggestion = useCallback(() => {
     if (!aiSuggestion.trim()) return;
-    setEditContent(aiSuggestion.replace(/\n/g, "<br>"));
-    setAiSuggestion("");
-    scheduleAutoSave();
-    scheduleVersionSave();
+    setConfirmAction({
+      title: "Replace note with suggestion?",
+      message: "This replaces the whole note with the suggested text. A snapshot is saved to Version History first.",
+      confirmLabel: "Replace",
+      onConfirm: () => {
+        setEditContent(aiSuggestion.replace(/\n/g, "<br>"));
+        setAiSuggestion("");
+        scheduleAutoSave();
+        scheduleVersionSave();
+      },
+    });
   }, [aiSuggestion, scheduleAutoSave, scheduleVersionSave]);
 
   const handleShareToAI = useCallback(async (serviceKey: string) => {
@@ -1549,7 +1563,16 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
             Trash
           </button>
           <button
-            onClick={recoverFromCloud}
+            onClick={() => {
+              if (!user) { recoverFromCloud(); return; }
+              setConfirmAction({
+                title: "Recover notes from cloud?",
+                message:
+                  "This pulls your Firestore backup and overwrites local copies that are older than the cloud version. Notes you deleted stay in Trash.",
+                confirmLabel: "Recover",
+                onConfirm: () => recoverFromCloud(),
+              });
+            }}
             disabled={cloudRecoveryStatus === "recovering"}
             style={{
               ...headerBtn,
@@ -2232,33 +2255,52 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
                 <button
                   onClick={() => {
                     const el = editorDivRef.current?.querySelector("[contenteditable]") as HTMLElement | null;
-                    if (el) {
+                    if (!el) return;
+                    const sel = window.getSelection();
+                    const hasSelection =
+                      !!sel &&
+                      sel.rangeCount > 0 &&
+                      !sel.isCollapsed &&
+                      el.contains(sel.anchorNode);
+
+                    const performRemoveFormat = (wholeNote: boolean) => {
                       el.focus();
-                      // If nothing is selected inside the editor, clean the
-                      // whole note instead of silently doing nothing
-                      const sel = window.getSelection();
-                      const hasSelection =
-                        !!sel &&
-                        sel.rangeCount > 0 &&
-                        !sel.isCollapsed &&
-                        el.contains(sel.anchorNode);
-                      if (!hasSelection && sel) {
+                      const s = window.getSelection();
+                      if (wholeNote && s) {
                         const range = document.createRange();
                         range.selectNodeContents(el);
-                        sel.removeAllRanges();
-                        sel.addRange(range);
+                        s.removeAllRanges();
+                        s.addRange(range);
                       }
                       document.execCommand("removeFormat", false);
                       document.execCommand("formatBlock", false, "p");
-                      if (!hasSelection) sel?.collapseToEnd();
-                      const html = el.innerHTML;
-                      setEditContent(html);
+                      if (wholeNote) s?.collapseToEnd();
+                      setEditContent(el.innerHTML);
                       scheduleAutoSave();
+                    };
+
+                    if (hasSelection) {
+                      // Scoped to the selection only — safe, no confirmation.
+                      performRemoveFormat(false);
+                      return;
                     }
+
+                    // Whole-note formatting strip is destructive: save + confirm.
+                    setConfirmAction({
+                      title: "Remove all formatting?",
+                      message:
+                        "Nothing is selected, so this will strip formatting from the whole note. Your note is saved first and a snapshot is kept in Version History so you can undo.",
+                      confirmLabel: "Remove formatting",
+                      danger: true,
+                      onConfirm: async () => {
+                        await saveActiveNoteNow("remove-format");
+                        performRemoveFormat(true);
+                      },
+                    });
                   }}
                   style={{ ...(darkMode ? actionBtnDark : actionBtnStyle), display: "flex", alignItems: "center", gap: 4 }}
                   type="button"
-                  title="Remove formatting — from the selection, or the whole note if nothing is selected (Ctrl+\\)"
+                  title="Remove formatting — from the selection, or the whole note if nothing is selected"
                 >
                   Remove Format
                 </button>
@@ -2416,6 +2458,7 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
                   onChange={handleContentChange}
                   spellCheck={true}
                   autoCorrect={autoCorrectEnabled}
+                  inlineSuggestions={true}
                   placeholder="Start writing your note..."
                 />
 
@@ -2564,6 +2607,49 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
           </div>
         )}
 
+        {/* GENERIC CONFIRMATION (AI overwrite, Remove Format, Recover, etc.) */}
+        <ConfirmDialog
+          open={!!confirmAction}
+          title={confirmAction?.title || ""}
+          message={confirmAction?.message || ""}
+          confirmLabel={confirmAction?.confirmLabel}
+          danger={confirmAction?.danger}
+          darkMode={darkMode}
+          onCancel={() => setConfirmAction(null)}
+          onConfirm={() => {
+            const action = confirmAction;
+            setConfirmAction(null);
+            if (action) Promise.resolve(action.onConfirm()).catch((e) => console.error("[confirm-action] failed:", e));
+          }}
+        />
+
+        {/* IN-APP TOAST (replaces browser alert) */}
+        {toast && (
+          <div
+            role="status"
+            aria-live="polite"
+            onClick={() => setToast(null)}
+            style={{
+              position: "fixed",
+              left: "50%",
+              bottom: 24,
+              transform: "translateX(-50%)",
+              zIndex: 1300,
+              maxWidth: "92vw",
+              padding: "12px 18px",
+              borderRadius: 10,
+              background: darkMode ? "#0f172a" : "#1e293b",
+              color: "white",
+              fontSize: 13,
+              lineHeight: 1.4,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+              cursor: "pointer",
+            }}
+          >
+            {toast}
+          </div>
+        )}
+
         {/* DIALOGS */}
         {showTrash && (
           <TrashView
@@ -2602,7 +2688,7 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
             setShowSettings(false);
             // Reload auto-correct setting in case user toggled it
             const s = await getSettings();
-            setAutoCorrectEnabled(s.autoCorrect || false);
+            setAutoCorrectEnabled(s.autoCorrect !== false);
           }} />
         )}
 
