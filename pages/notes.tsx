@@ -383,33 +383,78 @@ export default function NotesPage() {
 
   const restoreLastBrainStormingNote = useCallback(async () => {
     setCloudRecoveryStatus("recovering");
+
     try {
       const localNotes = await getAllNotes();
       const trashNotes = await getTrashNotes();
-      const cloudNotes = user ? await fetchAllCloudNotes(user.uid) : [];
+      let cloudNotes: NoteRecord[] = [];
 
-      const candidates = [...localNotes, ...trashNotes, ...cloudNotes]
-        .filter((note, index, all) => all.findIndex((n) => n.id === note.id) === index)
-        .filter((note) => {
-          const title = note.title.toLowerCase().replace(/\s+/g, " ").trim();
-          return title.includes("brain storming note") || title.includes("brainstorming note");
-        })
-        .sort((a, b) => b.updatedAt - a.updatedAt);
+      if (user) {
+        try {
+          cloudNotes = await fetchAllCloudNotes(user.uid);
+        } catch (err) {
+          console.error("[restore-brain-storming-note] Client cloud pull failed, trying server restore:", err);
+        }
+      }
 
-      const latest = candidates[0];
+      const isCandidate = (note: NoteRecord) => {
+        const title = (note.title || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+        const content = stripHtml(note.content || "").toLowerCase();
+        return (
+          title.includes("brain storming note") ||
+          title.includes("brainstorming note") ||
+          title.includes("brain storming") ||
+          title.includes("brainstorming") ||
+          (title.includes("brain") && title.includes("storm")) ||
+          content.includes("doctor portal forms") ||
+          content.includes("forms should the forms be ready") ||
+          content.includes("forms - should the forms be ready")
+        );
+      };
+
+      const byId = new Map<string, NoteRecord>();
+      for (const note of [...localNotes, ...trashNotes, ...cloudNotes]) {
+        const existing = byId.get(note.id);
+        if (!existing || note.updatedAt > existing.updatedAt) byId.set(note.id, note);
+      }
+
+      let latest = Array.from(byId.values())
+        .filter(isCandidate)
+        .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+
+      if (!latest && user) {
+        const authHeaders = await getAuthHeaders();
+        const res = await fetch("/api/restore-brain-note", {
+          method: "GET",
+          headers: authHeaders,
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || "Server restore failed");
+        }
+        if (data.note) {
+          latest = data.note as NoteRecord;
+        }
+      }
 
       if (!latest) {
         setCloudRecoveryStatus("error");
-        alert("I could not find a Brain Storming Note in local notes, trash, or cloud backup.");
+        alert(user
+          ? "I could not find Brain Storming Note in local notes, trash, or Firestore."
+          : "Please log in first, then click Restore Brain Note again so I can pull it from Firestore.");
         setTimeout(() => setCloudRecoveryStatus("idle"), 5000);
         return;
       }
 
       const restored: NoteRecord = {
         ...latest,
+        title: latest.title || "Brain Storming Note",
+        color: latest.color || "#fef3c7",
         deleted: false,
         deletedAt: null,
         updatedAt: Date.now(),
+        tables: latest.tables || [],
       };
 
       await putNote(restored);
@@ -420,17 +465,23 @@ export default function NotesPage() {
       const refreshed = await getAllNotes();
       setNotes(refreshed);
       setActiveIdRaw(restored.id);
+      setEditTitle(restored.title);
+      setEditContent(restored.content);
+      setEditColor(restored.color);
+      setEditTables(restored.tables || []);
+
       try {
         window.sessionStorage.setItem("stickanote-active-id", restored.id);
       } catch {
         // ignore session storage errors
       }
+
       setCloudRecoveryStatus("done");
       setTimeout(() => setCloudRecoveryStatus("idle"), 5000);
     } catch (err) {
       console.error("[restore-brain-storming-note] Failed:", err);
       setCloudRecoveryStatus("error");
-      alert("Restore failed. Please try Recover, then History or Trash.");
+      alert(err instanceof Error ? err.message : "Restore failed. Please try Recover, then History or Trash.");
       setTimeout(() => setCloudRecoveryStatus("idle"), 5000);
     }
   }, [user]);
@@ -1023,8 +1074,8 @@ export default function NotesPage() {
           body: JSON.stringify({ action, text }),
         });
 
-        if (!res.ok) throw new Error("AI request failed");
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "AI request failed");
         const result = data.result || data.text || "";
 
         if (result) {
@@ -1032,8 +1083,8 @@ export default function NotesPage() {
           setEditContent(html);
           scheduleAutoSave();
         }
-      } catch {
-        alert("AI request failed. Please try again.");
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "AI request failed. Please try again.");
       } finally {
         setAiLoading(false);
       }
