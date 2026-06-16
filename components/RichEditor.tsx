@@ -460,9 +460,13 @@ export default function RichEditor({
             gap: 2,
             padding: "4px 8px",
             borderBottom: "1px solid rgba(0,0,0,0.1)",
-            background: "rgba(255,255,255,0.5)",
+            background: "rgba(255,255,255,0.92)",
+            backdropFilter: "blur(8px)",
             borderRadius: "8px 8px 0 0",
             alignItems: "center",
+            position: "sticky",
+            top: 0,
+            zIndex: 240,
           }}
         >
           {/* ─── Font Family Dropdown ─── */}
