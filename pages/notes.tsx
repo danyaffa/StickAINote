@@ -43,6 +43,8 @@ import { createEmptyTable } from "../components/NoteTable";
 
 const COLORS = ["#fef3c7", "#e0f2fe", "#fce7f3", "#dcfce7", "#f1f5f9", "#fde68a", "#e9d5ff", "#fed7aa"];
 const AUTO_SAVE_MS = 2000;
+const SAFETY_AUTO_SAVE_MS = 120000;
+const AI_SUGGESTION_DEBOUNCE_MS = 4500;
 const VERSION_SAVE_MS = 60000;
 
 /* ─── Auto-correct dictionary ─── */
@@ -245,6 +247,8 @@ export default function NotesPage() {
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [showAiMenu, setShowAiMenu] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState("");
+  const [aiSuggestionLoading, setAiSuggestionLoading] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [autoCorrectEnabled, setAutoCorrectEnabled] = useState(true);
@@ -280,6 +284,7 @@ export default function NotesPage() {
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const versionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveStatusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aiSuggestionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editorDivRef = useRef<HTMLDivElement | null>(null);
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const lastVersionContent = useRef("");
@@ -505,6 +510,57 @@ export default function NotesPage() {
     };
   }, [activeId]);
 
+  const saveActiveNoteNow = useCallback(async (reason: string = "manual") => {
+    const id = latestActiveId.current;
+    if (!id) return null;
+
+    if (autoSaveTimer.current) {
+      clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = null;
+    }
+
+    const title = latestEditTitle.current;
+    const tables = latestEditTables.current;
+    const color = latestEditColor.current;
+    const sanitized = sanitizeHtml(latestEditContent.current);
+
+    try {
+      setSaveStatus("saving");
+      const updated = await dbUpdateNote(id, { title, content: sanitized, tables, color });
+      if (!updated) {
+        setSaveStatus("idle");
+        return null;
+      }
+
+      setNotes((prev) =>
+        prev.map((n) =>
+          n.id === id
+            ? { ...n, title, content: sanitized, tables, color, updatedAt: Date.now() }
+            : n
+        )
+      );
+
+      setSaveStatus("saved");
+      if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
+      saveStatusTimer.current = setTimeout(() => setSaveStatus("idle"), 2000);
+
+      const u = latestUser.current;
+      if (u) {
+        pushNoteToCloud(u.uid, updated).catch((err) => {
+          console.error(`[cloud] Save before ${reason} failed to push:`, err);
+          setCloudSyncError("Saved locally, but cloud sync failed. Check your connection.");
+        });
+      }
+
+      return updated;
+    } catch (err) {
+      console.error(`[save-active-note-now] Failed during ${reason}:`, err);
+      setSaveStatus("idle");
+      setCloudSyncError("Save failed. Please try again before closing or deleting.");
+      return null;
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // --- AUTO-SAVE (uses refs for stable callback, prevents re-render cascade) ---
   const scheduleAutoSave = useCallback(() => {
     setSaveStatus("saving");
@@ -557,6 +613,26 @@ export default function NotesPage() {
       }
     }, AUTO_SAVE_MS);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!loaded) return;
+    const interval = window.setInterval(() => {
+      void saveActiveNoteNow("safety auto-save");
+    }, SAFETY_AUTO_SAVE_MS);
+
+    const saveBeforeLeaving = () => {
+      void saveActiveNoteNow("page close");
+    };
+
+    window.addEventListener("pagehide", saveBeforeLeaving);
+    window.addEventListener("beforeunload", saveBeforeLeaving);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("pagehide", saveBeforeLeaving);
+      window.removeEventListener("beforeunload", saveBeforeLeaving);
+    };
+  }, [loaded, saveActiveNoteNow]);
 
   // Schedule version save (uses refs for stable callback)
   const scheduleVersionSave = useCallback(() => {
@@ -639,14 +715,47 @@ export default function NotesPage() {
     sel.addRange(newRange);
   }, []);
 
+  const requestDynamicWritingSuggestion = useCallback(() => {
+    if (aiSuggestionTimer.current) clearTimeout(aiSuggestionTimer.current);
+
+    aiSuggestionTimer.current = setTimeout(async () => {
+      const text = stripHtml(latestEditContent.current).trim();
+      if (text.split(/\s+/).filter(Boolean).length < 12) {
+        setAiSuggestion("");
+        return;
+      }
+
+      try {
+        setAiSuggestionLoading(true);
+        const authHeaders = await getAuthHeaders();
+        const res = await fetch("/api/ai-note", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ action: "suggest", text }),
+        });
+
+        if (!res.ok) return;
+        const data = await res.json();
+        const suggestion = String(data.result || data.text || "").trim();
+        setAiSuggestion(suggestion);
+      } catch (err) {
+        console.error("[ai-suggestion] Failed:", err);
+      } finally {
+        setAiSuggestionLoading(false);
+      }
+    }, AI_SUGGESTION_DEBOUNCE_MS);
+  }, []);
+
+
   const handleContentChange = useCallback(
     (html: string) => {
       setEditContent(html);
       runAutoCorrect();
       scheduleAutoSave();
       scheduleVersionSave();
+      requestDynamicWritingSuggestion();
     },
-    [scheduleAutoSave, scheduleVersionSave, runAutoCorrect]
+    [scheduleAutoSave, scheduleVersionSave, runAutoCorrect, requestDynamicWritingSuggestion]
   );
 
   const handleTitleChange = useCallback(
@@ -721,7 +830,20 @@ export default function NotesPage() {
 
   const handleDelete = useCallback(
     async (id: string) => {
-      const note = latestNotes.current.find((n) => n.id === id);
+      setSaveStatus("saving");
+      let note = latestNotes.current.find((n) => n.id === id);
+
+      // SAVE BEFORE DELETE: if this is the open note, flush the latest editor text, title, tables and colour first.
+      if (latestActiveId.current === id) {
+        const saved = await saveActiveNoteNow("delete");
+        if (!saved) {
+          alert("The note was not deleted because the final save failed. Please try Save again first.");
+          setConfirmDeleteId(null);
+          return;
+        }
+        note = saved;
+      }
+
       if (note) await saveVersion(note);
       await softDeleteNote(id);
       setNotes((prev) => prev.filter((n) => n.id !== id));
@@ -729,13 +851,16 @@ export default function NotesPage() {
         closeNote();
       }
       setConfirmDeleteId(null);
-      // Sync soft-delete to cloud
+
       const u = latestUser.current;
       if (u && note) {
-        pushNoteToCloud(u.uid, { ...note, deleted: true, deletedAt: Date.now(), updatedAt: Date.now() }).catch((err) => console.error("[cloud] Failed to sync delete:", err));
+        pushNoteToCloud(u.uid, { ...note, deleted: true, deletedAt: Date.now(), updatedAt: Date.now() }).catch((err) => {
+          console.error("[cloud] Failed to sync delete:", err);
+          setCloudSyncError("Deleted locally, but cloud sync failed. Check your connection.");
+        });
       }
     },
-    [closeNote]
+    [closeNote, saveActiveNoteNow]
   );
 
   const handlePin = useCallback(
@@ -861,6 +986,14 @@ export default function NotesPage() {
     [aiLoading, scheduleAutoSave]
   );
 
+  const applyAiSuggestion = useCallback(() => {
+    if (!aiSuggestion.trim()) return;
+    setEditContent(aiSuggestion.replace(/\n/g, "<br>"));
+    setAiSuggestion("");
+    scheduleAutoSave();
+    scheduleVersionSave();
+  }, [aiSuggestion, scheduleAutoSave, scheduleVersionSave]);
+
   const handleShareToAI = useCallback(async (serviceKey: string) => {
     if (!activeNote) return;
     const text = stripHtml(editContent);
@@ -963,45 +1096,8 @@ export default function NotesPage() {
 
   // Manual save handler
   const handleManualSave = useCallback(async () => {
-    const id = latestActiveId.current;
-    if (!id) return;
-    // Cancel any pending auto-save to avoid race conditions
-    if (autoSaveTimer.current) {
-      clearTimeout(autoSaveTimer.current);
-      autoSaveTimer.current = null;
-    }
-    setSaveStatus("saving");
-    const title = latestEditTitle.current;
-    const tables = latestEditTables.current;
-    const color = latestEditColor.current;
-    try {
-      const sanitized = sanitizeHtml(latestEditContent.current);
-      const updated = await dbUpdateNote(id, { title, content: sanitized, tables, color });
-      if (!updated) {
-        setSaveStatus("idle");
-        return;
-      }
-      setNotes((prev) =>
-        prev.map((n) =>
-          n.id === id
-            ? { ...n, title, content: sanitized, tables, color, updatedAt: Date.now() }
-            : n
-        )
-      );
-      setSaveStatus("saved");
-      if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
-      saveStatusTimer.current = setTimeout(() => setSaveStatus("idle"), 2000);
-      // Push to cloud if logged in
-      if (latestUser.current) {
-        pushNoteToCloud(latestUser.current.uid, updated).catch((err) => {
-          console.error("[cloud] Manual save push failed:", err);
-        });
-      }
-    } catch (err) {
-      console.error("[manual-save] Failed to save note:", err);
-      setSaveStatus("idle");
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    await saveActiveNoteNow("manual save");
+  }, [saveActiveNoteNow]);
 
   const handleRestoreVersion = useCallback(
     async (version: NoteVersion) => {
@@ -2191,6 +2287,37 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
                   placeholder="Start writing your note..."
                 />
 
+                {(aiSuggestionLoading || aiSuggestion) && (
+                  <div
+                    style={{
+                      margin: "8px 12px 0",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(79,70,229,0.25)",
+                      background: "rgba(238,242,255,0.92)",
+                      color: "#1e293b",
+                      fontSize: 13,
+                      display: "flex",
+                      gap: 10,
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <strong>AI writing suggestion</strong>
+                      <div style={{ marginTop: 4, lineHeight: 1.5 }}>
+                        {aiSuggestionLoading && !aiSuggestion ? "Checking writing..." : aiSuggestion}
+                      </div>
+                    </div>
+                    {aiSuggestion && (
+                      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                        <button type="button" onClick={applyAiSuggestion} style={smallPrimaryBtn}>Apply</button>
+                        <button type="button" onClick={() => setAiSuggestion("")} style={smallSecondaryBtn}>Dismiss</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Tables */}
                 {editTables.length > 0 && (
                   <div style={{ padding: "0 12px 12px" }}>
@@ -2777,6 +2904,30 @@ const actionBtnDark: React.CSSProperties = {
   border: "1px solid #475569",
   background: "#0f172a",
   color: "#e2e8f0",
+  cursor: "pointer",
+  fontSize: 12,
+  whiteSpace: "nowrap",
+};
+
+
+const smallPrimaryBtn: React.CSSProperties = {
+  padding: "6px 10px",
+  borderRadius: 6,
+  border: "1px solid #4f46e5",
+  background: "#4f46e5",
+  color: "white",
+  cursor: "pointer",
+  fontSize: 12,
+  fontWeight: 600,
+  whiteSpace: "nowrap",
+};
+
+const smallSecondaryBtn: React.CSSProperties = {
+  padding: "6px 10px",
+  borderRadius: 6,
+  border: "1px solid #cbd5e1",
+  background: "white",
+  color: "#334155",
   cursor: "pointer",
   fontSize: 12,
   whiteSpace: "nowrap",
