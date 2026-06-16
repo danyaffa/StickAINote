@@ -129,6 +129,27 @@ function normaliseText(value: unknown): string {
     .trim();
 }
 
+function realContentLength(value: unknown): number {
+  const text = String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return text.length;
+}
+
+function recoveryScore(note: NotePayload): number {
+  const contentLength = realContentLength(note.content);
+  const title = normaliseText(note.title);
+  const titleScore = title.includes("brain") && title.includes("storm") ? 1000 : 0;
+
+  // Prefer the real old note with substantial content over a newer accidental
+  // empty/short overwrite created after a hard refresh.
+  return contentLength * 100 + titleScore;
+}
+
 function isBrainStormingCandidate(data: FirebaseFirestore.DocumentData): boolean {
   const title = normaliseText(data.title);
   const content = normaliseText(data.content);
@@ -304,7 +325,12 @@ export default async function handler(
 
       const candidate = toPayload(doc.id, data);
 
-      if (!best || candidate.updatedAt > best.updatedAt) {
+      if (
+        !best ||
+        recoveryScore(candidate) > recoveryScore(best) ||
+        (recoveryScore(candidate) === recoveryScore(best) &&
+          candidate.updatedAt > best.updatedAt)
+      ) {
         best = candidate;
       }
     }
