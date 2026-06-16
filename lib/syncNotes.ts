@@ -6,6 +6,9 @@
  * Firestore is the source of truth — notes are always recoverable
  * from the cloud even if IndexedDB is cleared (e.g. browser restart,
  * cache clear, new device).
+ *
+ * Safety note: keep this file as a real module. TrashView and the notes page
+ * import its exported cloud sync helpers during production builds.
  */
 
 import {
