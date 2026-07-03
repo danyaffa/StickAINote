@@ -350,6 +350,10 @@ export default function NotesPage() {
   // cache clears, or switching to a new device.
   const [cloudRecoveryStatus, setCloudRecoveryStatus] = useState<"idle" | "recovering" | "done" | "error">("idle");
   const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
+  // Bumping syncTick re-runs the cloud sync effect (auto-retry / back-online)
+  const [syncTick, setSyncTick] = useState(0);
+  const cloudSyncErrorRef = useRef<string | null>(null);
+  cloudSyncErrorRef.current = cloudSyncError;
 
   // In-app toast (replaces browser alert for AI / sync / restore messages)
   const [toast, setToast] = useState<string | null>(null);
@@ -600,6 +604,25 @@ export default function NotesPage() {
     })();
 
     return () => { cancelled = true; };
+  }, [loaded, user, syncTick]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // --- AUTO RE-SYNC ---
+  // Retry cloud sync every 60s while it is failing, and immediately when the
+  // browser comes back online, so the user never has to sync manually.
+  useEffect(() => {
+    if (!loaded || !user) return;
+    const onOnline = () => setSyncTick((t) => t + 1);
+    window.addEventListener("online", onOnline);
+    const interval = window.setInterval(() => {
+      if (cloudSyncErrorRef.current) {
+        console.info("[cloud-sync] Auto-retrying failed sync...");
+        setSyncTick((t) => t + 1);
+      }
+    }, 60000);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.clearInterval(interval);
+    };
   }, [loaded, user]);
 
   // --- SYNC EDIT STATE FROM ACTIVE NOTE ---
@@ -1449,8 +1472,10 @@ blockquote{border-left:3px solid #ccc;margin:8pt 0;padding:4pt 12pt;color:#555;}
             color: "white",
             padding: "8px 16px",
             display: "flex",
+            flexWrap: "wrap",
             alignItems: "center",
             gap: 10,
+            rowGap: 6,
             position: "sticky",
             top: 0,
             zIndex: 300,
