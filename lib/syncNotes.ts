@@ -137,17 +137,31 @@ async function getCloudNotes(userId: string): Promise<NoteRecord[]> {
     });
   };
 
+  // Primary query — must succeed. Matches every note written by pushNoteToCloud
+  // (all docs contain a userId field).
   await addSnapshot(query(userNotes, where("userId", "==", userId)));
 
+  // Legacy doc-ID range queries — BEST-EFFORT ONLY. Firestore security rules
+  // reject documentId() range queries with permission-denied because the rules
+  // engine cannot prove every doc in the ID range belongs to this user.
+  // A failure here must never abort the sync: these only exist to catch very
+  // old docs missing the userId field.
   for (const separator of ["$", "_"]) {
     const prefix = `${userId}${separator}`;
-    await addSnapshot(
-      query(
-        userNotes,
-        where(documentId(), ">=", prefix),
-        where(documentId(), "<=", `${prefix}\uf8ff`)
-      )
-    );
+    try {
+      await addSnapshot(
+        query(
+          userNotes,
+          where(documentId(), ">=", prefix),
+          where(documentId(), "<=", `${prefix}\uf8ff`)
+        )
+      );
+    } catch (err) {
+      console.warn(
+        `[getCloudNotes] Legacy doc-ID query ("${separator}") skipped (likely blocked by Firestore rules):`,
+        err instanceof Error ? err.message : err
+      );
+    }
   }
 
   return Array.from(notesById.values());
