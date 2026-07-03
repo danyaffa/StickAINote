@@ -54,7 +54,18 @@ class MyDocument extends Document {
               __html: `
                 if ('serviceWorker' in navigator) {
                   window.addEventListener('load', function() {
-                    navigator.serviceWorker.register('/sw.js').catch(function() {});
+                    navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                      // Check for a new service worker on every page load
+                      if (reg && reg.update) { reg.update().catch(function() {}); }
+                    }).catch(function() {});
+                    // When a new service worker takes control, reload ONCE
+                    // so stale PWAs pick up the fresh app bundle
+                    var reloaded = false;
+                    navigator.serviceWorker.addEventListener('controllerchange', function() {
+                      if (reloaded) return;
+                      reloaded = true;
+                      window.location.reload();
+                    });
                   });
                 }
               `,
